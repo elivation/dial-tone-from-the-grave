@@ -24,7 +24,7 @@ You dial a haunted rotary phone. A ghost operator picks up, listens to what you 
 - Tagline idea: "In 1998, the line went dead. Tonight, someone picked up."
 
 ## Rules we must stick to
-- No real brand names or logos: never say "Yellow Pages", Telkom, Nokia etc. in the UI, repo or video. Use our own look.
+- No real brand names or logos of any directory, telecom or phone company anywhere in the UI, repo, seed data or video. Use our own names and look.
 - No unlicensed music. Sound effects must be generated or royalty free.
 - Business listings are seeded demo data, not scraped. No real people in the white pages, only invented names.
 - No AWS credits or AWS funded hosting (sponsor support disqualifies).
