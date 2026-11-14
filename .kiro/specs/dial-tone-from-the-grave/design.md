@@ -393,11 +393,14 @@ The dial is an SVG component (`components/RotaryDial/RotaryDial.tsx`). It is pur
 
 ### Geometry
 
-- Outer circle: the dial plate.
-- Inner ring: the number ring (0-9 printed around it).
-- 10 finger holes, evenly spaced at 36 degrees each, numbered anticlockwise starting from the bottom right (1 is at ~315 degrees, 0 is at ~351 degrees, matching a real dial).
-- Finger stop: a small arc at ~345 degrees (bottom right).
-- The hole for digit `d` sits at angle `holeAngle(d)`. The stop is at `STOP_ANGLE`.
+Matches a real desk phone dial. Angles are degrees clockwise from 12 o'clock.
+
+- Fixed base plate with the numbers and letters (2 ABC, 3 DEF and so on) printed on the outer ring, so they stay visible while the wheel turns.
+- Clear finger wheel with 10 holes, 30 degrees apart, showing the pale plate underneath.
+- Metal finger stop at `STOP_ANGLE = 130` (about 4 o'clock, bottom right).
+- The 1 hole is 60 degrees anticlockwise of the stop, then each digit is one hole step further: `travelDegrees(d) = 60 + (PULSES[d] - 1) * 30`. So 1 travels 60 degrees and 0 travels 330 degrees, with a blank gap between the 0 hole and the stop.
+- `HOLE_ANGLES[d] = (STOP_ANGLE - travelDegrees(d)) mod 360`.
+- Centre card with the number handwritten in pen.
 
 ### Drag interaction
 
@@ -424,43 +427,29 @@ With `prefers-reduced-motion`: skip both animations, fire `onDigit` immediately,
 
 ### Angle-to-digit mapping (property-tested)
 
-```typescript
-// Hole angles (degrees from 12 o'clock, clockwise)
-const HOLE_ANGLES: Record<string, number> = {
-  '1': 315,
-  '2': 279,
-  '3': 243,
-  '4': 207,
-  '5': 171,
-  '6': 135,
-  '7': 99,
-  '8': 63,
-  '9': 27,
-  '0': 351,
-};
-const STOP_ANGLE = 345; // degrees, bottom right
-const PULSES: Record<string, number> = {
-  '1': 1,
-  '2': 2,
-  '3': 3,
-  '4': 4,
-  '5': 5,
-  '6': 6,
-  '7': 7,
-  '8': 8,
-  '9': 9,
-  '0': 10,
-};
-```
+All values live in `lib/dial.ts` and are derived from `STOP_ANGLE`, `HOLE_SPACING` (30) and `FIRST_HOLE_TRAVEL` (60), so the layout cannot drift out of step with the pulse counts.
+
+| Digit | Hole angle | Travel to stop | Pulses |
+| ----- | ---------- | -------------- | ------ |
+| 1     | 70         | 60             | 1      |
+| 2     | 40         | 90             | 2      |
+| 3     | 10         | 120            | 3      |
+| 4     | 340        | 150            | 4      |
+| 5     | 310        | 180            | 5      |
+| 6     | 280        | 210            | 6      |
+| 7     | 250        | 240            | 7      |
+| 8     | 220        | 270            | 8      |
+| 9     | 190        | 300            | 9      |
+| 0     | 160        | 330            | 10     |
+
+Drag tracking uses `accumulateRotation`: each pointer move adds the shortest turn between the previous and current pointer angle, clamped between 0 and the digit's travel. This lets the 0 hole go most of the way round without jumping.
 
 Property tests (fast-check):
 
-- For every digit d in "0"-"9": `pulseCount(d) * 100 === returnDuration(d)`.
-- For every digit d: `PULSES[d]` equals the numeric value of d, except "0" which equals 10.
-- For every digit d: `holeAngle(d)` is a unique integer in [0, 360).
-- For every drag distance within tolerance: `shouldRegister(d, angle)` is true iff `angle >= STOP_ANGLE - 3`.
-
----
+- P1: `returnDuration(d) === PULSES[d] * 100` for every digit.
+- P2: `PULSES[d]` equals the face value, 10 for "0".
+- P3: hole angles are unique integers in [0, 360); travel grows by exactly one hole step per pulse and stays under a full turn.
+- P4: `shouldRegister(d, short)` is true when released 3 degrees or less short of the stop, false otherwise; `accumulateRotation` never leaves the range 0 to `travelDegrees(d)` for any pointer path.
 
 ## Audio Design
 

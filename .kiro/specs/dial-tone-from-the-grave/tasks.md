@@ -116,7 +116,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: manual verification that hooks fire in the IDE
 
-- [ ] 6. Implement dial geometry and angle/pulse maths (property tests first)
+- [x] 6. Implement dial geometry and angle/pulse maths (property tests first)
 
   Create `lib/dial.ts` exporting `HOLE_ANGLES`, `STOP_ANGLE` (345), `PULSES`, `returnDuration(digit)`, `shouldRegister(digit, angle)`, `digitFromHoleIndex(index)`. Write property-based tests in `lib/dial.test.ts` BEFORE implementing: P1 (`returnDuration(d) === PULSES[d] * 100`), P2 (pulse count equals face value or 10 for "0"), P3 (all HOLE_ANGLES unique in [0, 360)), P4 (shouldRegister true within 3 degrees of stop, false outside). Implement until all pass.
 
@@ -126,7 +126,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/dial.test.ts` (4 fast-check property tests)
 
-- [ ] 7. Build the RotaryDial SVG component (static render)
+- [x] 7. Build the RotaryDial SVG component (static render)
 
   Create `components/RotaryDial/RotaryDial.tsx` as a pure SVG component. Render: outer dial plate circle, inner number ring, 10 finger holes at angles from `HOLE_ANGLES`, digits on the number ring, metal finger stop arc at `STOP_ANGLE`. Props: `disabled: boolean`, `onDigit: (digit: string) => void`, `rotation: number`. Add `aria-label="Rotary dial"` to the SVG root and an `aria-live="polite"` region for digit announcements.
 
@@ -136,7 +136,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/RotaryDial/RotaryDial.test.tsx` (renders without error; 10 holes present; aria-label present)
 
-- [ ] 8. Add mouse and touch drag interaction to RotaryDial
+- [x] 8. Add mouse and touch drag interaction to RotaryDial
 
   Add pointer event handlers to each finger hole. Track drag angle clockwise only. On pointerup: call `shouldRegister`. If true, call `onDigit` and start return animation (10 pulses/second, `setInterval` at 100 ms). If false, spring back without calling `onDigit`. Fire one click sound stub per pulse. Use `touch-action: none` on draggable elements.
 
@@ -475,3 +475,4 @@ The rotary dial is the hero feature and comes first within Phase 2.
 - Do not start any task from Phase 5 onwards before the seed data (Tasks 17 and 18) is loaded into the database, as the operator route depends on real search results.
 - The `.env.example` file must be updated whenever a new env var is added, before closing the task that introduced it.
 - Submission target: 2 December 2026. Judging runs until 29 January 2027.
+- Tasks 6 to 8 were completed with Claude Code on 14 Nov 2026 while waiting for the Kiroween Kiro credits to arrive. The work follows this spec and the steering files. Two changes came out of it: the dial geometry was corrected to match a real desk phone (finger stop at about 4 o'clock, not near 12), and design.md was updated to match. RotaryDial owns its own rotation state, so the `rotation` prop from task 7 was dropped. A local preview page lives at /dev/dial and is not served in production.
