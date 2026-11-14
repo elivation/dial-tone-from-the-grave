@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Check RLS on migration save",
+      "trigger": "PostFileSave",
+      "matcher": "supabase/migrations/",
+      "action": {
+        "type": "command",
+        "command": "node -e \"\nconst fs = require('fs');\nconst file = process.env.KIRO_FILE_PATH || '';\nif (!file) process.exit(0);\nconst sql = fs.readFileSync(file, 'utf8');\nconst tables = (sql.match(/create table (\\w+)/gi) || []).map(m => m.replace(/create table /i,''));\nconst missing = tables.filter(t => !sql.toLowerCase().includes('enable row level security'));\nif (missing.length) { console.error('RLS not enabled for tables: ' + missing.join(', ')); process.exit(2); }\nconsole.log('RLS check passed for: ' + tables.join(', '));\n\""
+      }
+    }
+  ]
+}

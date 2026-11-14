@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Lint and typecheck on save",
+      "trigger": "PostFileSave",
+      "matcher": "\\.(ts|tsx)$",
+      "action": {
+        "type": "command",
+        "command": "cd \"$(git rev-parse --show-toplevel)\" && pnpm eslint \"$KIRO_FILE_PATH\" --max-warnings 0 && pnpm tsc --noEmit"
+      }
+    }
+  ]
+}

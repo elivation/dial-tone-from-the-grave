@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Run related unit tests on save",
+      "trigger": "PostFileSave",
+      "matcher": "(lib/|components/RotaryDial)",
+      "action": {
+        "type": "command",
+        "command": "cd \"$(git rev-parse --show-toplevel)\" && pnpm vitest run --reporter=verbose 2>&1 | tail -20"
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Check operators do not use emergency numbers",
+      "trigger": "PostFileSave",
+      "matcher": "lib/operators\\.ts$",
+      "action": {
+        "type": "command",
+        "command": "node -e \"\nconst fs = require('fs');\nconst file = process.env.KIRO_FILE_PATH || 'lib/operators.ts';\nconst src = fs.readFileSync(file, 'utf8');\nconst EMERGENCY = ['10111','10177','107','112','911','999'];\nconst numberMatches = src.match(/number:\\s*['\\\"]([0-9]+)['\\\"]/g) || [];\nconst numbers = numberMatches.map(m => m.match(/[0-9]+/)[0]);\nconst bad = numbers.filter(n => EMERGENCY.includes(n));\nif (bad.length) { console.error('SAFETY: operator uses emergency number: ' + bad.join(', ')); process.exit(2); }\nconsole.log('Operator safety check passed. Numbers: ' + numbers.join(', '));\n\""
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Update write-up",
+      "trigger": "UserPromptSubmit",
+      "action": {
+        "type": "agent",
+        "prompt": "Refresh KIRO_USAGE.md to accurately reflect what has been built so far in this project. Read all spec files in .kiro/specs/, all steering files in .kiro/steering/, all hook files in .kiro/hooks/, and the key source files (lib/, components/, app/api/). Document: how specs were used (requirements, design, tasks with concrete examples), how steering files guide the work, how each agent hook works with an example of what it catches, how property-based testing is used (list all implemented fast-check properties with a code snippet), and how MCP is used if connected. Write in plain, direct language following writing-style.md. No dashes, no brand names, South African English."
+      }
+    }
+  ]
+}
