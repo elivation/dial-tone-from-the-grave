@@ -58,13 +58,13 @@ Request body (validated by Zod):
 
 ```typescript
 type OperatorRequest = {
-  number: string;       // e.g. "1023"
-  message: string;      // user input, max MAX_INPUT_CHARS chars
+  number: string; // e.g. "1023"
+  message: string; // user input, max MAX_INPUT_CHARS chars
   history: Array<{
-    role: "user" | "assistant";
+    role: 'user' | 'assistant';
     content: string;
-  }>;                   // previous turns in this call, max MAX_TURNS_PER_CALL entries
-  turnIndex: number;    // 0-based, used to enforce turn cap server-side
+  }>; // previous turns in this call, max MAX_TURNS_PER_CALL entries
+  turnIndex: number; // 0-based, used to enforce turn cap server-side
 };
 ```
 
@@ -89,13 +89,13 @@ SSE event types streamed back:
 
 HTTP errors (before stream opens):
 
-| Status | code | Meaning |
-|--------|------|---------|
-| 400 | invalid_body | Zod validation failed |
-| 400 | input_too_long | message exceeds MAX_INPUT_CHARS |
-| 400 | invalid_number | number not in operators map |
-| 429 | rate_limited | IP or global cap hit |
-| 500 | operator_down | Claude call failed |
+| Status | code           | Meaning                         |
+| ------ | -------------- | ------------------------------- |
+| 400    | invalid_body   | Zod validation failed           |
+| 400    | input_too_long | message exceeds MAX_INPUT_CHARS |
+| 400    | invalid_number | number not in operators map     |
+| 429    | rate_limited   | IP or global cap hit            |
+| 500    | operator_down  | Claude call failed              |
 
 ### POST /api/search
 
@@ -105,9 +105,9 @@ Request body:
 
 ```typescript
 type SearchRequest = {
-  type: "businesses" | "residents";
-  query: string;        // max 300 chars
-  spooky?: boolean;     // include spirit listings
+  type: 'businesses' | 'residents';
+  query: string; // max 300 chars
+  spooky?: boolean; // include spirit listings
   spiritOnly?: boolean; // 1313 path: return only spirit listings
 };
 ```
@@ -117,7 +117,7 @@ Response:
 ```typescript
 type SearchResponse = {
   results: BusinessResult[] | ResidentResult[];
-  type: "businesses" | "residents";
+  type: 'businesses' | 'residents';
 };
 
 type BusinessResult = {
@@ -148,11 +148,11 @@ type ResidentResult = {
 
 HTTP errors:
 
-| Status | code | Meaning |
-|--------|------|---------|
-| 400 | invalid_body | Zod validation failed |
-| 429 | rate_limited | Search IP limit hit |
-| 500 | search_failed | Supabase RPC error |
+| Status | code          | Meaning               |
+| ------ | ------------- | --------------------- |
+| 400    | invalid_body  | Zod validation failed |
+| 429    | rate_limited  | Search IP limit hit   |
+| 500    | search_failed | Supabase RPC error    |
 
 ### GET /api/health
 
@@ -196,7 +196,7 @@ alter table businesses enable row level security;
 create policy "public read non-spirit"
   on businesses for select
   using (true);
--- Write is service role only (no insert/update/delete policy for anon or authenticated).
+-- Write is secret key only (no insert/update/delete policy for anon or authenticated).
 ```
 
 ### residents table
@@ -243,7 +243,7 @@ create table rate_limits (
 );
 
 alter table rate_limits enable row level security;
--- No public access. All reads and writes go through service role on the server.
+-- No public access. All reads and writes go through the secret key on the server.
 ```
 
 The `id` column doubles as an IP-window key (format: `ip:{hash}:{window_epoch_hour}`) and a global daily key (`global:{date}`). This keeps the table simple with one row per IP per hour and one row per day.
@@ -304,8 +304,8 @@ type HandsetProps = {
 type PhoneBookPageProps = {
   businesses: BusinessResult[];
   residents: ResidentResult[];
-  activeSection: "business" | "white";
-  onSectionChange: (s: "business" | "white") => void;
+  activeSection: 'business' | 'white';
+  onSectionChange: (s: 'business' | 'white') => void;
   spiritOnly: boolean;
 };
 ```
@@ -357,30 +357,30 @@ stateDiagram-v2
 
 ```typescript
 type CallState =
-  | { status: "idle" }
-  | { status: "off-hook" }
-  | { status: "dialling"; digits: string }
-  | { status: "ringing"; operatorNumber: string; ringsRemaining: number }
-  | { status: "connected"; operatorNumber: string; turnIndex: number }
-  | { status: "wrong-number" }
-  | { status: "emergency-notice" }
-  | { status: "busy" }
-  | { status: "hung-up" };
+  | { status: 'idle' }
+  | { status: 'off-hook' }
+  | { status: 'dialling'; digits: string }
+  | { status: 'ringing'; operatorNumber: string; ringsRemaining: number }
+  | { status: 'connected'; operatorNumber: string; turnIndex: number }
+  | { status: 'wrong-number' }
+  | { status: 'emergency-notice' }
+  | { status: 'busy' }
+  | { status: 'hung-up' };
 
 type CallEvent =
-  | { type: "PICK_UP" }
-  | { type: "HANG_UP" }
-  | { type: "DIGIT_DIALLED"; digit: string }
-  | { type: "CALL_PLACED" }
-  | { type: "EMERGENCY_NUMBER" }
-  | { type: "NUMBER_MATCHED"; operatorNumber: string; ringCount: number }
-  | { type: "NO_MATCH" }
-  | { type: "RING_TICK" }
-  | { type: "TURN_SENT" }
-  | { type: "TURN_CAP_REACHED" }
-  | { type: "RATE_LIMITED" }
-  | { type: "SEQUENCE_COMPLETE" }
-  | { type: "DISMISSED" };
+  | { type: 'PICK_UP' }
+  | { type: 'HANG_UP' }
+  | { type: 'DIGIT_DIALLED'; digit: string }
+  | { type: 'CALL_PLACED' }
+  | { type: 'EMERGENCY_NUMBER' }
+  | { type: 'NUMBER_MATCHED'; operatorNumber: string; ringCount: number }
+  | { type: 'NO_MATCH' }
+  | { type: 'RING_TICK' }
+  | { type: 'TURN_SENT' }
+  | { type: 'TURN_CAP_REACHED' }
+  | { type: 'RATE_LIMITED' }
+  | { type: 'SEQUENCE_COMPLETE' }
+  | { type: 'DISMISSED' };
 ```
 
 The 2-second dial timer fires `CALL_PLACED`. The server 429 response fires `RATE_LIMITED`. The final turn auto-hang fires `TURN_CAP_REACHED`. The user dismissing the emergency notice fires `DISMISSED`.
@@ -427,13 +427,29 @@ With `prefers-reduced-motion`: skip both animations, fire `onDigit` immediately,
 ```typescript
 // Hole angles (degrees from 12 o'clock, clockwise)
 const HOLE_ANGLES: Record<string, number> = {
-  "1": 315, "2": 279, "3": 243, "4": 207, "5": 171,
-  "6": 135, "7": 99,  "8": 63,  "9": 27,  "0": 351,
+  '1': 315,
+  '2': 279,
+  '3': 243,
+  '4': 207,
+  '5': 171,
+  '6': 135,
+  '7': 99,
+  '8': 63,
+  '9': 27,
+  '0': 351,
 };
 const STOP_ANGLE = 345; // degrees, bottom right
 const PULSES: Record<string, number> = {
-  "1": 1, "2": 2, "3": 3, "4": 4, "5": 5,
-  "6": 6, "7": 7, "8": 8, "9": 9, "0": 10,
+  '1': 1,
+  '2': 2,
+  '3': 3,
+  '4': 4,
+  '5': 5,
+  '6': 6,
+  '7': 7,
+  '8': 8,
+  '9': 9,
+  '0': 10,
 };
 ```
 
@@ -505,8 +521,8 @@ The `AudioContext` is created in `suspended` state and resumed on the first `poi
 ```typescript
 // lib/operators.ts
 export type VoiceConfig = {
-  pitch: number;   // 0.5 to 2.0
-  rate: number;    // 0.5 to 2.0
+  pitch: number; // 0.5 to 2.0
+  rate: number; // 0.5 to 2.0
   voiceHint: string; // partial match against SpeechSynthesisVoice.name
 };
 
@@ -516,7 +532,7 @@ export type OperatorDefinition = {
   systemPrompt: string;
   voiceConfig: VoiceConfig;
   ringCount: 2 | 3;
-  tools: ("search_businesses" | "search_residents")[];
+  tools: ('search_businesses' | 'search_residents')[];
   greeting: string; // sent as the first assistant message, no Claude call needed
 };
 ```
@@ -726,13 +742,25 @@ Trigram similarity requires `pg_trgm` extension (enabled in migration). Fuzzy su
 
 ```typescript
 export const SPOOKY_KEYWORDS = [
-  "ghost", "haunt", "haunted", "seance", "seance", "spirit", "dead",
-  "grave", "coffin", "witch", "vampire", "zombie", "cursed", "midnight",
+  'ghost',
+  'haunt',
+  'haunted',
+  'seance',
+  'seance',
+  'spirit',
+  'dead',
+  'grave',
+  'coffin',
+  'witch',
+  'vampire',
+  'zombie',
+  'cursed',
+  'midnight',
 ];
 
 export function isSpookyQuery(query: string): boolean {
   const lower = query.toLowerCase();
-  return SPOOKY_KEYWORDS.some(kw => lower.includes(kw));
+  return SPOOKY_KEYWORDS.some((kw) => lower.includes(kw));
 }
 ```
 
@@ -740,7 +768,7 @@ The server checks this before calling the RPC and passes `include_spirit: true` 
 
 ### Embedding at query time
 
-The search route calls the Supabase Edge Function to get a 384-dimension vector for the user's query string, then passes it to the RPC. The Edge Function is called with the Supabase service role key, which only exists on the server.
+The search route calls the Supabase Edge Function to get a 384-dimension vector for the user's query string, then passes it to the RPC. The Edge Function is called with the Supabase secret key (`SUPABASE_SECRET_KEY`), which only exists on the server.
 
 ---
 
@@ -791,34 +819,33 @@ $$;
 
 ### Environment variables
 
-| Variable | Default | Meaning |
-|---|---|---|
-| OPERATOR_LIMIT_PER_IP_PER_HOUR | 20 | Max operator calls per IP per hour |
-| SEARCH_LIMIT_PER_IP_PER_HOUR | 60 | Max search calls per IP per hour |
-| CLAUDE_DAILY_GLOBAL_CAP | 500 | Max Claude calls globally per day |
-| MAX_TURNS_PER_CALL | 6 | Max user turns before auto hang-up |
-| MAX_INPUT_CHARS | 300 | Max characters per user message |
-| ANTHROPIC_MODEL | claude-haiku-5-5 | Claude model name used for operator calls |
+| Variable                       | Default          | Meaning                                   |
+| ------------------------------ | ---------------- | ----------------------------------------- |
+| OPERATOR_LIMIT_PER_IP_PER_HOUR | 20               | Max operator calls per IP per hour        |
+| SEARCH_LIMIT_PER_IP_PER_HOUR   | 60               | Max search calls per IP per hour          |
+| CLAUDE_DAILY_GLOBAL_CAP        | 500              | Max Claude calls globally per day         |
+| MAX_TURNS_PER_CALL             | 6                | Max user turns before auto hang-up        |
+| MAX_INPUT_CHARS                | 300              | Max characters per user message           |
+| ANTHROPIC_MODEL                | claude-haiku-5-5 | Claude model name used for operator calls |
 
 ---
 
 ## Error Handling
 
-| Failure | Detection | User experience |
-|---|---|---|
-| Claude API down / timeout | fetch throws or returns 5xx | SSE `{ type: "error", code: "operator_down" }`. UI shows "The operator is unreachable. Please try again later." Hang-up button remains active. |
-| Rate limit hit (IP) | count > limit before Claude call | HTTP 429, state transitions to `busy`, busy tone plays, in-character "all lines are busy" message. |
-| Rate limit hit (global cap) | claude_count > cap | Same as IP limit. |
-| Turn cap reached | turnIndex >= MAX_TURNS_PER_CALL | Operator says goodbye in character (last Claude call with goodbye instruction). State auto-hangs. |
-| Input too long | message.length > MAX_INPUT_CHARS | SSE `{ type: "error", code: "input_too_long" }`. Operator says "I couldn't quite catch that" in character. No Claude call made. |
-| SpeechRecognition unavailable | feature-detect on mount | Typed input field shown immediately. No error shown. |
-| SpeechRecognition permission denied | `onerror` event | Typed input field shown. Small in-character note: "Speak up, dear, the line is faint" with the text box. |
-| speechSynthesis unavailable | feature-detect on mount | Text still displayed, voice reading silently skipped. |
-| Offline | `navigator.onLine` + `online`/`offline` events | Overlay: "The exchange has gone dark. Check your connection." Dial disabled. Clears when online again. |
-| No search results | results.length === 0 from RPC | Operator says in character: no match found, suggests broader search. Phone book shows "No listings found in this exchange." |
-| Supabase RPC error | RPC returns error | `/api/search` returns 500. Operator falls back to "the directory is unavailable." |
-| Emergency number dialled | digits match EMERGENCY_NUMBERS set exactly (checked after 2 s pause) | State transitions to `emergency-notice`. A plain, calm, out-of-character screen and voice message is shown: "This is a game and cannot call anyone. If you have an emergency, please use a real phone and dial 112 or 10111." No static, no spooky effects. User dismisses or hangs up, then returns to `idle`. |
-
+| Failure                             | Detection                                                            | User experience                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Claude API down / timeout           | fetch throws or returns 5xx                                          | SSE `{ type: "error", code: "operator_down" }`. UI shows "The operator is unreachable. Please try again later." Hang-up button remains active.                                                                                                                                                                  |
+| Rate limit hit (IP)                 | count > limit before Claude call                                     | HTTP 429, state transitions to `busy`, busy tone plays, in-character "all lines are busy" message.                                                                                                                                                                                                              |
+| Rate limit hit (global cap)         | claude_count > cap                                                   | Same as IP limit.                                                                                                                                                                                                                                                                                               |
+| Turn cap reached                    | turnIndex >= MAX_TURNS_PER_CALL                                      | Operator says goodbye in character (last Claude call with goodbye instruction). State auto-hangs.                                                                                                                                                                                                               |
+| Input too long                      | message.length > MAX_INPUT_CHARS                                     | SSE `{ type: "error", code: "input_too_long" }`. Operator says "I couldn't quite catch that" in character. No Claude call made.                                                                                                                                                                                 |
+| SpeechRecognition unavailable       | feature-detect on mount                                              | Typed input field shown immediately. No error shown.                                                                                                                                                                                                                                                            |
+| SpeechRecognition permission denied | `onerror` event                                                      | Typed input field shown. Small in-character note: "Speak up, dear, the line is faint" with the text box.                                                                                                                                                                                                        |
+| speechSynthesis unavailable         | feature-detect on mount                                              | Text still displayed, voice reading silently skipped.                                                                                                                                                                                                                                                           |
+| Offline                             | `navigator.onLine` + `online`/`offline` events                       | Overlay: "The exchange has gone dark. Check your connection." Dial disabled. Clears when online again.                                                                                                                                                                                                          |
+| No search results                   | results.length === 0 from RPC                                        | Operator says in character: no match found, suggests broader search. Phone book shows "No listings found in this exchange."                                                                                                                                                                                     |
+| Supabase RPC error                  | RPC returns error                                                    | `/api/search` returns 500. Operator falls back to "the directory is unavailable."                                                                                                                                                                                                                               |
+| Emergency number dialled            | digits match EMERGENCY_NUMBERS set exactly (checked after 2 s pause) | State transitions to `emergency-notice`. A plain, calm, out-of-character screen and voice message is shown: "This is a game and cannot call anyone. If you have an emergency, please use a real phone and dial 112 or 10111." No static, no spooky effects. User dismisses or hangs up, then returns to `idle`. |
 
 ---
 
@@ -848,18 +875,18 @@ Every API route parses the request body through a Zod schema before any other wo
 
 ### RLS summary
 
-| Table | Public read | Public write | Service role |
-|---|---|---|---|
-| businesses | Yes (all rows) | No | Yes |
-| residents | Yes (all rows) | No | Yes |
-| rate_limits | No | No | Yes |
+| Table       | Public read    | Public write | Secret key |
+| ----------- | -------------- | ------------ | ---------- |
+| businesses  | Yes (all rows) | No           | Yes        |
+| residents   | Yes (all rows) | No           | Yes        |
+| rate_limits | No             | No           | Yes        |
 
 Spirit listings are readable by the public (the RPC filters them out in the default case; the `include_spirit` flag is set only by server-side code, not passed from the browser directly).
 
 ### Secret handling
 
-- `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`: used only in server routes. Never referenced in any client component.
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`: safe to expose; RLS enforces access.
+- `ANTHROPIC_API_KEY`, `SUPABASE_SECRET_KEY`: used only in server routes. Never referenced in any client component.
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: safe to expose; RLS enforces access.
 - `.env.example` committed with every variable name and a comment.
 - `.env`, `.env.local`, `.env*.local` in `.gitignore`.
 - `.kiro/` explicitly NOT in `.gitignore`.
@@ -870,56 +897,56 @@ Spirit listings are readable by the public (the RPC filters them out in the defa
 
 ### Unit and component tests (Vitest + React Testing Library)
 
-| Test | Requirement |
-|---|---|
-| RotaryDial emits correct digit on full drag to stop | Req 1 AC 1 |
-| RotaryDial does not emit on early release | Req 1 AC 2 |
-| RotaryDial keyboard input animates and emits | Req 1 AC 5 |
-| RotaryDial announces digit in ARIA live region | Req 1 AC 7 |
-| callReducer: all state transitions | Req 2 AC 1-10 |
-| callReducer: emergency numbers route to emergency-notice, not wrong-number | Req 2 AC 8 |
-| callReducer: digit ignored in connected state | Req 2 AC 9 |
-| callReducer: busy state on RATE_LIMITED event | Req 2 AC 10 |
-| OperatorPanel: shows typed input when speech unavailable | Req 3 AC 10 |
-| /api/operator: Zod rejects invalid body (400) | Req 10 AC 7 |
-| /api/operator: returns 429 when rate limit exceeded | Req 10 AC 4 |
-| /api/operator: Claude key absent from response body | Req 10 AC 5 |
-| /api/search: spooky flag includes spirit listings | Req 7 AC 2 |
-| /api/search: spirit_only flag returns only spirit listings | Req 7 AC 3 |
-| isSpookyQuery: returns true for each keyword in list | Req 7 AC 2 |
-| PhoneBookPage: business section shows boxed adverts | Req 5 AC 2 |
-| PhoneBookPage: torn-paper card opens on listing click | Req 5 AC 6 |
-| PhoneBookPage: white pages shows SURNAME Initial format | Req 6 AC 1 |
-| AudioEngine: starts muted, unmutes on interaction | Req 8 AC 7 |
+| Test                                                                       | Requirement   |
+| -------------------------------------------------------------------------- | ------------- |
+| RotaryDial emits correct digit on full drag to stop                        | Req 1 AC 1    |
+| RotaryDial does not emit on early release                                  | Req 1 AC 2    |
+| RotaryDial keyboard input animates and emits                               | Req 1 AC 5    |
+| RotaryDial announces digit in ARIA live region                             | Req 1 AC 7    |
+| callReducer: all state transitions                                         | Req 2 AC 1-10 |
+| callReducer: emergency numbers route to emergency-notice, not wrong-number | Req 2 AC 8    |
+| callReducer: digit ignored in connected state                              | Req 2 AC 9    |
+| callReducer: busy state on RATE_LIMITED event                              | Req 2 AC 10   |
+| OperatorPanel: shows typed input when speech unavailable                   | Req 3 AC 10   |
+| /api/operator: Zod rejects invalid body (400)                              | Req 10 AC 7   |
+| /api/operator: returns 429 when rate limit exceeded                        | Req 10 AC 4   |
+| /api/operator: Claude key absent from response body                        | Req 10 AC 5   |
+| /api/search: spooky flag includes spirit listings                          | Req 7 AC 2    |
+| /api/search: spirit_only flag returns only spirit listings                 | Req 7 AC 3    |
+| isSpookyQuery: returns true for each keyword in list                       | Req 7 AC 2    |
+| PhoneBookPage: business section shows boxed adverts                        | Req 5 AC 2    |
+| PhoneBookPage: torn-paper card opens on listing click                      | Req 5 AC 6    |
+| PhoneBookPage: white pages shows SURNAME Initial format                    | Req 6 AC 1    |
+| AudioEngine: starts muted, unmutes on interaction                          | Req 8 AC 7    |
 
 ### Property-based tests (fast-check)
 
-| Property | Requirement |
-|---|---|
-| For every digit d in "0"-"9": `PULSES[d] * 100 === returnDuration(d)` | Req 1 AC 3 |
-| For every digit d: `PULSES[d]` equals numeric value of d (1-9), or 10 for "0" | Req 1 AC 4 |
-| For every digit d: `HOLE_ANGLES[d]` is a unique integer in [0, 360) | Req 1 AC 1 |
-| For drag angle within 3 degrees of stop: `shouldRegister` is true | Req 1 AC 1 |
-| For drag angle more than 3 degrees before stop: `shouldRegister` is false | Req 1 AC 2 |
-| For every sequence of events, `callReducer` never reaches an undefined state | Req 2 AC 1 |
-| For any input text, `isSpookyQuery` returns true iff at least one keyword is a substring | Req 7 AC 2 |
-| For any count <= limit: `checkRateLimit` returns allowed | Req 10 AC 1-3 |
-| For any count > limit: `checkRateLimit` returns denied | Req 10 AC 1-3 |
-| For any string longer than MAX_INPUT_CHARS: input validation rejects it | Req 3 AC 9 |
-| For any emergency number string: `isEmergencyNumber` returns true | Req 2 AC 8 |
+| Property                                                                                 | Requirement   |
+| ---------------------------------------------------------------------------------------- | ------------- |
+| For every digit d in "0"-"9": `PULSES[d] * 100 === returnDuration(d)`                    | Req 1 AC 3    |
+| For every digit d: `PULSES[d]` equals numeric value of d (1-9), or 10 for "0"            | Req 1 AC 4    |
+| For every digit d: `HOLE_ANGLES[d]` is a unique integer in [0, 360)                      | Req 1 AC 1    |
+| For drag angle within 3 degrees of stop: `shouldRegister` is true                        | Req 1 AC 1    |
+| For drag angle more than 3 degrees before stop: `shouldRegister` is false                | Req 1 AC 2    |
+| For every sequence of events, `callReducer` never reaches an undefined state             | Req 2 AC 1    |
+| For any input text, `isSpookyQuery` returns true iff at least one keyword is a substring | Req 7 AC 2    |
+| For any count <= limit: `checkRateLimit` returns allowed                                 | Req 10 AC 1-3 |
+| For any count > limit: `checkRateLimit` returns denied                                   | Req 10 AC 1-3 |
+| For any string longer than MAX_INPUT_CHARS: input validation rejects it                  | Req 3 AC 9    |
+| For any emergency number string: `isEmergencyNumber` returns true                        | Req 2 AC 8    |
 
 ### End-to-end tests (Playwright)
 
-| Scenario | Requirement |
-|---|---|
-| Full 1023 call: dial, connect, ask for plumber in Edenvale, phone book opens | Req 2, 4, 5 |
-| Full 1026 call: dial, connect, receive time, auto-hang | Req 2, 3 |
-| Wrong number: dial unknown number, static plays, returns to idle | Req 2 AC 6 |
-| Emergency number: dial 112, emergency-notice screen shown with plain message, no static | Req 2 AC 8 |
-| Rate limit: mock 429, busy state entered, in-character message shown | Req 10 AC 4 |
-| 1313 easter egg: dial 1313, spirit listings open | Req 7 AC 3 |
-| Keyboard dial: press "5", hear 5 clicks, digit shown | Req 1 AC 5 |
-| Offline state: go offline, in-character message shown, dial disabled | Req 9 AC 8 |
+| Scenario                                                                                | Requirement |
+| --------------------------------------------------------------------------------------- | ----------- |
+| Full 1023 call: dial, connect, ask for plumber in Edenvale, phone book opens            | Req 2, 4, 5 |
+| Full 1026 call: dial, connect, receive time, auto-hang                                  | Req 2, 3    |
+| Wrong number: dial unknown number, static plays, returns to idle                        | Req 2 AC 6  |
+| Emergency number: dial 112, emergency-notice screen shown with plain message, no static | Req 2 AC 8  |
+| Rate limit: mock 429, busy state entered, in-character message shown                    | Req 10 AC 4 |
+| 1313 easter egg: dial 1313, spirit listings open                                        | Req 7 AC 3  |
+| Keyboard dial: press "5", hear 5 clicks, digit shown                                    | Req 1 AC 5  |
+| Offline state: go offline, in-character message shown, dial disabled                    | Req 9 AC 8  |
 
 ---
 
@@ -947,8 +974,8 @@ The cron fires daily at 10:00 UTC, which calls `/api/health`. This keeps the Sup
 ```bash
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=       # your Supabase project URL
-NEXT_PUBLIC_SUPABASE_ANON_KEY=  # safe to expose; RLS enforces access
-SUPABASE_SERVICE_ROLE_KEY=      # server-side only, never in client bundle
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=  # publishable key (sb_publishable_...); safe to expose
+SUPABASE_SECRET_KEY=              # secret key (sb_secret_...); server-side only, never in client bundle
 
 # Anthropic
 ANTHROPIC_API_KEY=              # server-side only

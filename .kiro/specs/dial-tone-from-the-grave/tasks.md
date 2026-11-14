@@ -18,7 +18,21 @@ The rotary dial is the hero feature and comes first within Phase 2.
     },
     {
       "wave": 2,
-      "tasks": ["2.1", "2.2", "2.3", "2.4", "2.5", "3.1", "3.2", "3.3", "3.4", "4.1", "4.2", "4.3", "4.4"],
+      "tasks": [
+        "2.1",
+        "2.2",
+        "2.3",
+        "2.4",
+        "2.5",
+        "3.1",
+        "3.2",
+        "3.3",
+        "3.4",
+        "4.1",
+        "4.2",
+        "4.3",
+        "4.4"
+      ],
       "description": "Rotary dial, state machine, audio, data (parallelisable)"
     },
     {
@@ -214,7 +228,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 - [ ] 17. Seed business listings (150 businesses + 12 spirit listings)
 
-  Write `supabase/seed/businesses.ts`: array of ~150 fictional businesses across required categories and suburbs (Edenvale, Bedfordview, Kempton Park, Germiston, Lombardy East, Sandringham, Boksburg). Include ~12 spirit listings (`is_spirit: true`) and some boxed adverts (`is_advert: true`). All phones `011 000 xxxx`. Write `supabase/seed/run.ts`: for each row, call the embed Edge Function and upsert into businesses via service role client.
+  Write `supabase/seed/businesses.ts`: array of ~150 fictional businesses across required categories and suburbs (Edenvale, Bedfordview, Kempton Park, Germiston, Lombardy East, Sandringham, Boksburg). Include ~12 spirit listings (`is_spirit: true`) and some boxed adverts (`is_advert: true`). All phones `011 000 xxxx`. Write `supabase/seed/run.ts`: for each row, call the embed Edge Function and upsert into businesses via the server secret key client.
 
   Done when: seed runs without error; `SELECT COUNT(*) FROM businesses` >= 150; at least 12 rows with `is_spirit = true`; brand name grep on seed file returns nothing.
 
@@ -354,7 +368,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 - [ ] 31. Implement /api/health and Vercel cron
 
-  Create `app/api/health/route.ts`: runs `SELECT 1` via service role client, returns `{ ok: true, ts: string }` or 503 on failure. Create `app/api/cron/keepalive/route.ts`: verifies `Authorization: Bearer {CRON_SECRET}` header, then calls the health endpoint and returns its response. Create `vercel.json` with daily cron at `"0 10 * * *"` on `/api/cron/keepalive`.
+  Create `app/api/health/route.ts`: runs `SELECT 1` via the server secret key client, returns `{ ok: true, ts: string }` or 503 on failure. Create `app/api/cron/keepalive/route.ts`: verifies `Authorization: Bearer {CRON_SECRET}` header, then calls the health endpoint and returns its response. Create `vercel.json` with daily cron at `"0 10 * * *"` on `/api/cron/keepalive`.
 
   Done when: unit tests pass (health returns ok:true on success; returns 503 on Supabase error); vercel.json present; `pnpm typecheck` clean.
 

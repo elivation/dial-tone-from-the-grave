@@ -6,16 +6,16 @@ A web app that brings back the rotary phone and the printed phone book. The user
 
 ## Glossary
 
-| Term | Meaning |
-|---|---|
-| Finger hole | One of 10 holes in the rotary dial, labelled 1-9 and 0 |
-| Finger stop | The fixed metal peg at the bottom-right that limits clockwise rotation |
-| Pulse | One mechanical click per unit of a dialled digit (digit 1 = 1 pulse, digit 0 = 10 pulses) |
-| Operator | A ghost persona reached by dialling a specific number |
-| Spirit listing | A fictional spooky business in the seed data, hidden by default |
-| Spooky search | A query whose text contains one or more words from the spooky keyword list in `lib/spooky.ts` |
-| Dead Pages | The app's own brand name for the directory; never use real brand names from any printed directory, telecom or phone company |
-| White Pages | The resident section of the phone book (people, not businesses) |
+| Term           | Meaning                                                                                                                     |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Finger hole    | One of 10 holes in the rotary dial, labelled 1-9 and 0                                                                      |
+| Finger stop    | The fixed metal peg at the bottom-right that limits clockwise rotation                                                      |
+| Pulse          | One mechanical click per unit of a dialled digit (digit 1 = 1 pulse, digit 0 = 10 pulses)                                   |
+| Operator       | A ghost persona reached by dialling a specific number                                                                       |
+| Spirit listing | A fictional spooky business in the seed data, hidden by default                                                             |
+| Spooky search  | A query whose text contains one or more words from the spooky keyword list in `lib/spooky.ts`                               |
+| Dead Pages     | The app's own brand name for the directory; never use real brand names from any printed directory, telecom or phone company |
+| White Pages    | The resident section of the phone book (people, not businesses)                                                             |
 
 ---
 
@@ -186,7 +186,7 @@ A web app that brings back the rotary phone and the printed phone book. The user
 3. The system SHALL enforce a daily global cap on Claude API calls. The cap SHALL default to `CLAUDE_DAILY_GLOBAL_CAP=500` and be configurable via environment variable. Rate-limit state SHALL be stored in Supabase (no additional vendor).
 4. WHEN any rate limit is reached THEN the system SHALL return an in-character response ("all lines are busy, please try later") with HTTP 429. No raw error messages SHALL be shown to the user.
 5. The Claude API key SHALL never be included in any client-side bundle or response.
-6. Every Supabase table SHALL have Row Level Security enabled. The service role key SHALL be used only in server-side routes.
+6. Every Supabase table SHALL have Row Level Security enabled. The secret key (`SUPABASE_SECRET_KEY`) SHALL be used only in server-side routes.
 7. The app SHALL validate all API inputs using Zod schemas before processing.
 8. Security headers SHALL be set via `next.config` including a Content Security Policy that permits only the origins and directives actually used by the app.
 9. A daily Vercel cron job SHALL call `/api/health`, which executes a lightweight Supabase query, to prevent the free Supabase project from pausing during the judging period.
