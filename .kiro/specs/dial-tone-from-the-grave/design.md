@@ -428,7 +428,7 @@ Both receive `rotation` (degrees) from a parent state hook and call `onDigit` wh
 
 Angles are degrees clockwise from 12 o'clock (matching the 3D model's local coordinate system mapped to degrees).
 
-- `STOP_ANGLE = 130` (4 o'clock position, bottom right of the dial, where the finger stop is).
+- `STOP_ANGLE = 130` (4 o'clock position, bottom right of the dial). In the 3D model this is the leading edge of the finger stop, the edge a finger hits, not the middle of the stop mesh. `computeDialGeometry` anchors dial space to that edge.
 - `HOLE_SPACING = 30` degrees between adjacent holes.
 - `FIRST_HOLE_TRAVEL = 60` degrees: how far digit 1 travels to reach the stop.
 - `travelDegrees(d) = 60 + (PULSES[d] - 1) * 30`. Digit 1 travels 60 degrees, digit 0 travels 330 degrees.
