@@ -10,7 +10,7 @@ export function gooColourAt(thickness: number): THREE.Color {
 }
 
 /**
- * Colours a mesh by how thick the slime is at each vertex, so thin edges and drips go
+ * Colours a mesh by how thick the slime is at each vertex, so thin edges and stains go
  * dark olive and the thick middle stays deep green. The material needs vertexColors on.
  */
 export function paintGoo(

@@ -38,7 +38,7 @@ test('[render] the slime shows in every finger hole, as blobs, and stays off the
   // Blobs, never wires. A round blob measures near 1, and a wire measures 6 or more.
   for (const shape of shapes)
     expect(shape.aspect, `shape at ${shape.cx.toFixed(0)},${shape.cy.toFixed(0)}`).toBeLessThan(4);
-  // No drip or smear runs across the 1023 card.
+  // No slime shows on the 1023 card.
   expect(greenInside(close, CARD), 'green pixels on the card').toBe(0);
   expect(problems).toEqual([]);
 });

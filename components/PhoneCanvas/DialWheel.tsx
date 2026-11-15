@@ -11,11 +11,14 @@ import type { PreparedPhone } from './preparePhone';
 import { usePreparedPhone } from './useDialGeometry';
 import { createWheelPivot } from './wheelPivot';
 
-/** True if the thing the pointer hit first is part of the dial, not something standing in front of it. */
+/**
+ * True if the thing the pointer hit first is part of the dial, not something standing in front of it.
+ * The leak stains lie on the plate under the holes, so a finger in an empty hole may meet one first.
+ */
 function isDialPart(hit: THREE.Object3D, phone: PreparedPhone): boolean {
   if (/Dial/.test(hit.name)) return true;
   for (let node: THREE.Object3D | null = hit; node && node !== phone.object; node = node.parent) {
-    if (node === phone.wheel) return true;
+    if (node === phone.wheel || node === phone.stains) return true;
   }
   return false;
 }

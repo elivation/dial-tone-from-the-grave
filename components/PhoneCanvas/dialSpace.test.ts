@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import * as THREE from 'three';
 import { DIGITS, HOLE_ANGLES } from '@/lib/dial';
-import { angleInDial, holeAtPoint, pointOnDialPlane, radiusInDial } from './dialSpace';
+import { angleInDial, downhillOf, holeAtPoint, pointOnDialPlane, radiusInDial } from './dialSpace';
 import { angleGap, makeDial, pointAt } from './__fixtures__/dial';
 
 const dial = makeDial(true);
@@ -84,5 +84,15 @@ describe('pointOnDialPlane', () => {
   it('finds nothing for a ray pointing away from the dial', () => {
     const from = pointAt(dial, 0, 0.02, 0.1);
     expect(pointOnDialPlane(new THREE.Ray(from, dial.normal.clone()), dial)).toBeNull();
+  });
+});
+
+describe('downhillOf', () => {
+  it('lies in the dial plane and points down, whichever way the dial leans', () => {
+    const { normal } = makeDial(true);
+    const downhill = downhillOf(normal);
+    expect(downhill.length()).toBeCloseTo(1, 9);
+    expect(downhill.dot(normal)).toBeCloseTo(0, 9);
+    expect(downhill.dot(new THREE.Vector3(0, 1, 0))).toBeLessThan(0);
   });
 });

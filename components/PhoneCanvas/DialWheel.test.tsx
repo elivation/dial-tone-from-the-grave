@@ -54,7 +54,14 @@ function buildPhone(): PreparedPhone {
   );
   wheel.add(marker);
   object.updateMatrixWorld(true);
-  return { object, dial, wheel, card: undefined, goo: new THREE.Group(), drips: new THREE.Group() };
+  return {
+    object,
+    dial,
+    wheel,
+    card: undefined,
+    goo: new THREE.Group(),
+    stains: new THREE.Group(),
+  };
 }
 
 /** Where on the screen a spot on the dial appears. The camera looks straight at the dial face. */
@@ -196,6 +203,25 @@ describe('DialWheel', () => {
     expect(onDigit).not.toHaveBeenCalled();
   });
 
+  it('[Req 1.1] dials through a hole even when a leak stain on the plate is the first thing hit', () => {
+    // In this stand-in the wheel is a solid disc, so put the stain in front of it, where a finger meets it first.
+    const stain = new THREE.Mesh(
+      new THREE.CircleGeometry(dial.radius, 24),
+      new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }),
+    );
+    stain.name = 'goo-stain';
+    stain.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dial.normal);
+    stain.position.copy(dial.centre).addScaledVector(dial.normal, 0.001);
+    const phone = shared.phone as PreparedPhone;
+    phone.stains.add(stain);
+    object.add(phone.stains);
+    object.updateMatrixWorld(true);
+    const onDigit = vi.fn();
+    render(<Harness onDigit={onDigit} />);
+    dragHole('1', travelDegrees('1'));
+    lift(HOLE_ANGLES['1'] + travelDegrees('1'));
+    expect(onDigit).toHaveBeenCalledWith('1');
+  });
   it('does nothing while disabled', () => {
     const onDigit = vi.fn();
     render(<Harness onDigit={onDigit} disabled />);

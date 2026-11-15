@@ -14,14 +14,17 @@ import { angleInDial, radiusInDial } from './dialSpace';
 import { createWheelPivot } from './wheelPivot';
 import { angleGap } from './__fixtures__/dial';
 import { loadSourcePhone } from './__fixtures__/loadSource';
+import { rimHeightAt } from './__fixtures__/rim';
+import { holeRadiusOf } from './goo';
+import { GOO_SHAPE } from './sceneConstants';
 
 let phone: PreparedPhone;
 let pools: THREE.Object3D[];
 let rest: THREE.Vector3[];
 let gooMeshes: THREE.Object3D[];
 let gooRest: THREE.Vector3[];
-let drips: THREE.Object3D[];
-let dripRest: THREE.Matrix4[];
+let stains: THREE.Object3D[];
+let stainRest: THREE.Matrix4[];
 
 const worldPositions = () =>
   pools.map((p) => {
@@ -50,11 +53,11 @@ beforeAll(async () => {
     if ((o as THREE.Mesh).isMesh) gooMeshes.push(o);
   });
   gooRest = gooMeshes.map(positionOf);
-  drips = [];
-  phone.drips.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) drips.push(o);
+  stains = [];
+  phone.stains.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) stains.push(o);
   });
-  dripRest = drips.map(matrixOf);
+  stainRest = stains.map(matrixOf);
 }, 60_000);
 
 describe('createWheelPivot', () => {
@@ -118,7 +121,7 @@ describe('createWheelPivot', () => {
 describe('goo while the wheel turns', () => {
   const turn = () => createWheelPivot(phone.wheel, phone.dial);
 
-  it('[Req 1.1] carries every pool and smear round with the wheel, about the dial normal', () => {
+  it('[Req 1.1] carries every pool round with the wheel, about the dial normal', () => {
     const rotate = turn();
     rotate(90);
     phone.object.updateMatrixWorld(true);
@@ -137,13 +140,13 @@ describe('goo while the wheel turns', () => {
     rotate(0);
   });
 
-  it('[Req 1.1] leaves every drip exactly where it was, in position and orientation', () => {
+  it('[Req 1.1] leaves every stain exactly where it was, in position and orientation', () => {
     const rotate = turn();
     rotate(90);
     phone.object.updateMatrixWorld(true);
-    drips.forEach((drip, i) => {
-      const before = dripRest[i] as THREE.Matrix4;
-      const after = matrixOf(drip);
+    stains.forEach((stain, i) => {
+      const before = stainRest[i] as THREE.Matrix4;
+      const after = matrixOf(stain);
       after.elements.forEach((e, k) =>
         expect(Math.abs(e - (before.elements[k] ?? 0))).toBeLessThan(1e-6),
       );
@@ -151,21 +154,44 @@ describe('goo while the wheel turns', () => {
     rotate(0);
   });
 
-  it('never moves a drip, whatever the wheel angle', () => {
+  it('never moves a stain, whatever the wheel angle', () => {
     const rotate = turn();
     fc.assert(
       fc.property(fc.double({ min: 0, max: 330, noNaN: true }), (degrees) => {
         rotate(degrees);
         phone.object.updateMatrixWorld(true);
-        return drips.every((drip, i) => {
-          const before = dripRest[i] as THREE.Matrix4;
-          return matrixOf(drip).elements.every(
+        return stains.every((stain, i) => {
+          const before = stainRest[i] as THREE.Matrix4;
+          return matrixOf(stain).elements.every(
             (e, k) => Math.abs(e - (before.elements[k] ?? 0)) < 1e-6,
           );
         });
       }),
       { numRuns: 25 },
     );
+    rotate(0);
+  });
+
+  it('[Req 1.1] never lets a pool rise above the wheel top around its hole, at any wheel angle', () => {
+    const rotate = turn();
+    const holeRadius = holeRadiusOf(phone.dial);
+    for (const degrees of [0, 90, 200, 330]) {
+      rotate(degrees);
+      phone.object.updateMatrixWorld(true);
+      for (const pool of pools as THREE.Mesh[]) {
+        const middle = positionOf(pool);
+        const rim = rimHeightAt(phone, middle, holeRadius);
+        const position = pool.geometry.getAttribute('position');
+        let top = -Infinity;
+        for (let i = 0; i < position.count; i++) {
+          const v = new THREE.Vector3()
+            .fromBufferAttribute(position, i)
+            .applyMatrix4(pool.matrixWorld);
+          top = Math.max(top, v.sub(phone.dial.centre).dot(phone.dial.normal));
+        }
+        expect(top, `wheel at ${degrees}`).toBeLessThanOrEqual(rim - GOO_SHAPE.minClearance + 1e-6);
+      }
+    }
     rotate(0);
   });
 });

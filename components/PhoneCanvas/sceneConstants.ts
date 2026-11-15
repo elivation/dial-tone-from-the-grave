@@ -15,7 +15,7 @@ export const PHONE_WIDTH = 0.23;
 export const LIGHT_GAIN = 0.55;
 
 /**
- * The slime in the finger holes. Thick goo is deep toxic green, thin goo and drips run to dark olive.
+ * The slime in the finger holes. Thick goo is deep toxic green, thin films and stains run to dark olive.
  * Wet and a little see-through, with a faint glow so it reads against the black phone in the dark.
  */
 export const GOO = {
@@ -32,20 +32,23 @@ export const GOO = {
   ior: 1.4,
 } as const;
 
-/** Shape of the slime. Lengths are in fractions of a hole's diameter unless it says otherwise. */
+/** Shape of the slime. Lengths are in metres. */
 export const GOO_SHAPE = {
-  /** How far a drip runs past the rim of its hole. */
-  dripLength: { min: 0.4, max: 0.7 },
-  /** At most this many holes drip. At least two do. */
-  maxDrips: 3,
-  /** A hole counts as in the lower half of the dial if its outward direction points this far downhill, 0 to 1. */
-  lowerHalf: 0.5,
-  /** How full an ordinary hole is, as a fraction of its depth. These are low puddles. */
-  fill: { min: 0.12, max: 0.38 },
-  /** Holes this full reach the rim, and get goo smeared over part of it. */
-  fullFill: { min: 0.9, max: 1 },
-  /** How much the middle of the surface rises above its edge, in metres. A puddle is nearly flat, a full hole bulges. */
-  dome: { puddle: 0.0005, full: 0.0011 },
+  /** No pool comes closer than this to the lowest point of the wheel's top surface round its hole. */
+  minClearance: 0.0003,
+  /** The fullest holes stand this far below the rim, about 80 percent of the hole's depth. */
+  fullGap: { min: 0.0003, max: 0.0008 },
+  /** How many holes are that full. */
+  fullHoles: 3,
+  /** How many holes hold only a film on the floor, and how high that film stands. */
+  filmHoles: 2,
+  film: { min: 0.00025, max: 0.00045 },
+  /** The rest are part full, this fraction of the way from the floor to the highest a pool may go. */
+  partFill: { min: 0.2, max: 0.6 },
+  /** Old leaks on the number plate, under the ring of holes. */
+  stains: { min: 5, max: 7 },
+  /** Half the width of a stain before its outline is roughened. */
+  stainSize: { min: 0.0012, max: 0.0022 },
 } as const;
 
 /** How strong the dust is on the phone body, 0 to 1. A faint film, never patches. */
