@@ -225,15 +225,15 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/callMachine.test.ts` (18 unit + 2 property tests)
 
-- [ ] 12. Implement the AudioEngine
+- [x] 12. Implement the AudioEngine
 
-  Create `lib/audio.ts` exporting `AudioEngine` class with methods for each sound (dial tone 400 Hz, ring tone 400+450 Hz SA cadence, busy tone, disconnected pips, dial click via bandpass noise, static/crackle via AM-modulated noise). `AudioContext` created lazily. Read mute state from `sessionStorage` key `dtftg_muted` on init. `setMuted(true)` sets master gain to 0. Guard all methods for suspended context.
+  Create `lib/audio.ts` exporting `AudioEngine` class with methods for each sound (dial tone 400 Hz, ring tone 400+450 Hz SA cadence, busy tone, disconnected pips, dial click via bandpass noise, static/crackle via AM-modulated noise). `AudioContext` created lazily. Read mute state from `sessionStorage` key `dtftg_muted` on init. `setMuted(true)` sets master gain to 0 and saves the choice to `sessionStorage`; the engine owns that key, so the toggle only calls `setMuted` and `isMuted`. Guard all methods for suspended context.
 
   Done when: unit tests pass with mocked AudioContext (dialTone creates 400 Hz oscillator; click creates buffer source; setMuted(true) sets gain to 0); starts muted; `pnpm typecheck` clean.
 
   Requirements: Req 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8
 
-  Tests: `lib/audio.test.ts` (dialTone frequency; click source; mute sets gain to 0)
+  Tests: `lib/audio.test.ts` (18 tests with a fake AudioContext: every tone and cadence, click and static graphs, mute and storage, first-interaction wake, no Web Audio, reduced motion ignored)
 
 - [ ] 13. Build Handset component and wire state machine to audio
 
@@ -247,7 +247,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 - [ ] 14. Implement MuteToggle component
 
-  Create `components/MuteToggle/MuteToggle.tsx`: button labelled "Mute"/"Unmute". On mount, read `dtftg_muted` from `sessionStorage` (default: `true`, muted). On toggle, write to sessionStorage and call `AudioEngine.setMuted()`.
+  Create `components/MuteToggle/MuteToggle.tsx`: button labelled "Mute"/"Unmute". On mount, read `dtftg_muted` from `sessionStorage` (default: `true`, muted). On toggle, call `AudioEngine.setMuted()`, which saves the choice to sessionStorage.
 
   Done when: test passes (starts as "Unmute"; clicking calls setMuted(false) and label changes to "Mute"); `pnpm typecheck` clean.
 

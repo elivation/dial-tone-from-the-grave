@@ -528,7 +528,7 @@ The LFO is an `OscillatorNode` connected to `GainNode.gain` with a small range (
 
 ### Mute and autoplay
 
-The `AudioContext` is created in `suspended` state and resumed on the first `pointerdown` or `keydown` event. The mute state is a boolean stored in `sessionStorage` under the key `dtftg_muted`. The `MuteToggle` component reads and writes this. When muted, the AudioEngine sets the master gain to 0 (nodes still run, no audible output, resume is instant on unmute).
+The `AudioContext` is created in `suspended` state and resumed on the first `pointerdown` or `keydown` event. The mute state is a boolean stored in `sessionStorage` under the key `dtftg_muted`. `AudioEngine.setMuted` writes it and `isMuted` reads it. The `MuteToggle` component only calls those. Unmuting is a click, so it also creates and wakes the context. When muted, the AudioEngine sets the master gain to 0 (nodes still run, no audible output, resume is instant on unmute).
 
 ---
 
