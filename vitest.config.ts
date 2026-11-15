@@ -6,6 +6,10 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    environmentMatchGlobs: [
+      ['**/dialGeometry.test.ts', 'node'],
+      ['scripts/**', 'node'],
+    ],
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     include: ['**/*.test.ts', '**/*.test.tsx'],

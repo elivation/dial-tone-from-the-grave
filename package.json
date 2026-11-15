@@ -13,14 +13,19 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "optimize-assets": "gltf-transform optimize assets-src/phone/we500.glb public/models/we500.glb --compress meshopt --texture-compress webp --texture-size 2048 && cwebp -q 85 assets-src/textures/dark_wooden_planks_diff_2k.jpg -o public/textures/dark_wooden_planks_diff_2k.webp"
+    "optimize-assets": "gltf-transform optimize assets-src/phone/we500.glb public/models/we500.glb --compress meshopt --texture-compress webp --texture-size 2048 --join false --flatten false --instance false --simplify false && cwebp -q 85 assets-src/textures/dark_wooden_planks_diff_2k.jpg -o public/textures/dark_wooden_planks_diff_2k.webp"
   },
   "dependencies": {
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.2",
+    "@react-three/postprocessing": "3.2.2",
     "@supabase/supabase-js": "2.49.4",
     "next": "16.4.6",
+    "postprocessing": "^6.39.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "server-only": "0.0.1"
+    "server-only": "0.0.1",
+    "three": "0.177.0"
   },
   "devDependencies": {
     "@gltf-transform/cli": "^4.5.1",
@@ -32,6 +37,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "0.177.0",
     "@vitejs/plugin-react": "4.5.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
@@ -52,12 +58,6 @@
     ],
     "*.{js,mjs,json,css,md}": [
       "prettier --write"
-    ]
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "husky"
     ]
   }
 }
