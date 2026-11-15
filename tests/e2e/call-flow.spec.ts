@@ -62,3 +62,10 @@ test('[Req 2.7] hanging up clears the number and goes back to idle', async ({ pa
   await expect(page.getByRole('button', { name: 'Pick up the handset' })).toBeVisible();
   await expect(page.getByRole('status', { name: 'Dialled number' })).toHaveText('');
 });
+
+test('[Req 8.7] starts muted, and remembers unmuting for the session', async ({ page }) => {
+  await page.getByRole('button', { name: 'Unmute' }).click();
+  await expect(page.getByRole('button', { name: 'Mute' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Mute' })).toBeVisible();
+});

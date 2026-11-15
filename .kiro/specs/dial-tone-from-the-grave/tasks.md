@@ -245,7 +245,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/Handset/Handset.test.tsx` (pick-up; hang-up from every state); `components/EmergencyNotice/EmergencyNotice.test.tsx` (message, plain styling, dismiss by button and Escape, focus); `components/CallStatus/CallStatus.test.tsx` (busy and wrong-number text, live region); `components/PhoneScene/useCall.test.tsx` (18 tests: dial tone, 2 s pause from rest, rings, wrong-number sequence, emergency, hang-up from any state, busy, locked dial when connected, audio wake and clean-up); `tests/e2e/call-flow.spec.ts` (112 notice, wrong number, hang-up)
 
-- [ ] 14. Implement MuteToggle component
+- [x] 14. Implement MuteToggle component
 
   Create `components/MuteToggle/MuteToggle.tsx`: button labelled "Mute"/"Unmute". On mount, read `dtftg_muted` from `sessionStorage` (default: `true`, muted). On toggle, call `AudioEngine.setMuted()`, which saves the choice to sessionStorage.
 
@@ -253,7 +253,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Requirements: Req 8.7, Req 9.4
 
-  Tests: `components/MuteToggle/MuteToggle.test.tsx` (initial state muted; toggle changes state)
+  Tests: `components/MuteToggle/MuteToggle.test.tsx` (initial state muted; toggle changes state; remembered choice; keyboard); `tests/e2e/call-flow.spec.ts` (unmute survives a reload)
 
 - [ ] 15. Supabase migrations: extensions, tables, RLS, RPCs
 

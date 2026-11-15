@@ -4,6 +4,7 @@ import { CallStatus } from '@/components/CallStatus';
 import { DialledDisplay } from '@/components/DialledDisplay/DialledDisplay';
 import { EmergencyNotice } from '@/components/EmergencyNotice';
 import { Handset } from '@/components/Handset';
+import { MuteToggle } from '@/components/MuteToggle';
 import { PhoneCanvasLoader } from '@/components/PhoneCanvas/PhoneCanvasLoader';
 import { useCall } from './useCall';
 
@@ -33,6 +34,9 @@ export function PhoneScene() {
         <CallStatus state={state} />
         <DialledDisplay digits={numberShown(state)} />
         <Handset state={state} onPickUp={pickUp} onHangUp={hangUp} />
+      </div>
+      <div className="absolute top-4 right-4 z-20">
+        <MuteToggle />
       </div>
       {state.status === 'emergency-notice' && <EmergencyNotice onDismiss={dismiss} />}
     </div>
