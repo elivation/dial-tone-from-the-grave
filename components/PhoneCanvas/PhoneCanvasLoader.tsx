@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useCallback, useState, useSyncExternalStore, type ReactNode } from 'react';
+import type { DialController } from '@/components/RotaryDial/useDialController';
 import { LoadingVeil } from './LoadingVeil';
 import { hasWebGL } from './webgl';
 
@@ -12,12 +13,14 @@ const subscribeNever = () => () => {};
 const assumeWebGL = () => true;
 
 type Props = {
+  /** Drives the finger wheel and hears the digits. */
+  controller: DialController;
   /** Shown instead of the scene when the browser has no WebGL. */
   fallback?: ReactNode;
 };
 
 /** The 3D phone, with a candlelit veil until it is ready. */
-export function PhoneCanvasLoader({ fallback = null }: Props) {
+export function PhoneCanvasLoader({ controller, fallback = null }: Props) {
   const supported = useSyncExternalStore(subscribeNever, hasWebGL, assumeWebGL);
   const [ready, setReady] = useState(false);
   const onReady = useCallback(() => setReady(true), []);
@@ -27,7 +30,7 @@ export function PhoneCanvasLoader({ fallback = null }: Props) {
   return (
     <div className="relative h-full w-full">
       <div aria-hidden="true" className="absolute inset-0 touch-none">
-        <PhoneCanvas onReady={onReady} />
+        <PhoneCanvas onReady={onReady} controller={controller} />
       </div>
       <div aria-hidden="true" className="scene-vignette pointer-events-none absolute inset-0" />
       <div aria-hidden="true" className="scene-grain pointer-events-none absolute inset-0" />

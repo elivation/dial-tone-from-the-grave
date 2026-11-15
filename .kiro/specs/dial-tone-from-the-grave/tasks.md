@@ -185,17 +185,15 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/PhoneCanvas/PhoneCanvas.test.tsx` (renders without throwing when WebGL is mocked; LoadingVeil shown before canvas ready); `components/PhoneCanvas/dialGeometry.test.ts` (10 detected hole angles match HOLE_ANGLES within 5 degrees)
 
-- [ ] 43. Add 3D drag interaction to the DialWheel
+- [x] 43. Add 3D drag interaction to the DialWheel
 
-  Create `components/PhoneCanvas/DialWheel.tsx`. Props: `dialRotation: number`, `onDigit: (d: string) => void`, `disabled: boolean`. Consume `dialCentre`, `dialNormal`, `uAx`, `rAx` from the `useDialGeometry` hook built in task 42. Apply rotation to the `Rotary_Dial_Finger_Wheel` group as `Quaternion.setFromAxisAngle(dialNormal, -dialRotation * DEG2RAD)` around `dialCentre` in world space (not `rotation.z`).
+  Extracted the 2D dial's drag, return and spring-back logic into one shared `useDialController` hook, used by both `RotaryDial` and the new `DialWheel` (`components/PhoneCanvas/DialWheel.tsx`, which takes the controller as a prop). Pointer events on the canvas are cast at the phone: the first hit must be part of the dial, the ray is intersected with the dial plane, and the hole is found with `holeAtPoint`. The wheel is turned about `dialNormal` through `dialCentre` by `createWheelPivot`, not `rotation.z`. The return runs at constant speed from the stop, one pulse interval per pulse, and fires `onPulse` once per pulse as the click sound hook. `touch-action: none` is on the canvas wrapper. `PhoneScene` and a small `DialledDisplay` wire it into the page.
 
-  Pointer events on the goo mesh group: on `pointerdown`, record the touched hole index by projecting the hit point into dial space and finding the nearest `HOLE_ANGLES` entry. On `pointermove`, project the pointer world position onto the dial plane, compute the angle in dial space, call `accumulateRotation` from `lib/dial.ts`, clamp to `[0, travelDegrees(d)]`. On `pointerup`: call `shouldRegister`. If true, call `onDigit` and start the return animation via `useInterval` at 100 ms per pulse, decrementing `dialRotation` by `HOLE_SPACING` per tick, firing one click sound stub per step. If false, snap back. Apply `touch-action: none` to the canvas wrapper.
+  Done when: dragging a hole to the stop in 3D calls `onDigit` with the correct digit; early release does not; the wheel turns about the dial axis; `pnpm test` clean; `pnpm typecheck` clean.
 
-  Done when: drag-to-stop in 3D calls `onDigit` with the correct digit; early release does not; `pnpm test` clean; `pnpm typecheck` clean.
+  Requirements: Req 1.1, 1.2, 1.3, 1.5, Req 1.7
 
-  Requirements: Req 1.1, 1.2, 1.3, 1.5
-
-  Tests: `components/PhoneCanvas/DialWheel.test.tsx` (full drag calls onDigit; early release does not, using mocked R3F pointer events and mocked useDialGeometry)
+  Tests: `components/PhoneCanvas/DialWheel.test.tsx` (real controller, DOM events, camera rays and raycasting; mouse and touch; every digit; early release; card, right button, handset in the way, disabled; wheel turns; runs back; listener cleanup), `dialSpace.test.ts`, `dialMotion.test.ts`, `wheelPivot.test.ts` (real model), `DialledDisplay.test.tsx`
 
 - [ ] 9. Add keyboard interaction to RotaryDial
 

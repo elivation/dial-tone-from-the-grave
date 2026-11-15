@@ -2,9 +2,11 @@
 
 import { Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
+import type { DialController } from '@/components/RotaryDial/useDialController';
 import { CameraRig } from './CameraRig';
 import { Candle } from './Candle';
 import { Desk } from './Desk';
+import { DialWheel } from './DialWheel';
 import { DimRoomEnvironment } from './DimRoomEnvironment';
 import { DustMotes } from './DustMotes';
 import { Effects } from './Effects';
@@ -29,7 +31,13 @@ function ReadySignal({ onReady }: { onReady: () => void }) {
 }
 
 /** The haunted desk: phone, candle, spider and dust, lit by one flame. */
-export default function PhoneCanvas({ onReady }: { onReady: () => void }) {
+export default function PhoneCanvas({
+  onReady,
+  controller,
+}: {
+  onReady: () => void;
+  controller: DialController;
+}) {
   return (
     <Canvas
       shadows
@@ -46,7 +54,9 @@ export default function PhoneCanvas({ onReady }: { onReady: () => void }) {
       <Suspense fallback={null}>
         <Desk />
         <Candle />
-        <PhoneModel />
+        <PhoneModel>
+          <DialWheel controller={controller} />
+        </PhoneModel>
         <Spider />
         <DustMotes />
         <ReadySignal onReady={onReady} />

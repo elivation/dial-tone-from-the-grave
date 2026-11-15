@@ -449,10 +449,19 @@ Angles are degrees clockwise from 12 o'clock (matching the 3D model's local coor
 
 ### 3D drag interaction (DialWheel)
 
-Pointer events hit-test against the visible goo meshes (children of the finger wheel node). On `pointerdown`, the component records which hole was touched and the initial pointer angle projected onto the dial plane. On `pointermove`, `accumulateRotation` adds the shortest-arc delta, clamped to `[0, travelDegrees(d)]`. The wheel group is rotated each frame by calling `Quaternion.setFromAxisAngle(dialNormal, -dialRotation * DEG2RAD)` around `dialCentre` in world space. Both `dialNormal` and `dialCentre` come from the `useDialGeometry` hook (computed via PCA of the finger wheel vertices). This is correct regardless of how the model is oriented on the desk. On `pointerup`:
+Both dials share one state machine, `useDialController`: grab a hole, drag it, let go, and the dial runs back one pulse every 100 ms. The 2D dial and the 3D wheel only translate pointer events into calls on it, so they behave the same. The controller holds no call logic. It reports digits and pulses.
 
-- If `dialRotation >= travelDegrees(d) - 3`: register the digit, start return animation.
-- Otherwise: return without registering.
+`DialWheel` listens for pointer events on the canvas element itself, not through per-object R3F events, because the goo and the wheel live inside the model's scene graph and the whole interaction is one gesture on one surface. On press it:
+
+1. Casts the pointer ray at the phone. The first thing hit must be part of the dial: the wheel, its goo, or any mesh named `Dial_...`. A handset in front of the dial blocks the press.
+2. Intersects the ray with the dial plane (`pointOnDialPlane`), reads the angle and radius in dial space, and finds the hole (`holeAtPoint`). A finger counts as in a hole within 15 degrees of its `HOLE_ANGLES` entry and between 55% of the hole orbit and the rim. The card and the empty stretch near the stop never pick a hole.
+3. Calls `controller.grab`. Only the primary mouse button, or a touch or pen, can start a drag.
+
+While dragging, each move is projected on the dial plane the same way and `accumulateRotation` clamps it to `[0, travelDegrees(d)]`. On release the controller checks `shouldRegister` and either reports the digit and runs back, or springs back.
+
+The wheel is turned by `createWheelPivot`: a rotation of `-angle` about `dialNormal` through `dialCentre` in world space, taken into the wheel's parent space. The model's own z axis is 23.7 degrees off the dial normal, so `rotation.z` would make the wheel wobble. A test turns the real model and follows the goo to prove the turn is about the dial axis.
+
+`stepShown` turns the controller's stepped values into smooth motion: the wheel follows the finger exactly, runs back at constant speed from the stop (so a digit takes exactly one pulse interval per pulse, a 0 takes a full second), or eases back after an early release. With `prefers-reduced-motion` it jumps. If a frame was not drawn between the last move and the release, the wheel snaps to the stop before running back.
 
 ### Return animation (both implementations)
 

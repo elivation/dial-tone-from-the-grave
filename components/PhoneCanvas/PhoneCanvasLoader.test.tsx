@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PhoneCanvasLoader } from './PhoneCanvasLoader';
 import { hasWebGL } from './webgl';
+import type { DialController } from '@/components/RotaryDial/useDialController';
 
 // The real scene needs WebGL. Stand in a canvas that reports ready when asked.
 vi.mock('next/dynamic', () => ({
@@ -13,13 +14,24 @@ vi.mock('next/dynamic', () => ({
 }));
 vi.mock('./webgl', () => ({ hasWebGL: vi.fn() }));
 
+const controller: DialController = {
+  rotation: 0,
+  phase: 'idle',
+  activeDigit: null,
+  disabled: false,
+  reducedMotion: false,
+  grab: () => false,
+  drag: () => {},
+  release: () => false,
+};
+
 describe('PhoneCanvasLoader', () => {
   beforeEach(() => {
     vi.mocked(hasWebGL).mockReturnValue(true);
   });
 
   it('shows the candlelit veil until the scene is ready, then lets it fade', async () => {
-    render(<PhoneCanvasLoader />);
+    render(<PhoneCanvasLoader controller={controller} />);
     expect(screen.getByRole('status')).toBeInTheDocument();
 
     // The scene is aria-hidden on purpose, so look for it among hidden elements.
@@ -29,7 +41,7 @@ describe('PhoneCanvasLoader', () => {
   });
 
   it('keeps the 3D scene out of the accessibility tree', () => {
-    render(<PhoneCanvasLoader />);
+    render(<PhoneCanvasLoader controller={controller} />);
     expect(
       screen.getByRole('button', { hidden: true, name: 'scene' }).closest('[aria-hidden="true"]'),
     ).not.toBeNull();
@@ -37,7 +49,12 @@ describe('PhoneCanvasLoader', () => {
 
   it('[Req 9.5] renders the fallback instead when WebGL is not available', () => {
     vi.mocked(hasWebGL).mockReturnValue(false);
-    render(<PhoneCanvasLoader fallback={<p>The switchboard is out of order.</p>} />);
+    render(
+      <PhoneCanvasLoader
+        controller={controller}
+        fallback={<p>The switchboard is out of order.</p>}
+      />,
+    );
     expect(screen.getByText('The switchboard is out of order.')).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });

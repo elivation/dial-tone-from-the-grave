@@ -1,20 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { useId, useRef } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import {
   DIGITS,
   HOLE_ANGLES,
-  PULSES,
   PULSE_INTERVAL_MS,
   STOP_ANGLE,
-  accumulateRotation,
   pointerAngle,
-  shouldRegister,
-  travelDegrees,
   type Digit,
 } from '@/lib/dial';
+import { SPRING_BACK_MS, useDialController } from './useDialController';
 
 export type RotaryDialProps = {
   /** Blocks all interaction, for example while a call is connecting. */
@@ -35,7 +32,6 @@ const HOLE_ORBIT_R = 102;
 const HOLE_R = 20;
 const CARD_R = 70;
 const STOP_R = 140;
-const SPRING_BACK_MS = 220;
 const LABEL_R = 144;
 
 const LETTERS: Record<Digit, string> = {
@@ -51,8 +47,6 @@ const LETTERS: Record<Digit, string> = {
   '0': '',
 };
 
-type Phase = 'idle' | 'dragging' | 'returning' | 'springing';
-
 /** Point on a circle around the dial centre. Rounded so server and browser render the same numbers. */
 function polar(r: number, angle: number) {
   const rad = (angle * Math.PI) / 180;
@@ -60,44 +54,14 @@ function polar(r: number, angle: number) {
   return { x: round(C + r * Math.sin(rad)), y: round(C - r * Math.cos(rad)) };
 }
 
-const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
-
-function subscribeReducedMotion(onChange: () => void): () => void {
-  const media = window.matchMedia?.(REDUCED_MOTION_QUERY);
-  media?.addEventListener('change', onChange);
-  return () => media?.removeEventListener('change', onChange);
-}
-
-function prefersReducedMotion(): boolean {
-  return window.matchMedia?.(REDUCED_MOTION_QUERY).matches === true;
-}
-
 export function RotaryDial({ disabled, onDigit, onPulse }: RotaryDialProps) {
   const maskId = `dial-holes-${useId().replace(/:/g, '')}`;
   const svgRef = useRef<SVGSVGElement>(null);
-  const [rotation, setRotation] = useState(0);
-  const [phase, setPhase] = useState<Phase>('idle');
-  const [activeDigit, setActiveDigit] = useState<Digit | null>(null);
-  const reducedMotion = useSyncExternalStore(
-    subscribeReducedMotion,
-    prefersReducedMotion,
-    () => false,
-  );
-
-  const drag = useRef<{ digit: Digit; prev: number; rotation: number; pointerId: number } | null>(
-    null,
-  );
-  const timer = useRef<ReturnType<typeof setInterval> | ReturnType<typeof setTimeout> | null>(null);
-
-  const clearTimer = useCallback(() => {
-    if (timer.current !== null) {
-      clearInterval(timer.current as ReturnType<typeof setInterval>);
-      clearTimeout(timer.current as ReturnType<typeof setTimeout>);
-      timer.current = null;
-    }
-  }, []);
-
-  useEffect(() => clearTimer, [clearTimer]);
+  const { rotation, phase, activeDigit, reducedMotion, grab, drag, release } = useDialController({
+    disabled,
+    onDigit,
+    onPulse,
+  });
 
   const angleFromEvent = (event: ReactPointerEvent): number => {
     const rect = svgRef.current?.getBoundingClientRect();
@@ -108,73 +72,18 @@ export function RotaryDial({ disabled, onDigit, onPulse }: RotaryDialProps) {
     return pointerAngle(cx, cy, event.clientX, event.clientY);
   };
 
-  const runBack = (digit: Digit) => {
-    const pulses = PULSES[digit];
-    const travel = travelDegrees(digit);
-    let left = pulses;
-    setPhase('returning');
-    timer.current = setInterval(() => {
-      left -= 1;
-      setRotation(left === 0 ? 0 : (travel * left) / pulses);
-      onPulse?.();
-      if (left === 0) {
-        clearTimer();
-        setPhase('idle');
-        setActiveDigit(null);
-      }
-    }, PULSE_INTERVAL_MS);
-  };
-
-  const springBack = () => {
-    setRotation(0);
-    setPhase('springing');
-    timer.current = setTimeout(
-      () => {
-        timer.current = null;
-        setPhase('idle');
-        setActiveDigit(null);
-      },
-      reducedMotion ? 0 : SPRING_BACK_MS,
-    );
-  };
-
   const handlePointerDown = (digit: Digit) => (event: ReactPointerEvent) => {
-    if (disabled || phase !== 'idle') return;
+    if (!grab(digit, angleFromEvent(event), event.pointerId)) return;
     event.preventDefault();
     svgRef.current?.setPointerCapture?.(event.pointerId);
-    drag.current = { digit, prev: angleFromEvent(event), rotation: 0, pointerId: event.pointerId };
-    setActiveDigit(digit);
-    setPhase('dragging');
   };
 
   const handlePointerMove = (event: ReactPointerEvent) => {
-    const current = drag.current;
-    if (!current || event.pointerId !== current.pointerId) return;
-    const next = angleFromEvent(event);
-    current.rotation = accumulateRotation(
-      current.rotation,
-      current.prev,
-      next,
-      travelDegrees(current.digit),
-    );
-    current.prev = next;
-    setRotation(current.rotation);
+    drag(angleFromEvent(event), event.pointerId);
   };
 
   const finishDrag = (event: ReactPointerEvent) => {
-    const current = drag.current;
-    if (!current || event.pointerId !== current.pointerId) return;
-    drag.current = null;
-    svgRef.current?.releasePointerCapture?.(event.pointerId);
-
-    const shortOfStop = travelDegrees(current.digit) - current.rotation;
-    if (shouldRegister(current.digit, shortOfStop)) {
-      setRotation(travelDegrees(current.digit));
-      onDigit(current.digit);
-      runBack(current.digit);
-    } else {
-      springBack();
-    }
+    if (release(event.pointerId)) svgRef.current?.releasePointerCapture?.(event.pointerId);
   };
 
   const transition =

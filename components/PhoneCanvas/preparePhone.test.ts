@@ -5,24 +5,10 @@
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
-import { readFileSync } from 'fs';
-import path from 'path';
 import { preparePhone, type PreparedPhone } from './preparePhone';
 import { computeCardFrame } from './cardTexture';
 import { PHONE_ROTATION_Y } from './sceneConstants';
-
-/** GLTFLoader reads a browser global when it meets a WebP texture. Geometry is all we need. */
-(globalThis as unknown as { self: unknown }).self = globalThis;
-
-async function loadSource(): Promise<THREE.Group> {
-  const loader = new GLTFLoader();
-  loader.setMeshoptDecoder(MeshoptDecoder);
-  const file = readFileSync(path.resolve(process.cwd(), 'public/models/we500.glb'));
-  const bytes = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
-  return (await loader.parseAsync(bytes, '')).scene;
-}
+import { loadSourcePhone } from './__fixtures__/loadSource';
 
 function descendantsNamed(root: THREE.Object3D, name: string): THREE.Object3D[] {
   const found: THREE.Object3D[] = [];
@@ -37,7 +23,7 @@ let phone: PreparedPhone;
 
 // Loading the model and raycasting for the holes takes a few seconds, so do it once.
 beforeAll(async () => {
-  source = await loadSource();
+  source = await loadSourcePhone();
   phone = preparePhone(source);
 }, 60_000);
 
