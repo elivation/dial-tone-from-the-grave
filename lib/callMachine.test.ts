@@ -155,7 +155,6 @@ const anyState: fc.Arbitrary<CallState> = fc.oneof(
   fc.constant<CallState>({ status: 'wrong-number' }),
   fc.constant<CallState>({ status: 'emergency-notice' }),
   fc.constant<CallState>({ status: 'busy' }),
-  fc.constant<CallState>({ status: 'hung-up' }),
 );
 
 const anyEvent: fc.Arbitrary<CallEvent> = fc.oneof(
@@ -189,7 +188,6 @@ const STATUSES = [
   'wrong-number',
   'emergency-notice',
   'busy',
-  'hung-up',
 ];
 
 describe('callReducer properties', () => {

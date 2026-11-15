@@ -377,8 +377,6 @@ stateDiagram-v2
 
     busy --> idle : SEQUENCE_COMPLETE
     busy --> idle : HANG_UP
-
-    hung_up --> idle : (immediate)
 ```
 
 ### State shape and reducer events
@@ -392,8 +390,7 @@ type CallState =
   | { status: 'connected'; operatorNumber: string; turnIndex: number }
   | { status: 'wrong-number' }
   | { status: 'emergency-notice' }
-  | { status: 'busy' }
-  | { status: 'hung-up' };
+  | { status: 'busy' };
 
 type CallEvent =
   | { type: 'PICK_UP' }

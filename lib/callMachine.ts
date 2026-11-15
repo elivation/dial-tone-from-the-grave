@@ -10,8 +10,7 @@ export type CallState =
   | { status: 'connected'; operatorNumber: string; turnIndex: number }
   | { status: 'wrong-number' }
   | { status: 'emergency-notice' }
-  | { status: 'busy' }
-  | { status: 'hung-up' };
+  | { status: 'busy' };
 
 export type CallEvent =
   | { type: 'PICK_UP' }
@@ -38,8 +37,7 @@ const IDLE: CallState = { status: 'idle' };
  * here so no path can send them to an operator. Events that do not fit the current state
  * return the same state object.
  *
- * HANG_UP goes straight to idle. `hung-up` stays in the type for the hang-up sound and is
- * never produced here.
+ * HANG_UP goes straight to idle. The hang-up click is a side effect of the action, not a state.
  */
 export function callReducer(state: CallState, event: CallEvent): CallState {
   if (event.type === 'HANG_UP') return state.status === 'idle' ? state : IDLE;
@@ -95,8 +93,5 @@ export function callReducer(state: CallState, event: CallEvent): CallState {
 
     case 'emergency-notice':
       return event.type === 'DISMISSED' ? IDLE : state;
-
-    case 'hung-up':
-      return IDLE;
   }
 }
