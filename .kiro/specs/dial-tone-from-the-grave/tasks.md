@@ -147,7 +147,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/RotaryDial/RotaryDial.test.tsx` (full drag calls onDigit; early release does not)
 
-- [ ] 41. Optimise 3D assets
+- [x] 41. Optimise 3D assets
 
   Add `@gltf-transform/cli` as a dev dependency. Write a `pnpm optimize-assets` script in `package.json` that runs `gltf-transform optimize` on `assets-src/phone/we500.glb` to `public/models/we500.glb` (meshopt compression, textures resized to 2K webp, target under 5 MB) and converts `assets-src/textures/dark_wooden_planks_diff_2k.jpg` to `public/textures/dark_wooden_planks_diff_2k.webp` using `cwebp -q 85`. Run the script and commit both outputs. Add `assets-src/phone/*.glb` and `assets-src/textures/*.jpg` to `.gitignore` so the unoptimised sources are not committed to `public/`. Verify `ls -lh public/models/we500.glb` is under 5 MB; if not, re-run with `--texture-size 1024` on non-hero materials.
 
