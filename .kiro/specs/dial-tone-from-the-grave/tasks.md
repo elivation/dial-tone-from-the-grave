@@ -2,7 +2,7 @@
 
 ## Overview
 
-Tasks are grouped into 8 phases. Phase 1 (scaffold) must be complete before all others. Phases 2 (dial), 3 (state machine and audio) and 4 (data and search) can run in parallel after Phase 1. Phase 5 (operators) depends on 3 and 4. Phase 6 (phone book) depends on 4 and 5. Phase 7 (limits, security, deploy) depends on 5 and 6. Phase 8 (polish and submission docs) depends on all prior phases.
+Tasks are grouped into 8 phases, plus the session features (tasks 45 to 48) that make the phone and the book work together. Phase 1 (scaffold) must be complete before all others. Phases 2 (dial), 3 (state machine and audio) and 4 (data and search) can run in parallel after Phase 1. Phase 5 (operators) depends on 3 and 4. Phase 6 (phone book) depends on 4 and 5. Phase 7 (limits, security, deploy) depends on 5 and 6. Phase 8 (polish and submission docs) depends on all prior phases.
 
 The rotary dial is the hero feature and comes first within Phase 2.
 
@@ -13,53 +13,43 @@ The rotary dial is the hero feature and comes first within Phase 2.
   "waves": [
     {
       "wave": 1,
-      "tasks": ["1.1", "1.2", "1.3", "1.4", "1.5"],
+      "tasks": ["1", "2", "3", "4", "5"],
       "description": "Project scaffold and tooling"
     },
     {
       "wave": 2,
-      "tasks": [
-        "2.1",
-        "2.2",
-        "2.3",
-        "2.4",
-        "2.5",
-        "41",
-        "3.1",
-        "3.2",
-        "3.3",
-        "3.4",
-        "4.1",
-        "4.2",
-        "4.3",
-        "4.4"
-      ],
-      "description": "Rotary dial, state machine, audio, data, asset optimisation (parallelisable)"
+      "tasks": ["6", "7", "8", "9", "10", "41", "11", "12", "13", "14", "15", "16", "17", "18"],
+      "description": "Rotary dial, state machine, audio, asset optimisation, data and seeds (parallelisable)"
     },
     {
       "wave": 3,
-      "tasks": ["42", "4.5", "4.6", "5.1"],
-      "description": "3D scene (requires optimised assets from 41), search route, spooky query, operators"
+      "tasks": ["42", "19", "20", "21"],
+      "description": "3D scene, search route, spooky query, operators"
     },
     {
       "wave": 4,
-      "tasks": ["43", "5.2", "5.3", "5.4"],
-      "description": "3D dial drag (requires 42), operator API route, panel, streaming"
+      "tasks": ["43", "22", "23", "24"],
+      "description": "3D dial drag, operator route, operator panel, streaming"
     },
     {
       "wave": 5,
-      "tasks": ["6.1", "6.2", "6.3", "6.4", "44"],
-      "description": "Phone book pages (3D and HTML), static overlay. Task 44 requires 42 and 19."
+      "tasks": ["25", "26", "27", "28", "44"],
+      "description": "Phone book pages (3D and HTML) and static overlay. The core loop is complete here."
     },
     {
       "wave": 6,
-      "tasks": ["7.1", "7.2", "7.3", "7.4", "7.5"],
-      "description": "Limits, security, deploy, fallbacks"
+      "tasks": ["45", "46", "48", "29", "30", "31", "32", "33"],
+      "description": "Dial a listing, incoming calls, Johannesburg check; limits, security, fallbacks and an early deploy"
     },
     {
       "wave": 7,
-      "tasks": ["8.1", "8.2", "8.3", "8.4", "8.5", "8.6", "8.7"],
-      "description": "Polish and submission docs"
+      "tasks": ["47"],
+      "description": "The book keeps the session (needs the listing calls from 45)"
+    },
+    {
+      "wave": 8,
+      "tasks": ["34", "35", "36", "37", "38", "39", "40"],
+      "description": "Polish, end-to-end suite and submission docs"
     }
   ]
 }
@@ -259,11 +249,11 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 - [ ] 15. Supabase migrations: extensions, tables, RLS, RPCs
 
-  Write migration files: `0001_extensions.sql` (enable pgvector, pg_trgm), `0002_businesses.sql` (table, indexes, RLS, public read policy), `0003_residents.sql` (table, indexes, RLS, public read policy), `0004_rate_limits.sql` (table, RLS no public access, `increment_rate_limit` function), `0005_rpcs.sql` (`search_businesses` and `search_residents` per design). Apply with `supabase db push`. Verify RLS on all three tables.
+  Write migration files: `0001_extensions.sql` (enable pgvector, pg_trgm), `0002_businesses.sql` (table, indexes, RLS, public read policy, `phone_digits` generated column with a unique index), `0003_residents.sql` (the same for residents), `0004_rate_limits.sql` (table, RLS no public access, `increment_rate_limit` function), `0005_rpcs.sql` (`search_businesses`, `search_residents` and `lookup_number` per design). Apply with `supabase db push`. Verify RLS on all three tables.
 
   Done when: `supabase db push` succeeds; all five migration files committed; RLS verified on all tables via `supabase inspect db rls`.
 
-  Requirements: Req 4.1, 4.2, Req 6.3, Req 10.6
+  Requirements: Req 4.1, 4.2, Req 6.3, Req 10.6, Req 11.1, 11.4
 
   Tests: RLS check hook fires on each migration save; manual verification of RLS via inspect.
 
@@ -279,21 +269,21 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 - [ ] 17. Seed business listings (150 businesses + 12 spirit listings)
 
-  Write `supabase/seed/businesses.ts`: array of ~150 fictional businesses across required categories and suburbs (Edenvale, Bedfordview, Kempton Park, Germiston, Lombardy East, Sandringham, Boksburg). Include ~12 spirit listings (`is_spirit: true`) and some boxed adverts (`is_advert: true`). All phones `011 000 xxxx`. Write `supabase/seed/run.ts`: for each row, call the embed Edge Function and upsert into businesses via the server secret key client.
+  Write `supabase/seed/businesses.ts`: array of ~150 fictional businesses across Johannesburg (design, Johannesburg flavour): the east, north, west and Soweto, at least 12 suburbs, and at least the trades Req 14.2 lists, with prices in rand where they appear. Include ~12 spirit listings (`is_spirit: true`) and some boxed adverts (`is_advert: true`). Every phone is a unique `011 000 xxxx` number. Write `supabase/seed/run.ts`: for each row, call the embed Edge Function and upsert into businesses via the server secret key client.
 
   Done when: seed runs without error; `SELECT COUNT(*) FROM businesses` >= 150; at least 12 rows with `is_spirit = true`; brand name grep on seed file returns nothing.
 
-  Requirements: Req 4.1, Req 7.1, Req 5.1, 5.2
+  Requirements: Req 4.1, Req 7.1, Req 5.1, 5.2, Req 11.1, Req 14.1, 14.2
 
-  Tests: brand name scan on seed file; row count verification
+  Tests: brand name scan on seed file; row count verification; `supabase/seed/seed.test.ts` with [P14] (unique numbers, `011 000 xxxx`, no clash with operator or emergency numbers, across businesses and residents)
 
 - [ ] 18. Seed resident listings (80 residents)
 
-  Write `supabase/seed/residents.ts`: array of ~80 invented residents with South African surname mix (van der Merwe, Botha, Nkosi, Dlamini, Patel, Singh, Coetzee, etc.) across the same suburbs. Include surname variants to exercise fuzzy match. All phones fictional. Run seed with embedding.
+  Write `supabase/seed/residents.ts`: array of ~80 invented residents with South African surname mix (van der Merwe, Botha, Nkosi, Dlamini, Patel, Singh, Coetzee, etc.) across the same Johannesburg suburbs, each with a unique `011 000 xxxx` number not used by any business. Include surname variants to exercise fuzzy match. All phones fictional. Run seed with embedding.
 
   Done when: seed runs; `SELECT COUNT(*) FROM residents` >= 80; `pnpm typecheck` clean.
 
-  Requirements: Req 6.3, Req 4.2
+  Requirements: Req 6.3, Req 4.2, Req 11.1, Req 14.1
 
   Tests: row count verification
 
@@ -319,11 +309,11 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 - [ ] 21. Define all operators in lib/operators.ts
 
-  Define `OperatorDefinition` type. Export `OPERATORS: Record<string, OperatorDefinition>` for 1023, 1026, 666, 1313 with full system prompts per design. Export `EMERGENCY_NUMBERS: Set<string>` ("10111", "10177", "107", "112", "911", "999"). Each system prompt includes: stay in character, no real service claim, no medical/legal/financial advice, refuse unsafe content in character.
+  Define `OperatorDefinition` type. Export `OPERATORS: Record<string, OperatorDefinition>` for 1023, 1026, 666, 1313 with full system prompts per design. Export `EMERGENCY_NUMBERS: Set<string>` ("10111", "10177", "107", "112", "911", "999"). Each system prompt includes: stay in character, no real service claim, no medical/legal/financial advice, refuse unsafe content in character, South African English, and an invented backstory tied to Johannesburg and its old exchange (design, Johannesburg flavour).
 
   Done when: unit tests pass (no operator number is in EMERGENCY_NUMBERS; all ring counts are 2 or 3); hook 4 passes on save; `pnpm test` clean; `pnpm typecheck` clean.
 
-  Requirements: Req 3.1, 3.2, Req 2.5, Req 7.3
+  Requirements: Req 3.1, 3.2, Req 2.5, Req 7.3, Req 14.3, 14.4
 
   Tests: `lib/operators.test.ts` (no operator on emergency number; all ring counts valid)
 
@@ -339,11 +329,11 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 - [ ] 23. Build OperatorPanel component
 
-  Create `components/OperatorPanel/OperatorPanel.tsx`. Props: `operatorNumber`, `onMessage`, `onHangUp`, `turnIndex`, `maxTurns`. Display: operator name, transcript scroll, input area. Input area: show SpeechRecognition button if available; always show typed text input. Feature-detect `window.SpeechRecognition` on mount. After reply streams, call `speechSynthesis.speak()` with operator voice config. Respect mute state.
+  Create `components/OperatorPanel/OperatorPanel.tsx`. Props: `operatorNumber`, `onMessage`, `onHangUp`, `turnIndex`, `maxTurns`. Display: operator name, transcript scroll, input area. Input area: show SpeechRecognition button if available; always show typed text input. Feature-detect `window.SpeechRecognition` on mount. After reply streams, call `speechSynthesis.speak()` with the voice from `pickVoice`: an `en-ZA` voice when the browser has one, otherwise the operator's voice hint. Respect mute state.
 
   Done when: tests pass (renders operator name; text input always present; with speech unavailable, voice button absent; submit calls onMessage); `pnpm test` clean; `pnpm typecheck` clean.
 
-  Requirements: Req 3.3, 3.4, 3.5, 3.10, Req 9.5, 9.7
+  Requirements: Req 3.3, 3.4, 3.5, 3.10, Req 9.5, 9.7, Req 14.3
 
   Tests: `components/OperatorPanel/OperatorPanel.test.tsx` (4 tests)
 
@@ -413,6 +403,46 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/Static/StaticOverlay.test.tsx` (3 tests)
 
+- [ ] 45. Dial a number from the book
+
+  Create `app/api/number/route.ts` (Zod `{ digits }`, search rate limit, `lookup_number` RPC, returns `{ kind }` only). In `useCall`, after the 2-second pause, look up numbers that are not operators or emergency numbers, staying in `dialling` while waiting: `listing` sends `NUMBER_MATCHED` with `callee: 'listing'` and 2 rings, anything else `NO_MATCH`. Extend `callReducer` with `callee` on `ringing` and `connected`. In `/api/operator`, accept listing numbers: look the row up server-side, build the prompt from `lib/listingGhost.ts`, apply `MAX_TURNS_PER_LISTING_CALL`. Add a Dial button to `ListingCard` and `ResidentRow` that picks up and presses each digit on the shared dial controller, waiting for rest between digits. Add the new env var to `.env.example`.
+
+  Done when: route tests pass (listing number returns `listing` with no details; unknown returns `none`; bad body 400; over limit 429); `useCall` tests pass (listing rings twice and connects; unknown ten digits is a wrong number; lookup failure is a wrong number); operator route tests pass (listing prompt built from the row; browser-sent persona text ignored; listing turn cap); Dial button test passes (dials every digit in order, by keyboard); `pnpm test` and `pnpm typecheck` clean.
+
+  Requirements: Req 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8, Req 2.5
+
+  Tests: `app/api/number/route.test.ts`, `components/PhoneScene/useCall.test.tsx`, `app/api/operator/route.test.ts`, `lib/listingGhost.test.ts`, `components/PhoneBookPage/DialButton.test.tsx`
+
+- [ ] 46. The phone rings by itself
+
+  Extend `callReducer` with `ringing-in` and `incoming-message`, and `INCOMING_RING`, `RING_TIMEOUT` and `MESSAGE_DONE` (design, State shape). Write `lib/incoming.ts` (about 12 invented lines). Write `useIncomingCall`: starts after the first interaction, only while idle, random wait between the min and max, session cap in `sessionStorage`, off when `NEXT_PUBLIC_RING_IN_ENABLED` is `false`. Ring tone while `ringing-in`, a 20-second timeout, the message spoken and shown on pick-up, then auto hang-up. `CallStatus` shows "The phone is ringing". The handset shakes except with reduced motion. Add the env vars to `.env.example`.
+
+  Done when: reducer tests pass, plus [P16]; hook tests pass with fake timers (never rings before an interaction, while dialling, or on a call; respects the session cap and the off switch; times out after 20 s); the message list test passes (one or two sentences each, brand-name scan clean); `pnpm test` and `pnpm typecheck` clean.
+
+  Requirements: Req 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, Req 2.1
+
+  Tests: `lib/callMachine.test.ts`, `components/PhoneScene/useIncomingCall.test.tsx`, `lib/incoming.test.ts`
+
+- [ ] 47. The book keeps your session
+
+  Write `lib/bookSession.ts` (pure reducer: `addPage`, `markCalled`, `BOOK_MAX_PAGES` cap, oldest dropped) and a `useBookSession` hook that saves to `sessionStorage` key `dtftg_book`. Add pages from search results; mark listings called from task 45's Dial path and from dialled listing numbers. In `PhoneBook3D`, flip between pages, draw a pencil ring round called listings on the page canvas and fold the corner of dog-eared pages. Add `PageStack` to the HTML mirror with Previous and Next buttons, arrow keys, and "called" labels.
+
+  Done when: [P15] passes; hook test passes (survives a reload in the same tab, nothing sent to the server); `PageStack` tests pass (keyboard flipping, called label); PhoneBook3D test passes (ring drawn for called ids, folded corner for dog-eared pages); `pnpm test` and `pnpm typecheck` clean.
+
+  Requirements: Req 13.1, 13.2, 13.3, 13.4, 13.5
+
+  Tests: `lib/bookSession.test.ts`, `components/PhoneBookPage/PageStack.test.tsx`, `components/PhoneCanvas/PhoneBook3D.test.tsx`
+
+- [ ] 48. Johannesburg flavour check
+
+  Add `supabase/seed/joburg.test.ts`: the seeds cover at least 12 suburbs across the east, north, west and Soweto, include every trade in Req 14.2, show prices only in rand, and pass the brand-name scan. Add `lib/voice.ts` `pickVoice` (prefer `en-ZA`, then the voice hint, then the default) with tests. Review the operator and listing-ghost backstories against Req 14.4.
+
+  Done when: the seed check, `pickVoice` tests and the backstory review pass; `pnpm test` and `pnpm typecheck` clean.
+
+  Requirements: Req 14.1, 14.2, 14.3, 14.4, 14.5
+
+  Tests: `supabase/seed/joburg.test.ts`, `lib/voice.test.ts`
+
 - [ ] 29. Rate limit property tests
 
   Extract `checkRateLimit(count: number, limit: number): "allowed" | "denied"` as a pure function in `lib/rateLimits.ts`. Write fast-check P10 (c <= L returns allowed), P11 (c > L returns denied), P12 (string with length > MAX_INPUT_CHARS rejected by Zod operator schema).
@@ -475,13 +505,13 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 - [ ] 35. Full end-to-end Playwright test suite
 
-  Implement all 8 E2E scenarios from design section "End-to-end tests": (1) full 1023 call with phone book opening, (2) 1026 call receives time and auto-hangs, (3) wrong number plays static and returns to idle, (4) dial 112 shows emergency-notice screen with plain message and no static, (5) mock 429 triggers busy state with in-character message, (6) dial 1313 opens spirit listings, (7) keyboard dial "5" shows 5 click sounds and digit display, (8) go offline shows in-character message and disables dial.
+  Implement all 8 E2E scenarios from design section "End-to-end tests": (1) full 1023 call with phone book opening, (2) 1026 call receives time and auto-hangs, (3) wrong number plays static and returns to idle, (4) dial 112 shows emergency-notice screen with plain message and no static, (5) mock 429 triggers busy state with in-character message, (6) dial 1313 opens spirit listings, (7) keyboard dial "5" shows 5 click sounds and digit display, (8) go offline shows in-character message and disables dial, (9) the Dial button on a listing dials its number and the listing's ghost answers, (10) with `NEXT_PUBLIC_RING_IN_MIN_S` set low the phone rings by itself and the message plays. All other scenarios run with `NEXT_PUBLIC_RING_IN_ENABLED=false`.
 
-  Done when: all 8 E2E tests pass against live Vercel URL; `pnpm test:e2e` clean.
+  Done when: all 10 E2E tests pass against live Vercel URL; `pnpm test:e2e` clean.
 
-  Requirements: Req 1, 2, 3, 4, 7, 8, 9, 10
+  Requirements: Req 1, 2, 3, 4, 7, 8, 9, 10, 11, 12
 
-  Tests: `tests/e2e/` (8 scenarios)
+  Tests: `tests/e2e/` (10 scenarios)
 
 - [ ] 36. Write README.md
 

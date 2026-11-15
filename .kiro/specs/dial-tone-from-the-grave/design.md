@@ -4,7 +4,7 @@
 
 ## Overview
 
-Dial Tone from the Grave is a Next.js 15 App Router web app. The user interacts with a rotary phone in the browser. Dialling a known number connects them to a ghost operator persona backed by Claude. The 1023 operator uses hybrid vector search over a Postgres database to answer directory enquiries. All AI and database calls happen server-side. The browser never receives API keys.
+Dial Tone from the Grave is a Next.js 15 App Router web app. The user interacts with a rotary phone in the browser. Dialling a known number connects them to a ghost operator persona backed by Claude. The 1023 operator uses hybrid vector search over a Postgres database to answer directory enquiries, and the results open in The Dead Pages, a cursed phone book. Every number in the book can be dialled, and the ghost of that business or household answers. The phone sometimes rings by itself, and the book remembers the session. It is set in Johannesburg: the suburbs, the trades, the voices and the time are local. All AI and database calls happen server-side. The browser never receives API keys.
 
 ---
 
@@ -154,6 +154,22 @@ HTTP errors:
 | 429    | rate_limited  | Search IP limit hit   |
 | 500    | search_failed | Supabase RPC error    |
 
+### POST /api/number
+
+Tells the browser what a dialled number reaches, so it can ring or play a wrong number. Called by `useCall` after the 2-second pause, for numbers that are not operators or emergency numbers.
+
+Request body (Zod): `{ digits: string }`, 3 to 12 digits, nothing else.
+
+Response:
+
+```typescript
+type NumberResponse = { kind: 'listing'; ringCount: 2 } | { kind: 'none' };
+```
+
+It returns no listing details: the persona is built on the server when the call connects. It counts against the search limit per IP (Requirement 10, AC 2). Errors: 400 `invalid_body`, 429 `rate_limited`, 500 `lookup_failed`.
+
+`POST /api/operator` accepts a listing number as `number` too. The server looks the listing up with `lookup_number`, builds the listing ghost's system prompt from that row (see Session Features), and applies `MAX_TURNS_PER_LISTING_CALL`. An unknown number is still a 400 `invalid_number`.
+
 ### GET /api/health
 
 Returns `{ ok: true, ts: string }` after `SELECT 1` from Supabase. Returns 503 on failure. Used by the daily cron.
@@ -197,6 +213,11 @@ create policy "public read non-spirit"
   on businesses for select
   using (true);
 -- Write is secret key only (no insert/update/delete policy for anon or authenticated).
+
+-- Every listing can be dialled. Digits only, unique, so a dialled number finds one listing.
+alter table businesses add column phone_digits text
+  generated always as (regexp_replace(phone, '\D', '', 'g')) stored;
+create unique index businesses_phone_digits_idx on businesses (phone_digits);
 ```
 
 ### residents table
@@ -226,7 +247,29 @@ alter table residents enable row level security;
 create policy "public read residents"
   on residents for select
   using (true);
+
+alter table residents add column phone_digits text
+  generated always as (regexp_replace(phone, '\D', '', 'g')) stored;
+create unique index residents_phone_digits_idx on residents (phone_digits);
 ```
+
+### lookup_number RPC
+
+```sql
+create function lookup_number(digits text)
+returns table (kind text, id uuid, name text, category text, suburb text, address text,
+               hours text, description text, is_spirit boolean)
+language sql stable security invoker as $$
+  select 'business', id, name, category, suburb, address, hours, description, is_spirit
+    from businesses where phone_digits = digits
+  union all
+  select 'resident', id, surname || ' ' || initials, null, suburb, address, null, null, false
+    from residents where phone_digits = digits
+  limit 1;
+$$;
+```
+
+The two unique indexes stop a number being used twice in one table. A seed test stops a number being used in both tables, and stops any listing number matching an operator or emergency number.
 
 ### rate_limits table
 
@@ -282,6 +325,7 @@ app/page.tsx
       DialledDisplay              (shows digits dialled so far; aria-live)
       HandsetButtons              (pick up / hang up; always interactive)
       MuteToggle                  (mute button)
+      CallStatus                  (one line on what the line is doing; aria-live; "The phone is ringing" for incoming calls)
       EmergencyNotice             (plain white overlay, shown for emergency-notice state)
       OperatorPanel               (shown when connected)
         TranscriptScroll          (streamed operator text)
@@ -289,8 +333,9 @@ app/page.tsx
       PhoneBookOverlay            (accessible HTML mirror of PhoneBook3D results)
         PhoneBookPage
           PageHeader
+          PageStack                 (the session's pages, flipped with buttons and arrow keys)
           BusinessSection
-            ListingCard
+            ListingCard             (with a Dial button that dials the listing's number)
             AdvertCard
             ListingDetail
           WhiteSection
@@ -377,6 +422,12 @@ stateDiagram-v2
 
     busy --> idle : SEQUENCE_COMPLETE
     busy --> idle : HANG_UP
+
+    idle --> ringing_in : INCOMING_RING
+    ringing_in --> incoming_message : PICK_UP
+    ringing_in --> idle : RING_TIMEOUT
+    incoming_message --> idle : MESSAGE_DONE
+    incoming_message --> idle : HANG_UP
 ```
 
 ### State shape and reducer events
@@ -386,11 +437,16 @@ type CallState =
   | { status: 'idle' }
   | { status: 'off-hook' }
   | { status: 'dialling'; digits: string }
-  | { status: 'ringing'; operatorNumber: string; ringsRemaining: number }
-  | { status: 'connected'; operatorNumber: string; turnIndex: number }
+  | { status: 'ringing'; operatorNumber: string; callee: Callee; ringsRemaining: number }
+  | { status: 'connected'; operatorNumber: string; callee: Callee; turnIndex: number }
   | { status: 'wrong-number' }
   | { status: 'emergency-notice' }
-  | { status: 'busy' };
+  | { status: 'busy' }
+  | { status: 'ringing-in' }
+  | { status: 'incoming-message'; messageIndex: number };
+
+/** Who answers: a ghost operator, or the ghost of a listing from the book. */
+type Callee = 'operator' | 'listing';
 
 type CallEvent =
   | { type: 'PICK_UP' }
@@ -398,17 +454,22 @@ type CallEvent =
   | { type: 'DIGIT_DIALLED'; digit: string }
   | { type: 'CALL_PLACED' }
   | { type: 'EMERGENCY_NUMBER' }
-  | { type: 'NUMBER_MATCHED'; operatorNumber: string; ringCount: number }
+  | { type: 'NUMBER_MATCHED'; operatorNumber: string; callee: Callee; ringCount: number }
   | { type: 'NO_MATCH' }
   | { type: 'RING_TICK' }
   | { type: 'TURN_SENT' }
   | { type: 'TURN_CAP_REACHED' }
   | { type: 'RATE_LIMITED' }
   | { type: 'SEQUENCE_COMPLETE' }
-  | { type: 'DISMISSED' };
+  | { type: 'DISMISSED' }
+  | { type: 'INCOMING_RING' }
+  | { type: 'RING_TIMEOUT' }
+  | { type: 'MESSAGE_DONE' };
 ```
 
-`useCall` (`components/PhoneScene/useCall.ts`) owns the reducer, the dial controller and the audio. The dial is locked unless the line is `off-hook` or `dialling`. The 2-second dial timer starts when the dial is back at rest and fires `CALL_PLACED`, which sends emergency numbers to `emergency-notice`. For anything else, `useCall` then looks the number up in `OPERATORS` and sends `NUMBER_MATCHED` or `NO_MATCH`. Each ring is a 1 s burst then a 2 s gap. A `RING_TICK` fires at the end of each burst, and the last one connects. A wrong number plays 2 s of static, then the three pips (0.9 s), then goes back to idle. Busy plays the busy tone for 3 s, then goes back to idle. Each state starts its sound when it is entered and stops it when it is left, so a hang-up from anywhere silences the line. The page wakes the audio on its first pointer or key press.
+`PICK_UP` in `ringing-in` answers the incoming call instead of going off-hook. `INCOMING_RING` is ignored in every state except `idle`, so the phone can never ring by itself during a call (Requirement 12, AC 4).
+
+`useCall` (`components/PhoneScene/useCall.ts`) owns the reducer, the dial controller and the audio. The dial is locked unless the line is `off-hook` or `dialling`. The 2-second dial timer starts when the dial is back at rest and fires `CALL_PLACED`, which sends emergency numbers to `emergency-notice`. For anything else, `useCall` looks the number up in `OPERATORS` first. If it is not an operator, `useCall` asks `POST /api/number` and stays in `dialling` while it waits, then sends `NUMBER_MATCHED` (with `callee: 'listing'` and 2 rings) or `NO_MATCH`. A lookup that fails is treated as a wrong number. Each ring is a 1 s burst then a 2 s gap. A `RING_TICK` fires at the end of each burst, and the last one connects. A wrong number plays 2 s of static, then the three pips (0.9 s), then goes back to idle. Busy plays the busy tone for 3 s, then goes back to idle. Each state starts its sound when it is entered and stops it when it is left, so a hang-up from anywhere silences the line. The page wakes the audio on its first pointer or key press.
 
 The 2-second dial timer fires `CALL_PLACED`. The server 429 response fires `RATE_LIMITED`. The final turn auto-hang fires `TURN_CAP_REACHED`. The user dismissing the emergency notice fires `DISMISSED`.
 
@@ -839,14 +900,20 @@ $$;
 
 ### Environment variables
 
-| Variable                       | Default          | Meaning                                   |
-| ------------------------------ | ---------------- | ----------------------------------------- |
-| OPERATOR_LIMIT_PER_IP_PER_HOUR | 20               | Max operator calls per IP per hour        |
-| SEARCH_LIMIT_PER_IP_PER_HOUR   | 60               | Max search calls per IP per hour          |
-| CLAUDE_DAILY_GLOBAL_CAP        | 500              | Max Claude calls globally per day         |
-| MAX_TURNS_PER_CALL             | 6                | Max user turns before auto hang-up        |
-| MAX_INPUT_CHARS                | 300              | Max characters per user message           |
-| ANTHROPIC_MODEL                | claude-haiku-5-5 | Claude model name used for operator calls |
+| Variable                            | Default          | Meaning                                   |
+| ----------------------------------- | ---------------- | ----------------------------------------- |
+| OPERATOR_LIMIT_PER_IP_PER_HOUR      | 20               | Max operator calls per IP per hour        |
+| SEARCH_LIMIT_PER_IP_PER_HOUR        | 60               | Max search calls per IP per hour          |
+| CLAUDE_DAILY_GLOBAL_CAP             | 500              | Max Claude calls globally per day         |
+| MAX_TURNS_PER_CALL                  | 6                | Max user turns before auto hang-up        |
+| MAX_INPUT_CHARS                     | 300              | Max characters per user message           |
+| ANTHROPIC_MODEL                     | claude-haiku-5-5 | Claude model name used for operator calls |
+| MAX_TURNS_PER_LISTING_CALL          | 4                | Max user turns in a call to a listing     |
+| NEXT_PUBLIC_RING_IN_ENABLED         | true             | Lets the phone ring by itself             |
+| NEXT_PUBLIC_RING_IN_MIN_S           | 45               | Shortest wait before an incoming call     |
+| NEXT_PUBLIC_RING_IN_MAX_S           | 120              | Longest wait before an incoming call      |
+| NEXT_PUBLIC_RING_IN_MAX_PER_SESSION | 2                | Most incoming calls per session           |
+| NEXT_PUBLIC_BOOK_MAX_PAGES          | 12               | Most pages the book keeps in a session    |
 
 ---
 
@@ -1007,6 +1074,14 @@ SEARCH_LIMIT_PER_IP_PER_HOUR=60
 CLAUDE_DAILY_GLOBAL_CAP=500
 MAX_TURNS_PER_CALL=6
 MAX_INPUT_CHARS=300
+MAX_TURNS_PER_LISTING_CALL=4
+
+# Session features (browser, optional, defaults shown)
+NEXT_PUBLIC_RING_IN_ENABLED=true
+NEXT_PUBLIC_RING_IN_MIN_S=45
+NEXT_PUBLIC_RING_IN_MAX_S=120
+NEXT_PUBLIC_RING_IN_MAX_PER_SESSION=2
+NEXT_PUBLIC_BOOK_MAX_PAGES=12
 
 # Vercel cron secret (set in Vercel dashboard, used to protect the cron endpoint)
 CRON_SECRET=
@@ -1029,6 +1104,76 @@ Migrations live in `supabase/migrations/` and are applied with `supabase db push
 7. `0007_seed_residents.sql`: insert ~80 fictional residents.
 
 Seed files call the embed Edge Function for each row to generate and store embeddings.
+
+---
+
+## Session Features
+
+These are what make the app feel like the phone and the book are back in 2026, not just drawn on a screen.
+
+### Dialling a listing
+
+Every listing has a fictional ten-digit number (`011 000 xxxx`). Dialling one rings twice and connects to the ghost of that listing.
+
+1. `useCall` places the call after the 2-second pause. A number that is not an operator or an emergency number goes to `POST /api/number`.
+2. `kind: 'listing'` rings twice and connects with `callee: 'listing'`. `kind: 'none'` is a wrong number.
+3. Each turn goes to `POST /api/operator` with the dialled digits. The server calls `lookup_number`, then builds the system prompt from a template in `lib/listingGhost.ts` filled with that row. The browser never sends listing details.
+
+The listing ghost template:
+
+```
+You are the ghost who answers the telephone at {name}, a {category} in {suburb}, Johannesburg.
+The listing in The Dead Pages says: {description}. Hours: {hours}. Address: {address}.
+You have answered this telephone since long before the line went dead. You are polite, a little odd, and you speak South African English.
+Only talk about this listing. Do not invent prices, staff, other businesses or real people.
+Never more than 4 sentences per reply. On the final turn (turn {MAX_TURNS_PER_LISTING_CALL}), say goodbye and hang up.
+Never claim to be a real service. Never give medical, legal or financial advice. Refuse unsafe requests in character.
+```
+
+A resident's ghost uses the same rules, as the ghost of the household ("You are the ghost who still lives at {address}..."). Spirit listings add one line asking for an eerier, stranger manner. Listing calls use the same model, token limit, rate limits and daily cap as operators.
+
+Every `ListingCard` and `ResidentRow` has a Dial button. It picks up if the phone is on the hook, then calls `controller.press` for each digit in turn, waiting for the dial to come back to rest before the next one. The call goes through the same path as dialling by hand, so the clicks, the announcements and the 2-second pause are the same. The button is a real `<button>` with an accessible name ("Dial 011 000 1234, Ndlovu Plumbing").
+
+### Incoming calls
+
+`useIncomingCall` (in `components/PhoneScene/`) schedules the phone to ring by itself:
+
+- It only runs after the first pointer or key press, while the state is `idle`, if `NEXT_PUBLIC_RING_IN_ENABLED` is not `false`, and while fewer than `NEXT_PUBLIC_RING_IN_MAX_PER_SESSION` incoming calls have rung this session (counted in `sessionStorage`).
+- It waits a random time between `NEXT_PUBLIC_RING_IN_MIN_S` and `NEXT_PUBLIC_RING_IN_MAX_S`, then sends `INCOMING_RING`. Any other state change resets the wait.
+- `ringing-in` plays the normal ring tone, and `RING_TIMEOUT` follows after 20 seconds. The handset shakes a little, but not with reduced motion. While muted there is no sound, but `CallStatus` shows "The phone is ringing" either way.
+- Picking up moves to `incoming-message` with a random line from `lib/incoming.ts`. The line is shown and spoken in a ghost voice, and `MESSAGE_DONE` hangs up after it. There is no Claude call.
+
+`lib/incoming.ts` holds about 12 lines, each one or two sentences. For example: "Is this The Dead Pages? I have been holding since 1974." Or: "Don't hang up. Something in the walls is dialling your number."
+
+### The book keeps your session
+
+`useBookSession` (`lib/bookSession.ts` plus a hook) keeps the session's pages in `sessionStorage` under `dtftg_book`:
+
+```typescript
+type BookPage = {
+  id: string;
+  section: 'business' | 'white';
+  query: string;
+  results: BusinessResult[] | ResidentResult[];
+  calledIds: string[];
+  dogEared: boolean;
+};
+```
+
+- `addPage` adds one page per search with results, and drops the oldest past `BOOK_MAX_PAGES`.
+- `markCalled` adds the listing's id to `calledIds` on its page and dog-ears that page.
+- The reducer behind these is pure, so it can be property-tested (Property 15).
+
+`PhoneBook3D` shows the current page and can flip back and forward. On the page canvas, called listings get a hand-drawn pencil ring around them (a slightly uneven ellipse, drawn twice, soft graphite grey), and dog-eared pages get a folded corner on the mesh. The HTML mirror lists the same pages with Previous and Next buttons (arrow keys work too) and labels called listings "called".
+
+### Johannesburg flavour
+
+- **Seeds:** listings are spread across the east (Edenvale, Bedfordview, Kempton Park, Germiston, Boksburg, Lombardy East), the north (Randburg, Northcliff, Fourways), the west (Roodepoort, Florida, Melville) and the south (Soweto, Rosettenville, Turffontein).
+- **Trades:** the seeds cover geyser repairs, gate motors, borehole pumps, burglar bars, generators and inverters, electricians, plumbers, locksmiths, panel beaters and pharmacies. Prices, where they appear, are in rand. Business names are invented, with no real businesses.
+- **Voices:** `pickVoice` chooses an `en-ZA` voice when the browser has one, then falls back to the operator's voice hint.
+- **Backstories:** the 1023 operator has worked the night switchboard at the old exchange in town since 1958. The night caretaker still sweeps the cable rooms. The listing ghosts talk about their suburb as it was. All of it is invented, with no real people, businesses, brands or political figures.
+- **Time:** every time an operator states is in Africa/Johannesburg.
+- **Check:** a seed check test confirms the suburb spread, the trades list and the brand-name scan.
 
 ---
 
@@ -1262,3 +1407,21 @@ For any string s where `s.length > MAX_INPUT_CHARS`, the Zod operator schema rej
 The 1023 operator never names a business or resident that does not appear in the tool result returned by the search RPC. Test type: manual review and E2E.
 
 **Validates: Requirements 4.7**
+
+### Property 14: Listing numbers are dialable and unique
+
+For every pair of listings in the seed data, their numbers differ once reduced to digits. Every listing number is ten digits in the `011 000 xxxx` range, and no listing number equals an operator number or an emergency number. Test type: property-based over the seed arrays.
+
+**Validates: Requirements 11.1**
+
+### Property 15: The book keeps its bounds
+
+For any sequence of searches and calls, the session book never holds more than `BOOK_MAX_PAGES` pages, always drops the oldest page first, keeps the newest, and marks a listing as called only if that listing was dialled. Test type: property-based.
+
+**Validates: Requirements 13.1, 13.3**
+
+### Property 16: The phone never rings by itself during a call
+
+For any state other than `idle`, `INCOMING_RING` leaves the state unchanged. Test type: property-based over the call reducer.
+
+**Validates: Requirements 12.4**
