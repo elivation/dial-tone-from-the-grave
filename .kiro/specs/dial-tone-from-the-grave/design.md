@@ -362,7 +362,7 @@ stateDiagram-v2
     dialling --> wrong_number : CALL_PLACED (no match)
     dialling --> idle : HANG_UP
 
-    ringing --> connected : RINGS_COMPLETE
+    ringing --> connected : RING_TICK (last ring)
     ringing --> idle : HANG_UP
 
     connected --> idle : HANG_UP
@@ -407,6 +407,8 @@ type CallEvent =
   | { type: 'SEQUENCE_COMPLETE' }
   | { type: 'DISMISSED' };
 ```
+
+`useCall` (`components/PhoneScene/useCall.ts`) owns the reducer, the dial controller and the audio. The dial is locked unless the line is `off-hook` or `dialling`. The 2-second dial timer starts when the dial is back at rest and fires `CALL_PLACED`, which sends emergency numbers to `emergency-notice`. For anything else, `useCall` then looks the number up in `OPERATORS` and sends `NUMBER_MATCHED` or `NO_MATCH`. Each ring is a 1 s burst then a 2 s gap. A `RING_TICK` fires at the end of each burst, and the last one connects. A wrong number plays 2 s of static, then the three pips (0.9 s), then goes back to idle. Busy plays the busy tone for 3 s, then goes back to idle. Each state starts its sound when it is entered and stops it when it is left, so a hang-up from anywhere silences the line. The page wakes the audio on its first pointer or key press.
 
 The 2-second dial timer fires `CALL_PLACED`. The server 429 response fires `RATE_LIMITED`. The final turn auto-hang fires `TURN_CAP_REACHED`. The user dismissing the emergency notice fires `DISMISSED`.
 

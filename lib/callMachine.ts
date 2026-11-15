@@ -37,7 +37,7 @@ const IDLE: CallState = { status: 'idle' };
  * here so no path can send them to an operator. Events that do not fit the current state
  * return the same state object.
  *
- * HANG_UP goes straight to idle. The hang-up click is a side effect of the action, not a state.
+ * HANG_UP goes straight to idle. Stopping the sound is a side effect of leaving a state, not a state.
  */
 export function callReducer(state: CallState, event: CallEvent): CallState {
   if (event.type === 'HANG_UP') return state.status === 'idle' ? state : IDLE;

@@ -48,7 +48,7 @@ A web app that brings back the rotary phone and the printed phone book. The user
 4. WHEN the user has dialled at least one digit and 2 seconds pass with no new digit (measured from when the dial finishes returning to rest) THEN the system SHALL place the call.
 5. IF the dialled number matches a known operator THEN the system SHALL transition to `ringing`, ring the number of times defined for that operator in `lib/operators.ts` (2 or 3), then transition to `connected`.
 6. IF the dialled number does not match any operator THEN the system SHALL transition to `wrong-number`, play static and crackle, play a whispered "wrong number…" line, then play the disconnected tone.
-7. WHEN the user hangs up from any state THEN the system SHALL transition to `idle`, clear the dialled number and play the hang-up click.
+7. WHEN the user hangs up from any state THEN the system SHALL transition to `idle`, stop any sound that is playing, and clear the dialled number.
 8. IF the user dials one of the reserved emergency numbers (10111, 10177, 107, 112, 911, 999) THEN the system SHALL transition to `emergency-notice`, not `wrong-number`, and show a plain, calm, out-of-character screen with a spoken message: "This is a game and cannot call anyone. If you have an emergency, please use a real phone and dial 112 or 10111." The system SHALL NOT play static, crackle or any spooky effect in this state.
 9. WHEN the system is in `connected` state and a new digit is dialled THEN the system SHALL ignore the input (no hang-up, no re-dial).
 10. WHEN the `busy` state is entered (rate limit hit) THEN the system SHALL play a busy tone and display an in-character "all lines are busy" message before returning to `idle`.

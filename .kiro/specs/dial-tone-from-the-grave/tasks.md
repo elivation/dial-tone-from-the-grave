@@ -217,7 +217,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 - [x] 11. Implement the call state machine (useReducer, test-first)
 
-  Create `lib/callMachine.ts` exporting `CallState`, `CallEvent`, `callReducer`, and `EMERGENCY_NUMBERS` set (imported from `lib/operators.ts`). Write unit tests for every transition before implementing: idle+PICK_UP, off-hook+DIGIT_DIALLED, dialling+CALL_PLACED (match and no-match), dialling+EMERGENCY_NUMBER (must route to emergency-notice not wrong-number), ringing+RINGS_COMPLETE, connected+HANG_UP, connected+TURN_CAP_REACHED, connected+RATE_LIMITED, busy+SEQUENCE_COMPLETE, wrong-number+SEQUENCE_COMPLETE, emergency-notice+DISMISSED, connected+DIGIT_DIALLED (stays connected). Write fast-check P5 (reducer never returns undefined) and P6 (every emergency number routes to emergency-notice).
+  Create `lib/callMachine.ts` exporting `CallState`, `CallEvent`, `callReducer`, and `EMERGENCY_NUMBERS` set (imported from `lib/operators.ts`). Write unit tests for every transition before implementing: idle+PICK_UP, off-hook+DIGIT_DIALLED, dialling+CALL_PLACED (match and no-match), dialling+EMERGENCY_NUMBER (must route to emergency-notice not wrong-number), ringing+RING_TICK (last ring connects), connected+HANG_UP, connected+TURN_CAP_REACHED, connected+RATE_LIMITED, busy+SEQUENCE_COMPLETE, wrong-number+SEQUENCE_COMPLETE, emergency-notice+DISMISSED, connected+DIGIT_DIALLED (stays connected). Write fast-check P5 (reducer never returns undefined) and P6 (every emergency number routes to emergency-notice).
 
   Done when: 13 transition tests + 2 property tests pass; `pnpm test` clean; `pnpm typecheck` clean.
 
@@ -235,15 +235,15 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/audio.test.ts` (18 tests with a fake AudioContext: every tone and cadence, click and static graphs, mute and storage, first-interaction wake, no Web Audio, reduced motion ignored)
 
-- [ ] 13. Build Handset component and wire state machine to audio
+- [x] 13. Build Handset component and wire state machine to audio
 
-  Create `components/Handset/Handset.tsx` (pick-up / hang-up buttons). In `app/page.tsx`, instantiate `useReducer(callReducer)` and wire all events. Connect AudioEngine to state transitions. Implement the 2-second dial timer (`CALL_PLACED` after last digit). Implement the ring sequence (`RINGS_COMPLETE` after N ticks). Render the `emergency-notice` state as a plain white overlay (no spooky styling) with the safety message: "This is a game and cannot call anyone. If you have an emergency, please use a real phone and dial 112 or 10111." and a dismiss button.
+  Create `components/Handset/Handset.tsx` (pick-up / hang-up buttons). In `components/PhoneScene/useCall.ts` (used by `PhoneScene`, which `app/page.tsx` renders), instantiate `useReducer(callReducer)` and wire all events. Connect AudioEngine to state transitions. Implement the 2-second dial timer (`CALL_PLACED` after last digit). Implement the ring sequence (one `RING_TICK` per ring, connecting after the operator's ring count). Render the `emergency-notice` state as a plain white overlay (no spooky styling) with the safety message: "This is a game and cannot call anyone. If you have an emergency, please use a real phone and dial 112 or 10111." and a dismiss button.
 
   Done when: pick-up test passes; hang-up-from-connected transitions to idle; emergency-notice overlay renders correct message text; `pnpm test` clean; `pnpm typecheck` clean.
 
   Requirements: Req 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.10, Req 8.3, 8.4, 8.5, 8.6
 
-  Tests: `components/Handset/Handset.test.tsx` (pick-up; hang-up; emergency-notice overlay)
+  Tests: `components/Handset/Handset.test.tsx` (pick-up; hang-up from every state); `components/EmergencyNotice/EmergencyNotice.test.tsx` (message, plain styling, dismiss by button and Escape, focus); `components/CallStatus/CallStatus.test.tsx` (busy and wrong-number text, live region); `components/PhoneScene/useCall.test.tsx` (18 tests: dial tone, 2 s pause from rest, rings, wrong-number sequence, emergency, hang-up from any state, busy, locked dial when connected, audio wake and clean-up); `tests/e2e/call-flow.spec.ts` (112 notice, wrong number, hang-up)
 
 - [ ] 14. Implement MuteToggle component
 
