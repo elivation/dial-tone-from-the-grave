@@ -1,0 +1,319 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden}
+#wrap{position:relative;width:1440px;height:900px}
+#vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 72% 78% at 50% 52%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.6) 78%, rgba(0,0,0,0.95) 100%)}
+#grain{position:absolute;inset:0;pointer-events:none;opacity:.07;mix-blend-mode:overlay}
+</style>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+</head>
+<body>
+<div id="wrap"><div id="vignette"></div><canvas id="grain" width="1440" height="900"></canvas></div>
+<script type="module">
+import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const params = new URLSearchParams(location.search);
+const W = 1440, H = 900;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.getElementById('wrap').prepend(renderer.domElement);
+{
+  const g = document.getElementById('grain').getContext('2d'); const img = g.createImageData(1440, 900);
+  for (let i = 0; i < img.data.length; i += 4) { const v = Math.random() * 255; img.data[i] = img.data[i+1] = img.data[i+2] = v; img.data[i+3] = 255; }
+  g.putImageData(img, 0, 0);
+}
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x030202);
+scene.fog = new THREE.FogExp2(0x050302, 1.2);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.08;
+
+// seeded random so every render is the same book
+let seed = 13; const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+
+// ---------- desk ----------
+const deskMat = new THREE.MeshStandardMaterial({ roughness: 0.85, color: new THREE.Color(0.75, 0.68, 0.6) });
+await new Promise((res) => new THREE.TextureLoader().load('./wood_diff.jpg', (t) => {
+  t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(4, 4); t.anisotropy = 16; deskMat.map = t; deskMat.needsUpdate = true; res();
+}, undefined, res));
+const desk = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), deskMat);
+desk.rotation.x = -Math.PI / 2; desk.receiveShadow = true; scene.add(desk);
+
+// ---------- the pages ----------
+const PW = 1024, PH = 1400; // page canvas, portrait
+
+function agedPaper(g, w, h, side) {
+  // base: yellowed newsprint, darker towards the edges and the gutter
+  g.fillStyle = '#d9c9a0'; g.fillRect(0, 0, w, h);
+  const id = g.getImageData(0, 0, w, h), d = id.data;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const i = (y * w + x) * 4;
+    const ex = Math.min(x, w - x) / w, ey = Math.min(y, h - y) / h;
+    const gutter = side === 'L' ? (w - x) / w : x / w; // distance from the spine
+    const edge = Math.max(0, 0.09 - Math.min(ex, ey)) * 7;
+    const gut = Math.max(0, 0.1 - gutter) * 6;
+    const n = (rnd() - 0.5) * 14;
+    const k = 0.86 - edge * 0.55 - gut * 0.5 - (rnd() < 0.002 ? 0.2 : 0);
+    d[i] = (217 + n) * k + edge * 30; d[i + 1] = (201 + n) * k + edge * 8; d[i + 2] = (160 + n) * k - edge * 25;
+  }
+  g.putImageData(id, 0, 0);
+  // foxing: brown spots
+  for (let k = 0; k < 160; k++) {
+    const x = rnd() * w, y = rnd() * h, r = 2 + rnd() * rnd() * 22;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(120,70,25,${0.15 + rnd() * 0.3})`); gr.addColorStop(1, 'rgba(120,70,25,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+  }
+  // water damage tide line
+  if (side === 'R') {
+    const cx = w * 0.95, cy = h * 1.0, R = w * 0.42;
+    const path = () => { g.beginPath(); for (let a = 0; a <= Math.PI * 2 + 0.01; a += 0.04) { const rr = R * (0.92 + Math.sin(a * 6) * 0.035 + Math.sin(a * 17) * 0.015); g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } };
+    g.save(); g.fillStyle = 'rgba(150,110,60,0.10)'; path(); g.fill();
+    g.filter = 'blur(2px)'; g.strokeStyle = 'rgba(110,70,30,0.45)'; g.lineWidth = 5; path(); g.stroke();
+    g.filter = 'blur(6px)'; g.strokeStyle = 'rgba(120,80,40,0.2)'; g.lineWidth = 18; path(); g.stroke(); g.restore();
+  }
+}
+
+const SURNAMES = [
+  ['ABERNATHY Silas', '13 Hollow Ln', 'HO 6-1313'], ['ACHERON Mrs E', 'The Old Rectory', 'GR 4-0066'], ['ADDER Thos', '9 Wych Elm Rd', 'HO 6-2140'],
+  ['ASHBY Constance', 'Flat 4 Gallows Ct', 'BL 2-7709'], ['ASHGROVE Fnrl Parlour', 'Open all night', 'GR 4-1000'], ['BARROW Ezekiel', '7 Cairn St', 'HO 6-5531'],
+  ['BELLWEATHER Agnes', 'Mere Cottage', 'BL 2-0909'], ['BLACKTHORN Dr M', 'Surgery, Lychgate Rd', 'GR 4-3317'], ['BONE R', '22 Ossuary Wlk', 'HO 6-8812'],
+  ['BRAMBLE Hester', '3 Nightjar Ln', 'BL 2-4420'], ['CADAVER & SONS Cartage', 'Depot, Coffin Rd', 'GR 4-6600'], ['CAIRN Ivor', '18 Barrow Hill', 'HO 6-0131'],
+  ['CANDLEMAS Prudence', 'Vestry Hse', 'BL 2-1201'], ['CARRION Wm', '41 Rook St', 'HO 6-7744'], ['CINDER Mabel', 'The Kilns', 'GR 4-2028'],
+  ['COFFIN Jas', '5 Elm Row', 'HO 6-3390'], ['CORVID Lenore', 'Rookery Farm', 'BL 2-6113'], ['CROWE Abel', '60 Saltmarsh Rd', 'GR 4-0812'],
+  ['CRYPTE Mme', 'Readings by appt', 'HO 6-9999'], ['DANKWORTH Obadiah', '2 Fen End', 'BL 2-3131'], ['DIRGE Florence', '11 Knell St', 'GR 4-5050'],
+  ['DOLOR Septimus', 'Asylum Lodge', 'HO 6-1919'], ['DREAD H', '77 Moor Rd', 'BL 2-0013'], ['DUSK Winifred', 'Sundown Villa', 'GR 4-7171'],
+  ['EBON Cornelius', '8 Pitch Ln', 'HO 6-4646'], ['EMBER Lydia', '14 Ash Wlk', 'BL 2-8282'], ['EVERDARK Josiah', 'Lighthouse (disused)', 'GR 4-0000'],
+  ['FENWICK Ada', '31 Bog Rd', 'HO 6-2525'], ['FETCH Mrs', 'no fixed abode', 'BL 2-6666'], ['GALLOWAY Rbt', '1 Scaffold Sq', 'GR 4-1303'],
+  ['GHOUL Bros Gravediggers', 'Churchyard', 'HO 6-1300'], ['GRAVES Eliza', '6 Mortlake Rd', 'BL 2-1013'], ['GRIM Tobias', 'Reaper Fm', 'GR 4-9191'],
+];
+const CROSSED = new Set([4, 13, 20, 26]);
+
+function listings(g, side) {
+  const colW = side === 'L' ? 430 : 430, x0 = side === 'L' ? 70 : 110, top = 150;
+  // running head
+  g.fillStyle = '#1a140c'; g.font = 'bold 34px "DejaVu Sans Condensed", sans-serif'; g.textBaseline = 'alphabetic';
+  if (side === 'L') { g.fillText('ABE—CAN', x0, 80); g.textAlign = 'right'; g.fillText('THE DEAD PAGES', PW - 80, 80); g.textAlign = 'left'; }
+  else { g.fillText('13', x0, 80); g.textAlign = 'right'; g.fillText('CAR—GRI', PW - 70, 80); g.textAlign = 'left'; }
+  g.fillRect(x0, 96, PW - x0 - 70, 3);
+  const FIRST = ['Abel','Agnes','Ezra','Hester','Ivor','Jas','Lenore','Mabel','Obadiah','Prudence','Silas','Thos','Ursula','Wm','Zillah','Mrs E','Dr M','R','H','Septimus'];
+  const STREET = ['Hollow Ln','Wych Elm Rd','Cairn St','Lychgate Rd','Ossuary Wlk','Rook St','Fen End','Knell St','Moor Rd','Bog Rd','Mortlake Rd','Barrow Hill','Nightjar Ln','Saltmarsh Rd','Pitch Ln','Ash Wlk'];
+  const EXCH = ['HO','GR','BL'];
+  const base = side === 'L' ? SURNAMES.slice(0, 17) : SURNAMES.slice(13);
+  const lines = [];
+  base.forEach((b) => { lines.push(b); const sur = b[0].split(' ')[0]; if (sur.length > 3 && !/&|Fnrl|Bros|SONS/.test(b[0])) for (let k = 0; k < 1 + Math.floor(rnd() * 3); k++) lines.push([sur + ' ' + FIRST[Math.floor(rnd() * FIRST.length)], (1 + Math.floor(rnd() * 98)) + ' ' + STREET[Math.floor(rnd() * STREET.length)], EXCH[Math.floor(rnd() * 3)] + ' ' + (2 + Math.floor(rnd() * 7)) + '-' + String(Math.floor(rnd() * 10000)).padStart(4, '0')]); });
+  const lh = 26, cols = 3, cw = (PW - x0 - 70 - (cols - 1) * 22) / cols, maxY = side === 'L' ? 990 : PH - 200;
+  const perCol = Math.floor((maxY - top) / (lh * 1.9));
+  lines.slice(0, perCol * cols).forEach(([name, addr, num], i) => {
+    const col = Math.floor(i / perCol), row = i % perCol, colW = cw;
+    const x = x0 + col * (cw + 22), y = top + row * lh * 1.9;
+    const ink = 0.75 + rnd() * 0.25; // uneven old print
+    g.fillStyle = `rgba(22,16,10,${ink})`;
+    g.font = 'bold 20px "DejaVu Sans Condensed", sans-serif'; g.fillText(name, x, y);
+    g.font = '17px "DejaVu Sans Condensed", sans-serif'; g.fillText(addr, x + 10, y + lh * 0.8);
+    g.textAlign = 'right'; g.font = 'bold 17px "DejaVu Sans Mono", monospace'; g.fillText(num, x + colW, y + lh * 0.8); g.textAlign = 'left';
+    // leader dots
+    g.fillStyle = `rgba(22,16,10,${ink * 0.6})`;
+    const aw = g.measureText(addr).width; for (let dx = x + 20 + aw; dx < x + colW - 100; dx += 7) g.fillRect(dx, y + lh * 0.8 - 3, 1.5, 1.5);
+    if (rnd() < 0.05 || /ASHGROVE|CADAVER|EVERDARK/.test(name)) {
+      // someone crossed this one out in red pen
+      g.strokeStyle = 'rgba(120,15,10,0.85)'; g.lineWidth = 3.5; g.beginPath();
+      g.moveTo(x - 6, y - 6 + rnd() * 4); g.bezierCurveTo(x + colW * 0.3, y - 10, x + colW * 0.7, y + 12, x + colW + 4, y + 8); g.stroke();
+    }
+  });
+  // display advert box (business pages style) at the bottom of the left page
+  if (side === 'L') {
+    const bx = x0, by = 1020, bw = PW - x0 - 70, bh = 300;
+    g.strokeStyle = '#1a140c'; g.lineWidth = 4; g.strokeRect(bx, by, bw, bh);
+    g.lineWidth = 1.5; g.strokeRect(bx + 10, by + 10, bw - 20, bh - 20);
+    g.fillStyle = '#1a140c'; g.textAlign = 'center';
+    g.font = 'bold 54px "DejaVu Serif", serif'; g.fillText('ASHGROVE & DAUGHTERS', bx + bw / 2, by + 85);
+    g.font = 'italic 30px "DejaVu Serif", serif'; g.fillText('Undertakers since 1887', bx + bw / 2, by + 130);
+    g.font = '26px "DejaVu Sans Condensed", sans-serif';
+    g.fillText('Discreet removals  ·  Night calls welcome', bx + bw / 2, by + 180);
+    g.fillText('We will come for you.', bx + bw / 2, by + 220);
+    g.font = 'bold 40px "DejaVu Sans Mono", monospace'; g.fillText('GR 4-1000', bx + bw / 2, by + 275);
+    g.textAlign = 'left';
+  }
+  // handwritten note in the margin of the right page
+  if (side === 'R') {
+    g.save(); g.translate(PW - 520, PH - 110); g.rotate(-0.12);
+    g.fillStyle = 'rgba(30,30,80,0.85)'; g.font = 'italic 46px "DejaVu Serif", serif';
+    g.fillText("don't answer if it", 0, 0); g.fillText('rings at 3am', 30, 52); g.restore();
+    // circled number
+    
+  }
+}
+
+function pageTexture(side) {
+  const c = document.createElement('canvas'); c.width = PW; c.height = PH; const g = c.getContext('2d');
+  agedPaper(g, PW, PH, side);
+  // print on its own layer so it can bleed and fade
+  const ink = document.createElement('canvas'); ink.width = PW; ink.height = PH; const gi = ink.getContext('2d');
+  listings(gi, side);
+  g.save(); g.globalAlpha = 0.35; g.filter = 'blur(1.6px)'; g.drawImage(ink, 0, 0); g.restore(); // bleed into the fibres
+  g.save(); g.filter = 'blur(0.4px)'; g.drawImage(ink, 0, 0); g.restore();
+  // faded and rubbed patches
+  for (let k = 0; k < 14; k++) {
+    const x = rnd() * PW, y = rnd() * PH, r = 40 + rnd() * 160;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(205,188,145,${0.25 + rnd() * 0.35})`); gr.addColorStop(1, 'rgba(205,188,145,0)');
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  // a few broken letters: tiny paper coloured specks over the print
+  g.save(); g.globalCompositeOperation = 'lighten'; for (let k = 0; k < 2500; k++) { g.fillStyle = 'rgba(200,184,140,0.85)'; g.fillRect(rnd() * PW, rnd() * PH, 1 + rnd() * 1.5, 1 + rnd() * 1.5); } g.restore();
+  // grime fingerprints near the outer corner
+  for (let k = 0; k < 3; k++) {
+    const x = side === 'R' ? PW - 120 + rnd() * 40 : 80 + rnd() * 40, y = PH - 200 + rnd() * 80;
+    g.save(); g.translate(x, y); g.rotate(rnd() * 3);
+    for (let r = 4; r < 34; r += 3) { g.strokeStyle = `rgba(60,40,20,${0.08 + rnd() * 0.05})`; g.lineWidth = 1.4; g.beginPath(); g.ellipse(0, 0, r, r * 1.35, 0, 0, Math.PI * 1.7); g.stroke(); }
+    g.restore();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 16; return t;
+}
+
+// a page as a bent sheet: x from spine (0) to edge (1), curved up near the spine
+const BOOK_W = 0.21, BOOK_H = 0.28, BLOCK = 0.045;
+const pageY = (x) => { const t = Math.abs(x) / BOOK_W; return BLOCK - 0.002 + Math.sqrt(t) * 0.004 - Math.exp(-t * 14) * 0.012; };
+function pageGeometry(side) {
+  const geo = new THREE.PlaneGeometry(BOOK_W, BOOK_H, 60, 40);
+  const p = geo.attributes.position, uv = geo.attributes.uv;
+  for (let i = 0; i < p.count; i++) {
+    const u = uv.getX(i); const t = side === 'L' ? 1 - u : u; // t: 0 at spine, 1 at outer edge
+    const x = t * BOOK_W;
+    // sag into the gutter and a gentle wave
+    const y = BLOCK - 0.002 + Math.sqrt(Math.max(0, t)) * 0.004 - Math.exp(-t * 14) * 0.012 + Math.sin(t * 9 + uv.getY(i) * 3) * 0.0006;
+    const curlUp = side === 'R' && t > 0.9 && uv.getY(i) < 0.12 ? Math.pow((t - 0.9) * 10, 2) * Math.pow((0.12 - uv.getY(i)) / 0.12, 2) * 0.012 : 0;
+    p.setXYZ(i, side === 'L' ? -x : x, y + curlUp, (0.5 - uv.getY(i)) * BOOK_H);
+  }
+  geo.computeVertexNormals(); return geo;
+}
+
+const edgeMat = (() => {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 1024; const g = c.getContext('2d');
+  for (let y = 0; y < 1024; y++) { const v = 150 + rnd() * 60 - (rnd() < 0.3 ? 70 : 0); g.fillStyle = `rgb(${v},${v * 0.86},${v * 0.6})`; g.fillRect(0, y, 64, 1); }
+  // grime along the edges
+  const gr = g.createLinearGradient(0, 0, 64, 0); gr.addColorStop(0, 'rgba(60,35,10,0.5)'); gr.addColorStop(0.5, 'rgba(60,35,10,0.1)'); gr.addColorStop(1, 'rgba(60,35,10,0.5)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 1024);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(30, 0.05); t.rotation = Math.PI / 2;
+  return new THREE.MeshStandardMaterial({ map: t, roughness: 1, side: THREE.DoubleSide });
+})();
+const book = new THREE.Group();
+for (const side of ['L', 'R']) {
+  const m = new THREE.Mesh(pageGeometry(side), new THREE.MeshStandardMaterial({ map: pageTexture(side), roughness: 0.92, side: THREE.DoubleSide }));
+  m.castShadow = true; m.receiveShadow = true; book.add(m);
+  // page block: one solid shape whose top follows the page, edge striped like many pages
+  const prof = new THREE.Shape(); prof.moveTo(0, 0.004);
+  for (let k = 0; k <= 60; k++) { const t = k / 60; prof.lineTo(t * BOOK_W, BLOCK - 0.0035 + Math.sqrt(t) * 0.004 - Math.exp(-t * 14) * 0.012); }
+  prof.lineTo(BOOK_W, 0.004); prof.lineTo(0, 0.004);
+  const bg = new THREE.ExtrudeGeometry(prof, { depth: BOOK_H * 0.995, bevelEnabled: false, steps: 1 });
+  bg.translate(0, 0, -BOOK_H * 0.995 / 2); if (side === 'L') bg.scale(-1, 1, 1);
+  const block = new THREE.Mesh(bg, [new THREE.MeshStandardMaterial({ color: 0x8a7a58, roughness: 1, side: THREE.DoubleSide }), edgeMat]);
+  block.castShadow = true; block.receiveShadow = true; book.add(block);
+}
+// cover boards, worn cloth
+{
+  const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d');
+  g.fillStyle = '#3d1a12'; g.fillRect(0, 0, 512, 512);
+  for (let k = 0; k < 9000; k++) { g.fillStyle = `rgba(${rnd() < 0.5 ? '0,0,0' : '120,80,50'},${rnd() * 0.12})`; g.fillRect(rnd() * 512, rnd() * 512, 1 + rnd() * 3, 1); }
+  for (let k = 0; k < 30; k++) { g.fillStyle = `rgba(150,110,70,${rnd() * 0.25})`; g.beginPath(); g.arc(rnd() * 512, rnd() * 512, rnd() * 40, 0, 7); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const coverMat = new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 });
+  for (const s of [-1, 1]) {
+    const cv = new THREE.Mesh(new THREE.BoxGeometry(BOOK_W + 0.012, 0.004, BOOK_H + 0.012), coverMat);
+    cv.position.set(s * (BOOK_W / 2 + 0.004), 0.002, 0); cv.castShadow = true; cv.receiveShadow = true; book.add(cv);
+  }
+}
+book.rotation.y = 0.12;
+scene.add(book);
+
+// ---------- dead moth pressed on the right page ----------
+{
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  g.translate(128, 128);
+  // dust smear where it was squashed
+  g.filter = 'blur(10px)'; g.fillStyle = 'rgba(80,68,52,0.35)'; g.beginPath(); g.ellipse(0, 8, 115, 70, 0, 0, 7); g.fill(); g.filter = 'none';
+  const wing = (s, fore) => {
+    g.save(); g.scale(s, 1);
+    const len = fore ? 112 : 78, rot = fore ? -0.12 : 0.85, wid = fore ? 46 : 52;
+    g.rotate(rot);
+    g.beginPath(); g.moveTo(0, -4);
+    g.bezierCurveTo(len * 0.35, -wid * 0.9, len * 0.95, -wid * 0.7, len, -wid * 0.15);
+    // ragged trailing edge
+    for (let k = 10; k >= 0; k--) { const f = k / 10; g.lineTo(len * f, wid * (0.25 + 0.15 * Math.sin(f * 3.1)) + (rnd() - 0.5) * 6 * f); }
+    g.closePath(); g.save(); g.clip();
+    // mottled scales
+    g.fillStyle = fore ? '#3f372e' : '#352e27'; g.fillRect(-10, -wid * 1.2, len + 20, wid * 2.4);
+    for (let k = 0; k < 900; k++) { const v = 35 + rnd() * 55; g.fillStyle = `rgba(${v + 12},${v + 6},${v - 4},0.45)`; g.fillRect(rnd() * len, (rnd() - 0.6) * wid * 1.6, 2, 1.2); }
+    // wavy dark cross bands typical of moths
+    g.filter = 'blur(2.5px)'; g.strokeStyle = 'rgba(25,18,12,0.45)'; g.lineWidth = 6;
+    for (const f of [0.38, 0.7]) { g.beginPath(); for (let y = -wid; y <= wid; y += 6) g.lineTo(len * f + Math.sin(y * 0.12) * 3, y); g.stroke(); } g.filter = 'none';
+    if (fore) { g.fillStyle = 'rgba(20,14,10,0.7)'; g.beginPath(); g.arc(len * 0.5, -wid * 0.2, 5, 0, 7); g.fill(); }
+    g.restore();
+    // fringe
+    g.filter = 'blur(1.2px)'; g.strokeStyle = 'rgba(110,100,85,0.6)'; g.lineWidth = 3; g.stroke(); g.filter = 'none';
+    g.restore();
+  };
+  wing(1, false); wing(-1, false); wing(1, true);
+  // left forewing torn off, only a stub left
+  g.save(); g.scale(-1, 1); g.rotate(-0.12); g.fillStyle = '#4e463b'; g.beginPath(); g.moveTo(0, -4); g.lineTo(34, -26); g.lineTo(28, 2); g.lineTo(40, 12); g.lineTo(0, 10); g.fill(); g.restore();
+  // furry body and feathery antennae
+  g.filter = 'blur(0.8px)'; g.fillStyle = '#3a3026'; g.beginPath(); g.ellipse(0, 12, 11, 40, 0, 0, 7); g.fill();
+  g.fillStyle = '#2a221b'; g.beginPath(); g.ellipse(0, -28, 9, 10, 0, 0, 7); g.fill(); g.filter = 'none';
+  g.strokeStyle = '#2a221b'; g.lineWidth = 1.5;
+  for (const s of [-1, 1]) { g.beginPath(); g.moveTo(s * 3, -36); g.quadraticCurveTo(s * 18, -70, s * 34, -84); g.stroke();
+    for (let k = 0; k < 14; k++) { const f = k / 14, x = s * (3 + 31 * f), y = -36 - 48 * f; g.beginPath(); g.moveTo(x, y); g.lineTo(x + s * 5, y + 3); g.stroke(); } }
+  const c2 = document.createElement('canvas'); c2.width = c2.height = 256; const g2 = c2.getContext('2d'); g2.filter = 'blur(0.9px)'; g2.drawImage(c, 0, 0);
+  const t = new THREE.CanvasTexture(c2); t.colorSpace = THREE.SRGBColorSpace;
+  const moth = new THREE.Mesh(new THREE.PlaneGeometry(0.06, 0.06), new THREE.MeshStandardMaterial({ map: t, transparent: true, alphaTest: 0.05, roughness: 0.9 }));
+  moth.rotation.x = -Math.PI / 2; moth.rotation.z = 2.4;
+  moth.position.set(0.15, pageY(0.15) + 0.0012, -0.035);
+  if (params.get('moth') === '1') { book.add(moth); moth.castShadow = true; } // parked until we have a real scan
+}
+
+// ---------- a centipede crawling out of the gutter ----------
+{
+  const mat = new THREE.MeshPhysicalMaterial({ color: 0x1c0e07, roughness: 0.35, clearcoat: 1, clearcoatRoughness: 0.15 });
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x8a6a3a, roughness: 0.6 });
+  const pts = []; for (let k = 0; k <= 30; k++) { const x = 0.002 + k * 0.0033; pts.push(new THREE.Vector3(x, pageY(x) + 0.0028, 0.04 + Math.sin(k * 0.4) * 0.012)); }
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const cg = new THREE.Group();
+  for (let k = 0; k < 34; k++) {
+    const f = k / 33, p = curve.getPoint(f), tg = curve.getTangent(f);
+    const seg = new THREE.Mesh(new THREE.SphereGeometry(0.0019 * (1 - Math.abs(f - 0.6) * 0.6), 14, 8), mat);
+    seg.scale.set(1.35, 0.45, 2.0); seg.position.copy(p); seg.lookAt(p.clone().add(tg)); cg.add(seg);
+    const side = new THREE.Vector3().crossVectors(tg, new THREE.Vector3(0, 1, 0)).normalize();
+    for (const s of [-1, 1]) {
+      const a = p.clone(), b = p.clone().addScaledVector(side, s * 0.0042).add(new THREE.Vector3(0, 0.0013, 0)).addScaledVector(tg, -0.0008), e = p.clone().addScaledVector(side, s * 0.0068).add(new THREE.Vector3(0, -0.0016, 0)).addScaledVector(tg, -0.0022);
+      cg.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([a, b, e]), 8, 0.00016, 4), legMat));
+    }
+  }
+  // antennae at the head end, feeling the air
+  { const h = curve.getPoint(1), tg = curve.getTangent(1), side = new THREE.Vector3().crossVectors(tg, new THREE.Vector3(0, 1, 0)).normalize();
+    for (const s of [-1, 1]) cg.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([h, h.clone().addScaledVector(tg, 0.006).addScaledVector(side, s * 0.003).add(new THREE.Vector3(0, 0.003, 0)), h.clone().addScaledVector(tg, 0.012).addScaledVector(side, s * 0.007).add(new THREE.Vector3(0, 0.0015, 0))]), 12, 0.00014, 4), legMat)); }
+  cg.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  book.add(cg);
+}
+
+// ---------- lights ----------
+const candle = new THREE.PointLight(0xff9a40, 1.3, 2.5, 2); candle.position.set(0.32, 0.22, -0.18); candle.castShadow = true; candle.shadow.mapSize.set(2048, 2048); candle.shadow.bias = -0.0004; candle.shadow.radius = 5; scene.add(candle);
+const key = new THREE.SpotLight(0xffc48a, 1.1, 2, 0.5, 0.9, 2); key.position.set(-0.05, 0.45, 0.35); key.target.position.set(0.02, 0.03, 0); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); scene.add(key, key.target);
+const sick = new THREE.DirectionalLight(0x4f8a72, 0.15); sick.position.set(-1, 0.5, 0.3); scene.add(sick);
+
+const view = params.get('view') ?? 'wide';
+const camera = new THREE.PerspectiveCamera(view === 'close' ? 30 : 34, W / H, 0.005, 10);
+if (view === 'close') { camera.position.set(0.12, 0.26, 0.2); camera.lookAt(0.1, 0.03, 0.0); }
+else { camera.position.set(0.0, 0.42, 0.36); camera.lookAt(0.0, 0.02, 0.0); }
+renderer.render(scene, camera);
+window.__info = { ok: true };
+window.__done = true;
+</script>
+</body>
+</html>
