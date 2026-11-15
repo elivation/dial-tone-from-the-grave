@@ -59,4 +59,16 @@ describe('stepShown', () => {
       shown = stepShown({ ...base, phase: 'springing', shown, target: 0, dt: 1 / 60 });
     expect(shown).toBeLessThan(0.01);
   });
+
+  it('[Req 1.5] a key swing reaches the target in 150 ms and never overshoots', () => {
+    let shown = 0;
+    for (let i = 0; i < 9; i++) {
+      shown = stepShown({ ...base, phase: 'swinging', shown, target: 200, dt: 0.015 });
+      expect(shown).toBeLessThanOrEqual(200);
+    }
+    expect(shown).toBeLessThan(200);
+    shown = stepShown({ ...base, phase: 'swinging', shown, target: 200, dt: 0.015 });
+    expect(shown).toBeCloseTo(200, 6);
+    expect(stepShown({ ...base, phase: 'swinging', shown, target: 200, dt: 0.1 })).toBe(200);
+  });
 });

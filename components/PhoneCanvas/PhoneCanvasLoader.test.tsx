@@ -23,6 +23,7 @@ const controller: DialController = {
   grab: () => false,
   drag: () => {},
   release: () => false,
+  press: () => false,
 };
 
 describe('PhoneCanvasLoader', () => {

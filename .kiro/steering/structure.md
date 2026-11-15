@@ -1,6 +1,7 @@
 ---
 inclusion: always
 ---
+
 # Project structure
 
 ```

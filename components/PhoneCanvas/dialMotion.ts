@@ -1,5 +1,9 @@
 import { PULSES, PULSE_INTERVAL_MS, travelDegrees, type Digit } from '@/lib/dial';
-import { SPRING_BACK_MS, type DialPhase } from '@/components/RotaryDial/useDialController';
+import {
+  KEY_SWING_MS,
+  SPRING_BACK_MS,
+  type DialPhase,
+} from '@/components/RotaryDial/useDialController';
 
 /** A spring-back is an ease-out. Three time constants fill the spring-back time. */
 const SPRING_TIME_CONSTANT_S = SPRING_BACK_MS / 1000 / 3;
@@ -40,6 +44,8 @@ export function stepShown({
 }: MotionInput): number {
   if (reducedMotion || phase === 'dragging' || phase === 'idle') return target;
   if (phase === 'returning') return Math.max(0, shown - speed * dt);
+  // A key press swings the hole to the stop in KEY_SWING_MS, starting from rest.
+  if (phase === 'swinging') return Math.min(target, shown + (target / (KEY_SWING_MS / 1000)) * dt);
   const next = shown + (target - shown) * (1 - Math.exp(-dt / SPRING_TIME_CONSTANT_S));
   return Math.abs(next - target) < 0.01 ? target : next;
 }

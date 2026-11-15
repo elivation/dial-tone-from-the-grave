@@ -471,7 +471,7 @@ With `prefers-reduced-motion`: skip all rotation, fire `onDigit` immediately, st
 
 ### Keyboard path (both implementations)
 
-On `keydown` for 0-9 (when not disabled): animate the correct hole to the stop over 150 ms, then run the normal return. With `prefers-reduced-motion`: skip both animations, fire `onDigit`, play clicks.
+`useDialKeyboard` listens for `keydown` on the window and calls `controller.press(digit)`. It ignores held keys, handled events, Ctrl, Meta and Alt shortcuts, non-digit keys and typing in a text field. `press` swings the hole clockwise to the stop over 150 ms (`KEY_SWING_MS`, the `swinging` phase), then fires `onDigit` and runs the normal return. With `prefers-reduced-motion`: skip both animations, fire `onDigit`, play clicks. The 2D dial announces `Dialled: {digit}` in its live region and clears it after 1 second.
 
 ### 2D SVG fallback (RotaryDial)
 

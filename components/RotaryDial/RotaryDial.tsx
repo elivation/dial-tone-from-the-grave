@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 
 import {
@@ -11,7 +11,8 @@ import {
   pointerAngle,
   type Digit,
 } from '@/lib/dial';
-import { SPRING_BACK_MS, useDialController } from './useDialController';
+import { KEY_SWING_MS, SPRING_BACK_MS, useDialController } from './useDialController';
+import { useDialKeyboard } from './useDialKeyboard';
 
 export type RotaryDialProps = {
   /** Blocks all interaction, for example while a call is connecting. */
@@ -57,11 +58,31 @@ function polar(r: number, angle: number) {
 export function RotaryDial({ disabled, onDigit, onPulse }: RotaryDialProps) {
   const maskId = `dial-holes-${useId().replace(/:/g, '')}`;
   const svgRef = useRef<SVGSVGElement>(null);
-  const { rotation, phase, activeDigit, reducedMotion, grab, drag, release } = useDialController({
+  // Screen readers hear each digit as it is dialled. The text clears after a second so the next one is fresh.
+  const [announcement, setAnnouncement] = useState('');
+  const clearAnnouncement = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (clearAnnouncement.current !== null) clearTimeout(clearAnnouncement.current);
+    },
+    [],
+  );
+  const announce = (digit: Digit) => {
+    setAnnouncement(`Dialled: ${digit}`);
+    if (clearAnnouncement.current !== null) clearTimeout(clearAnnouncement.current);
+    clearAnnouncement.current = setTimeout(() => setAnnouncement(''), 1000);
+  };
+
+  const controller = useDialController({
     disabled,
-    onDigit,
+    onDigit: (digit) => {
+      announce(digit);
+      onDigit(digit);
+    },
     onPulse,
   });
+  const { rotation, phase, activeDigit, reducedMotion, grab, drag, release } = controller;
+  useDialKeyboard(controller);
 
   const angleFromEvent = (event: ReactPointerEvent): number => {
     const rect = svgRef.current?.getBoundingClientRect();
@@ -89,9 +110,11 @@ export function RotaryDial({ disabled, onDigit, onPulse }: RotaryDialProps) {
   const transition =
     phase === 'returning'
       ? `transform ${PULSE_INTERVAL_MS}ms linear`
-      : phase === 'springing'
-        ? `transform ${SPRING_BACK_MS}ms ease-out`
-        : 'none';
+      : phase === 'swinging'
+        ? `transform ${KEY_SWING_MS}ms ease-in`
+        : phase === 'springing'
+          ? `transform ${SPRING_BACK_MS}ms ease-out`
+          : 'none';
 
   const stopTip = polar(STOP_R - 14, STOP_ANGLE);
   const stopBase = polar(STOP_R + 10, STOP_ANGLE);
@@ -264,7 +287,9 @@ export function RotaryDial({ disabled, onDigit, onPulse }: RotaryDialProps) {
         />
       </svg>
 
-      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only" />
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+        {announcement}
+      </div>
     </div>
   );
 }

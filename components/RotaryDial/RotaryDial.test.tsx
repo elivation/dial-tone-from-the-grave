@@ -158,3 +158,189 @@ describe('[Req 1.1, 1.2, 1.3, 1.5] RotaryDial drag', () => {
     expect(onDigit).toHaveBeenCalledWith('9');
   });
 });
+
+/** jsdom has no matchMedia. This stands in for a visitor who asked for less motion. */
+function preferReducedMotion(reduce: boolean) {
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: reduce && query.includes('prefers-reduced-motion'),
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }));
+}
+
+const press = (key: string, init: KeyboardEventInit = {}) =>
+  act(() => {
+    fireEvent.keyDown(document.body, { key, ...init });
+  });
+
+describe('[Req 1.5, 1.6, Req 9.2] RotaryDial keyboard', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    preferReducedMotion(false);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('[Req 1.5] swings the hole to the stop in 150 ms, then dials the digit', () => {
+    const onDigit = vi.fn();
+    render(<RotaryDial disabled={false} onDigit={onDigit} />);
+    press('5');
+    expect(getWheel()).toHaveAttribute('data-rotation', String(travelDegrees('5')));
+    act(() => void vi.advanceTimersByTime(149));
+    expect(onDigit).not.toHaveBeenCalled();
+    act(() => void vi.advanceTimersByTime(1));
+    expect(onDigit).toHaveBeenCalledTimes(1);
+    expect(onDigit).toHaveBeenCalledWith('5');
+  });
+
+  it('[Req 1.4, 1.5] then runs back with one pulse per 100 ms, and ends at rest', () => {
+    const onPulse = vi.fn();
+    render(<RotaryDial disabled={false} onDigit={() => {}} onPulse={onPulse} />);
+    press('4');
+    act(() => void vi.advanceTimersByTime(150));
+    act(() => void vi.advanceTimersByTime(PULSES['4'] * 100));
+    expect(onPulse).toHaveBeenCalledTimes(PULSES['4']);
+    expect(getWheel()).toHaveAttribute('data-rotation', '0');
+  });
+
+  it('[Req 1.4] the 0 key sends 10 pulses', () => {
+    const onPulse = vi.fn();
+    render(<RotaryDial disabled={false} onDigit={() => {}} onPulse={onPulse} />);
+    press('0');
+    act(() => void vi.advanceTimersByTime(150 + 1000));
+    expect(onPulse).toHaveBeenCalledTimes(10);
+  });
+
+  it('[Req 1.5] dials every digit from its own key', () => {
+    for (const digit of ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const) {
+      const onDigit = vi.fn();
+      const { unmount } = render(<RotaryDial disabled={false} onDigit={onDigit} />);
+      press(digit);
+      act(() => void vi.advanceTimersByTime(150));
+      expect(onDigit, `key ${digit}`).toHaveBeenCalledWith(digit);
+      unmount();
+    }
+  });
+
+  it('[Req 1.8] skips the swing for people who ask for less motion, but still clicks every pulse', () => {
+    preferReducedMotion(true);
+    const onDigit = vi.fn();
+    const onPulse = vi.fn();
+    render(<RotaryDial disabled={false} onDigit={onDigit} onPulse={onPulse} />);
+    press('3');
+    // Dialled at once, with no 150 ms wait.
+    expect(onDigit).toHaveBeenCalledWith('3');
+    act(() => void vi.advanceTimersByTime(PULSES['3'] * 100));
+    expect(onPulse).toHaveBeenCalledTimes(PULSES['3']);
+  });
+
+  it('ignores the keys while the dial is disabled', () => {
+    const onDigit = vi.fn();
+    render(<RotaryDial disabled onDigit={onDigit} />);
+    press('5');
+    act(() => void vi.advanceTimersByTime(2000));
+    expect(onDigit).not.toHaveBeenCalled();
+  });
+
+  it('ignores a second key while the dial is still swinging or running back', () => {
+    const onDigit = vi.fn();
+    render(<RotaryDial disabled={false} onDigit={onDigit} />);
+    press('9');
+    press('1');
+    act(() => void vi.advanceTimersByTime(150));
+    press('2');
+    act(() => void vi.advanceTimersByTime(2000));
+    expect(onDigit).toHaveBeenCalledTimes(1);
+    expect(onDigit).toHaveBeenCalledWith('9');
+  });
+
+  it('ignores letters, other keys, held keys and shortcuts', () => {
+    const onDigit = vi.fn();
+    render(<RotaryDial disabled={false} onDigit={onDigit} />);
+    press('a');
+    press('Enter');
+    press('5', { repeat: true });
+    press('5', { ctrlKey: true });
+    press('5', { metaKey: true });
+    press('5', { altKey: true });
+    act(() => void vi.advanceTimersByTime(2000));
+    expect(onDigit).not.toHaveBeenCalled();
+  });
+
+  it('leaves a key alone when something else on the page has already handled it', () => {
+    const onDigit = vi.fn();
+    const claim = (event: KeyboardEvent) => event.preventDefault();
+    document.addEventListener('keydown', claim);
+    render(<RotaryDial disabled={false} onDigit={onDigit} />);
+    press('5');
+    act(() => void vi.advanceTimersByTime(2000));
+    document.removeEventListener('keydown', claim);
+    expect(onDigit).not.toHaveBeenCalled();
+  });
+
+  it('does not steal digits typed into a text field', () => {
+    const onDigit = vi.fn();
+    render(
+      <>
+        <input aria-label="Say something" />
+        <RotaryDial disabled={false} onDigit={onDigit} />
+      </>,
+    );
+    act(() => {
+      fireEvent.keyDown(screen.getByLabelText('Say something'), { key: '5' });
+    });
+    act(() => void vi.advanceTimersByTime(2000));
+    expect(onDigit).not.toHaveBeenCalled();
+  });
+
+  it('stops listening when it is removed', () => {
+    const onDigit = vi.fn();
+    const { unmount } = render(<RotaryDial disabled={false} onDigit={onDigit} />);
+    unmount();
+    press('5');
+    act(() => void vi.advanceTimersByTime(2000));
+    expect(onDigit).not.toHaveBeenCalled();
+  });
+});
+
+describe('[Req 1.7, Req 9.1] RotaryDial announces each digit', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    preferReducedMotion(false);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('says "Dialled: 5" once the digit is dialled, then clears after a second', () => {
+    render(<RotaryDial disabled={false} onDigit={() => {}} />);
+    const region = screen.getByRole('status');
+    expect(region).toHaveTextContent('');
+    press('5');
+    expect(region).toHaveTextContent('');
+    act(() => void vi.advanceTimersByTime(150));
+    expect(region).toHaveTextContent('Dialled: 5');
+    act(() => void vi.advanceTimersByTime(999));
+    expect(region).toHaveTextContent('Dialled: 5');
+    act(() => void vi.advanceTimersByTime(1));
+    expect(region).toHaveTextContent('');
+  });
+
+  it('announces a digit dialled by dragging too', () => {
+    render(<RotaryDial disabled={false} onDigit={() => {}} />);
+    dragHole('7', travelDegrees('7'));
+    expect(screen.getByRole('status')).toHaveTextContent('Dialled: 7');
+  });
+
+  it('announces the next digit fresh, not stacked on the last', () => {
+    render(<RotaryDial disabled={false} onDigit={() => {}} />);
+    press('2');
+    act(() => void vi.advanceTimersByTime(150 + 200 + 500));
+    press('8');
+    act(() => void vi.advanceTimersByTime(150));
+    expect(screen.getByRole('status')).toHaveTextContent(/^Dialled: 8$/);
+  });
+});

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { DialledDisplay } from '@/components/DialledDisplay/DialledDisplay';
 import { PhoneCanvasLoader } from '@/components/PhoneCanvas/PhoneCanvasLoader';
 import { useDialController } from '@/components/RotaryDial/useDialController';
+import { useDialKeyboard } from '@/components/RotaryDial/useDialKeyboard';
 
 const MAX_SHOWN = 14;
 
@@ -14,6 +15,8 @@ export function PhoneScene() {
     disabled: false,
     onDigit: (digit) => setDigits((soFar) => (soFar + digit).slice(-MAX_SHOWN)),
   });
+
+  useDialKeyboard(controller);
 
   return (
     <div className="relative h-full w-full">

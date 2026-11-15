@@ -14,7 +14,10 @@ import { usePrefersReducedMotion } from '@/lib/useReducedMotion';
 /** How long a dial that was let go early takes to spring back to rest. */
 export const SPRING_BACK_MS = 220;
 
-export type DialPhase = 'idle' | 'dragging' | 'returning' | 'springing';
+/** How long a key press takes to swing the hole clockwise to the finger stop. */
+export const KEY_SWING_MS = 150;
+
+export type DialPhase = 'idle' | 'dragging' | 'swinging' | 'returning' | 'springing';
 
 export type DialControllerOptions = {
   /** Blocks all interaction, for example while a call is connecting. */
@@ -42,6 +45,12 @@ export type DialController = {
   drag: (pointerAngle: number, pointerId: number) => void;
   /** Lets go. Returns true if this pointer was the one dragging the dial. */
   release: (pointerId: number) => boolean;
+  /**
+   * Dials a digit from the keyboard: the hole swings to the stop in 150 ms, then the dial runs back
+   * as usual. With reduced motion the digit is dialled at once. Returns false, and does nothing,
+   * if the dial is disabled or already moving.
+   */
+  press: (digit: Digit) => boolean;
 };
 
 type Drag = { digit: Digit; prev: number; rotation: number; pointerId: number };
@@ -161,6 +170,27 @@ export function useDialController(options: DialControllerOptions): DialControlle
     [runBack, springBack],
   );
 
+  const press = useCallback(
+    (digit: Digit): boolean => {
+      if (latest.current.disabled || phaseRef.current !== 'idle') return false;
+      setActiveDigit(digit);
+      setRotation(travelDegrees(digit));
+      if (reducedMotionRef.current) {
+        latest.current.onDigit(digit);
+        runBack(digit);
+        return true;
+      }
+      setPhase('swinging');
+      timer.current = setTimeout(() => {
+        timer.current = null;
+        latest.current.onDigit(digit);
+        runBack(digit);
+      }, KEY_SWING_MS);
+      return true;
+    },
+    [runBack, setPhase],
+  );
+
   return {
     rotation,
     phase,
@@ -170,5 +200,6 @@ export function useDialController(options: DialControllerOptions): DialControlle
     grab,
     drag: move,
     release,
+    press,
   };
 }

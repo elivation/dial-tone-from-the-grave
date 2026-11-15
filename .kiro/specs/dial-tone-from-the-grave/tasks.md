@@ -195,7 +195,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/PhoneCanvas/DialWheel.test.tsx` (real controller, DOM events, camera rays and raycasting; mouse and touch; every digit; early release; card, right button, handset in the way, disabled; wheel turns; runs back; listener cleanup), `dialSpace.test.ts`, `dialMotion.test.ts`, `wheelPivot.test.ts` (real model), `DialledDisplay.test.tsx`
 
-- [ ] 9. Add keyboard interaction to RotaryDial
+- [x] 9. Add keyboard interaction to RotaryDial
 
   On `keydown` for keys 0-9 (when not disabled): animate the correct hole clockwise to the finger stop over 150 ms (CSS transition), then start the normal return sequence. With `prefers-reduced-motion`: skip both animations, call `onDigit` immediately, still schedule click sounds.
 
@@ -203,9 +203,9 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Requirements: Req 1.5, 1.8, Req 9.2, 9.4
 
-  Tests: `components/RotaryDial/RotaryDial.test.tsx` (keyboard digit; keyboard with prefers-reduced-motion)
+  Tests: `components/RotaryDial/RotaryDial.test.tsx` (keyboard digit; reduced motion; ignored keys, shortcuts, typing, disabled, unmount); `components/PhoneCanvas/dialMotion.test.ts` (150 ms swing)
 
-- [ ] 10. ARIA live region announcement per digit
+- [x] 10. ARIA live region announcement per digit
 
   After `onDigit` fires, update the `aria-live="polite"` region to "Dialled: {digit}". Clear after 1 second.
 

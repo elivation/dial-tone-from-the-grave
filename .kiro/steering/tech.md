@@ -1,6 +1,7 @@
 ---
 inclusion: always
 ---
+
 # Tech stack
 
 - Next.js (App Router), TypeScript, Tailwind
@@ -12,6 +13,7 @@ inclusion: always
 - Hosting: Vercel on my own account
 
 ## Conventions
+
 - All Claude calls go through one server route (`/api/operator`) with rate limiting per IP and a hard daily cap
 - Secrets only in env vars. `.env*` is gitignored. `.kiro/` is NOT gitignored.
 - Keep components small. Rotary dial is its own component with no business logic inside.
@@ -19,5 +21,6 @@ inclusion: always
 - Mobile first: the dial must work with touch drag
 
 ## Cost guards
+
 - Claude model: use a small fast model for operators, keep max tokens low
 - Cap requests per session, show an in-character message when the cap is hit ("the line is busy, try later")
