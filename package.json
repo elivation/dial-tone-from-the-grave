@@ -12,7 +12,8 @@
     "lint:fix": "eslint --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "optimize-assets": "gltf-transform optimize assets-src/phone/we500.glb public/models/we500.glb --compress meshopt --texture-compress webp --texture-size 2048 && cwebp -q 85 assets-src/textures/dark_wooden_planks_diff_2k.jpg -o public/textures/dark_wooden_planks_diff_2k.webp"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.49.4",
@@ -22,6 +23,7 @@
     "server-only": "0.0.1"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "^4.5.1",
     "@playwright/test": "1.52.0",
     "@tailwindcss/turbopack": "4.3.3",
     "@testing-library/jest-dom": "6.6.3",
