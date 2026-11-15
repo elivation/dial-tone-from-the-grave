@@ -7,7 +7,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
 import { preparePhone, type PreparedPhone } from './preparePhone';
 import { computeCardFrame } from './cardTexture';
-import { PHONE_ROTATION_Y } from './sceneConstants';
+import { GOO, PHONE_ROTATION_Y } from './sceneConstants';
 import { loadSourcePhone } from './__fixtures__/loadSource';
 
 function descendantsNamed(root: THREE.Object3D, name: string): THREE.Object3D[] {
@@ -70,11 +70,42 @@ describe('preparePhone', () => {
     expect(world.distanceTo(phone.dial.centre)).toBeLessThan(phone.dial.radius);
   });
 
-  it('shades the goo as glossy black', () => {
+  it('shades the goo as wet, slightly see-through green slime', () => {
     const pool = descendantsNamed(phone.goo, 'goo-pool')[0] as THREE.Mesh;
     const material = pool.material as THREE.MeshPhysicalMaterial;
-    expect(material.clearcoat).toBe(1);
-    expect(material.roughness).toBeLessThan(0.1);
+    expect(material.clearcoat).toBe(GOO.clearcoat);
+    expect(material.roughness).toBeLessThanOrEqual(0.06);
+    expect(material.transmission).toBe(GOO.transmission);
+    expect(material.thickness).toBe(GOO.thickness);
+    expect(material.ior).toBe(GOO.ior);
+    expect(material.emissive.getHex()).toBe(GOO.emissive);
+    expect(material.emissiveIntensity).toBeLessThanOrEqual(0.3);
+    expect(material.vertexColors).toBe(true);
+  });
+
+  it('colours a pool deep green in the thick middle and dark olive at its thin rim', () => {
+    const pool = descendantsNamed(phone.goo, 'goo-pool')[0] as THREE.Mesh;
+    const position = pool.geometry.getAttribute('position');
+    const color = pool.geometry.getAttribute('color');
+    let top = 0;
+    let rim = 0;
+    for (let i = 0; i < position.count; i++) {
+      if (position.getY(i) > position.getY(top)) top = i;
+      if (position.getY(i) < position.getY(rim)) rim = i;
+    }
+    expect(new THREE.Color().fromBufferAttribute(color, top).getHex()).toBe(GOO.thickColour);
+    expect(new THREE.Color().fromBufferAttribute(color, rim).getHex()).toBe(GOO.thinColour);
+  });
+
+  it('runs each drip from green near the hole to dark olive at the tip', () => {
+    const drip = descendantsNamed(phone.goo, 'goo-drip')[0] as THREE.Mesh;
+    const color = drip.geometry.getAttribute('color');
+    const brightness = (i: number) => {
+      const c = new THREE.Color().fromBufferAttribute(color, i);
+      return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+    };
+    // Rings of 11 vertices run from the hole to the tip.
+    expect(brightness(0)).toBeGreaterThan(brightness(color.count - 1));
   });
 });
 

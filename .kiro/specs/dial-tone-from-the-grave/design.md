@@ -1074,6 +1074,16 @@ The centre card uses the model's own `Rotary_Dial_Card` mesh. Its material is cl
 
 Dust shader is applied to all upward-facing mesh materials of the phone body (same GLSL patch as the desk, lower amount).
 
+### Slime in the finger holes
+
+The finger holes hold wet green slime, so they read against the black phone in the dark. It is a `MeshPhysicalMaterial` with clearcoat 1, roughness 0.05, transmission 0.35, thickness 0.004 and ior 1.4, so it is glossy and slightly see-through, with a faint inner glow (emissive intensity 0.25). Every value lives in `GOO` in `sceneConstants.ts`.
+
+The colour comes from the shape, not the material. Each slime mesh is painted per vertex by how thick the slime is there: deep toxic green (`#3f7a1c`) in the thick middle, dark olive (`#1d3a0c`) at thin edges and at the tips of drips. A pool is measured across its width, not up its height, because from above a flat pool is nearly all one height and would read as one even green. The glow is multiplied by the same vertex colour in the shader, so thin edges glow olive. A plain emissive colour would paint every pixel the same green and hide the gradient.
+
+The wet look comes from the clearcoat. The candle's highlights show on the drips and the pool rims, which are the only parts steep enough to catch it, because the pools themselves are flat. The shape, positions and drips are unchanged, and the slime is still a child of the finger wheel.
+
+Transmission adds a render pass. In the headless software renderer used for checks, the scene held 60 fps at a 1x pixel ratio with it on or off. There are no real GPU numbers yet.
+
 ### Spider
 
 Procedural geometry group positioned near the phone cord: oval abdomen, smaller thorax, eight `TubeGeometry` legs following `CatmullRomCurve3` paths. Fine tube hairs on each leg. `MeshPhysicalMaterial` with sheen for the iridescent hairs. Slight idle animation (body bobs, one leg twitches).

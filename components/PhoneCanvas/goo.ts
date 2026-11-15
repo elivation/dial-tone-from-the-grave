@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import type { DialGeometry } from './dialGeometry';
+import { glowWithSlimeColour, paintGoo } from './gooColour';
 import { seededRandom } from './noise';
+import { GOO } from './sceneConstants';
 
 /** How much goo each hole holds, 0 to 1. Holes above DRIP_THRESHOLD also run a drip. Exactly 3 do. */
 const AMOUNTS = [1, 0.4, 0.85, 0.2, 0.9, 0.6, 0.3, 0.75, 0.5, 0.7];
@@ -13,7 +15,7 @@ export type GooInput = {
 };
 
 /**
- * Black glossy goo pooled in each finger hole, with drips from three of them.
+ * Wet green slime pooled in each finger hole, with drips from three of them.
  * Built in world space from raycasts, then attached to the wheel by the caller
  * so it turns with it. Ported from assets-src/scene-test.html.
  */
@@ -29,16 +31,21 @@ export function buildGoo({ dial, plate }: GooInput): THREE.Group {
   // Goo runs downhill across the face of the tilted dial.
   const downhill = new THREE.Vector3(0, -1, 0).addScaledVector(normal, normal.y).normalize();
 
+  // White base so the vertex colours, painted by thickness, set the green.
   const material = new THREE.MeshPhysicalMaterial({
-    color: 0x060a06,
-    roughness: 0.05,
+    color: 0xffffff,
+    vertexColors: true,
+    roughness: GOO.roughness,
     metalness: 0,
-    clearcoat: 1,
-    clearcoatRoughness: 0.02,
-    emissive: 0x031208,
-    emissiveIntensity: 0.4,
-    ior: 1.45,
+    clearcoat: GOO.clearcoat,
+    clearcoatRoughness: GOO.clearcoatRoughness,
+    emissive: GOO.emissive,
+    emissiveIntensity: GOO.emissiveIntensity,
+    transmission: GOO.transmission,
+    thickness: GOO.thickness,
+    ior: GOO.ior,
   });
+  glowWithSlimeColour(material);
 
   const at = (r: number, degrees: number): THREE.Vector3 => {
     const t = THREE.MathUtils.degToRad(degrees);
@@ -69,18 +76,20 @@ export function buildGoo({ dial, plate }: GooInput): THREE.Group {
     const floor = hit ? hit.point.clone() : middle.clone().addScaledVector(normal, -0.0035);
 
     const amount = AMOUNTS[i % AMOUNTS.length] ?? 0.5;
-    const pool = new THREE.Mesh(
-      new THREE.SphereGeometry(
-        holeRadius * (0.85 + amount * 0.2),
-        32,
-        16,
-        0,
-        Math.PI * 2,
-        0,
-        Math.PI / 2,
-      ),
-      material,
+    const poolRadius = holeRadius * (0.85 + amount * 0.2);
+    const poolGeometry = new THREE.SphereGeometry(
+      poolRadius,
+      32,
+      16,
+      0,
+      Math.PI * 2,
+      0,
+      Math.PI / 2,
     );
+    // Thickest in the middle, thinning to a film at the rim. Measured across the pool, not up it:
+    // from above a flat pool is nearly all one height, so height would leave it one even green.
+    paintGoo(poolGeometry, (_, p) => 1 - Math.pow(Math.hypot(p.x, p.z) / poolRadius, 1.6));
+    const pool = new THREE.Mesh(poolGeometry, material);
     pool.name = 'goo-pool';
     pool.scale.set(1, 0.08 + amount * 0.1, 1);
     pool.position.copy(floor).addScaledVector(normal, -0.0003);
@@ -126,10 +135,14 @@ export function buildGoo({ dial, plate }: GooInput): THREE.Group {
         positions.setXYZ(k, vertex.x, vertex.y, vertex.z);
       }
       geometry.computeVertexNormals();
+      // Starts as thick as the pool lip and thins to a dark olive tip.
+      paintGoo(geometry, (k) => 0.6 * (1 - Math.floor(k / (radialSegments + 1)) / tubularSegments));
 
       const drip = new THREE.Mesh(geometry, material);
       drip.name = 'goo-drip';
-      const tip = new THREE.Mesh(new THREE.SphereGeometry(holeRadius * 0.17, 16, 12), material);
+      const tipGeometry = new THREE.SphereGeometry(holeRadius * 0.17, 16, 12);
+      paintGoo(tipGeometry, () => 0.1);
+      const tip = new THREE.Mesh(tipGeometry, material);
       tip.name = 'goo-tip';
       tip.scale.set(1, 0.55, 1.3);
       tip.quaternion.copy(quaternionToNormal);
