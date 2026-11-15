@@ -24,6 +24,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
         "2.3",
         "2.4",
         "2.5",
+        "41",
         "3.1",
         "3.2",
         "3.3",
@@ -33,22 +34,22 @@ The rotary dial is the hero feature and comes first within Phase 2.
         "4.3",
         "4.4"
       ],
-      "description": "Rotary dial, state machine, audio, data (parallelisable)"
+      "description": "Rotary dial, state machine, audio, data, asset optimisation (parallelisable)"
     },
     {
       "wave": 3,
-      "tasks": ["4.5", "4.6", "5.1"],
-      "description": "Search route, spooky query, operator definitions"
+      "tasks": ["42", "4.5", "4.6", "5.1"],
+      "description": "3D scene (requires optimised assets from 41), search route, spooky query, operators"
     },
     {
       "wave": 4,
-      "tasks": ["5.2", "5.3", "5.4"],
-      "description": "Operator API route, panel, streaming"
+      "tasks": ["43", "5.2", "5.3", "5.4"],
+      "description": "3D dial drag (requires 42), operator API route, panel, streaming"
     },
     {
       "wave": 5,
-      "tasks": ["6.1", "6.2", "6.3", "6.4"],
-      "description": "Phone book pages and static overlay"
+      "tasks": ["6.1", "6.2", "6.3", "6.4", "44"],
+      "description": "Phone book pages (3D and HTML), static overlay. Task 44 requires 42 and 19."
     },
     {
       "wave": 6,
@@ -66,7 +67,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 ## Tasks
 
-- [ ] 1. Initialise Next.js project with pnpm
+- [x] 1. Initialise Next.js project with pnpm
 
   Set up the base project. Run `pnpm create next-app` with App Router, TypeScript strict, Tailwind CSS, ESLint. Set `"strict": true` in `tsconfig.json`. Add Prettier with a `.prettierrc` (single quotes, 100 char line width, trailing commas). Add `lint-staged` and `husky` pre-commit hook running `eslint --fix` and `prettier --write` on staged files.
 
@@ -76,7 +77,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: none (tooling only)
 
-- [ ] 2. Add Vitest, React Testing Library, fast-check and Playwright
+- [x] 2. Add Vitest, React Testing Library, fast-check and Playwright
 
   Install `vitest`, `@vitejs/plugin-react`, `@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom`, `fast-check`. Configure `vitest.config.ts` with jsdom environment. Install `@playwright/test` and run `playwright install chromium`. Add `pnpm test`, `pnpm test:e2e` and `pnpm typecheck` scripts. Write a smoke unit test and a smoke E2E test (visit `/`, assert `<html>` exists).
 
@@ -86,7 +87,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: smoke unit test; smoke E2E test
 
-- [ ] 3. Configure Supabase client and environment variables
+- [x] 3. Configure Supabase client and environment variables
 
   Install `@supabase/supabase-js`. Create `lib/supabase.ts` (browser client) and `lib/supabase-server.ts` (service-role, `server-only` import guard). Create `.env.example` with every variable from the design, with comments, no real values. Add `.env`, `.env.local`, `.env*.local` to `.gitignore`. Confirm `.kiro/` is NOT in `.gitignore`.
 
@@ -96,7 +97,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/supabase.test.ts` (browser client created with correct URL using mocked env vars)
 
-- [ ] 4. Create project directory structure and testing steering file
+- [x] 4. Create project directory structure and testing steering file
 
   Create empty index files at: `components/RotaryDial/`, `components/Handset/`, `components/PhoneBookPage/`, `components/Static/`, `lib/operators.ts`, `lib/audio.ts`, `lib/spooky.ts`, `supabase/migrations/`, `supabase/seed/`. Create `.kiro/steering/testing.md` with project testing rules: Vitest + RTL for units, fast-check for property tests, Playwright for E2E; every AC maps to a test; test name format `[Req N.AC] description`; never delete a failing test without explanation.
 
@@ -106,7 +107,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: none
 
-- [ ] 5. Create Kiro agent hooks
+- [x] 5. Create Kiro agent hooks
 
   Create five hooks in `.kiro/hooks/`. Hook 1 (`lint-on-save.json`): PostFileSave on `\.(ts|tsx)$`, runs eslint and tsc on the saved file. Hook 2 (`test-on-save.json`): PostFileSave on `(lib/|components/RotaryDial)`, runs vitest filtered to the saved file. Hook 3 (`rls-check.json`): PostFileSave on `supabase/migrations/`, checks every `create table` has matching `enable row level security`, exits 2 if not. Hook 4 (`operator-safety.json`): PostFileSave on `lib/operators\.ts$`, checks operator numbers against EMERGENCY_NUMBERS, exits 2 if any match. Hook 5 (`update-writeup.json`): UserPromptSubmit (manual), agent action refreshing KIRO_USAGE.md.
 
@@ -126,25 +127,75 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/dial.test.ts` (4 fast-check property tests)
 
-- [x] 7. Build the RotaryDial SVG component (static render)
+- [x] 7. Build the RotaryDial SVG component and 2D drag (accessible fallback)
 
-  Create `components/RotaryDial/RotaryDial.tsx` as a pure SVG component. Render: outer dial plate circle, inner number ring, 10 finger holes at angles from `HOLE_ANGLES`, digits on the number ring, metal finger stop arc at `STOP_ANGLE`. Props: `disabled: boolean`, `onDigit: (digit: string) => void`, `rotation: number`. Add `aria-label="Rotary dial"` to the SVG root and an `aria-live="polite"` region for digit announcements.
+  `components/RotaryDial/RotaryDial.tsx`: pure SVG, 10 finger holes at HOLE_ANGLES, aria-label, aria-live region, mouse and touch drag via pointer events using `shouldRegister` from lib/dial.ts. This is the accessible fallback used when WebGL is unavailable or prefers-reduced-motion is active. It is always in the DOM (for keyboard focus) but visually hidden behind the canvas when 3D is active.
 
-  Done when: render test passes (component mounts, 10 holes in DOM, aria-label present); `pnpm typecheck` clean.
+  Done: render tests pass, drag tests pass, aria-label present.
 
-  Requirements: Req 1.6, 1.7, Req 9.1
+  Requirements: Req 1.1, 1.2, 1.3, 1.5, 1.6, 1.7, Req 9.1
 
-  Tests: `components/RotaryDial/RotaryDial.test.tsx` (renders without error; 10 holes present; aria-label present)
+  Tests: `components/RotaryDial/RotaryDial.test.tsx`
 
 - [x] 8. Add mouse and touch drag interaction to RotaryDial
 
-  Add pointer event handlers to each finger hole. Track drag angle clockwise only. On pointerup: call `shouldRegister`. If true, call `onDigit` and start return animation (10 pulses/second, `setInterval` at 100 ms). If false, spring back without calling `onDigit`. Fire one click sound stub per pulse. Use `touch-action: none` on draggable elements.
+  Added pointer event handlers to each finger hole in `components/RotaryDial/RotaryDial.tsx`. Tracks drag angle clockwise only using `accumulateRotation`. On pointerup: calls `shouldRegister` from `lib/dial.ts`. If true, calls `onDigit` and starts return animation at 10 pulses per second. If false, springs back without registering. Fires one click sound stub per pulse. Uses `touch-action: none` on draggable elements.
 
-  Done when: drag-to-stop test calls `onDigit` with correct digit; early-release test does not call `onDigit`; `pnpm test` clean; `pnpm typecheck` clean.
+  Done: drag-to-stop calls `onDigit` with correct digit; early release does not; tests pass.
 
   Requirements: Req 1.1, 1.2, 1.3, 1.5
 
   Tests: `components/RotaryDial/RotaryDial.test.tsx` (full drag calls onDigit; early release does not)
+
+- [ ] 41. Optimise 3D assets
+
+  Add `@gltf-transform/cli` as a dev dependency. Write a `pnpm optimize-assets` script in `package.json` that runs `gltf-transform optimize` on `assets-src/phone/we500.glb` to `public/models/we500.glb` (meshopt compression, textures resized to 2K webp, target under 5 MB) and converts `assets-src/textures/dark_wooden_planks_diff_2k.jpg` to `public/textures/dark_wooden_planks_diff_2k.webp` using `cwebp -q 85`. Run the script and commit both outputs. Add `assets-src/phone/*.glb` and `assets-src/textures/*.jpg` to `.gitignore` so the unoptimised sources are not committed to `public/`. Verify `ls -lh public/models/we500.glb` is under 5 MB; if not, re-run with `--texture-size 1024` on non-hero materials.
+
+  Done when: `pnpm optimize-assets` runs clean; `public/models/we500.glb` exists and is under 5 MB; `public/textures/dark_wooden_planks_diff_2k.webp` exists; `pnpm typecheck` clean.
+
+  Requirements: Performance budget (design section "Asset Pipeline")
+
+  Tests: file size check (`ls -lh public/models/we500.glb`); `pnpm build` still passes
+
+- [ ] 42. Build the R3F 3D scene (desk, candle, phone model, dial details, loading veil)
+
+  Install `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`. Create `components/PhoneCanvas/PhoneCanvas.tsx` as a client component loaded with `dynamic(() => import('./PhoneCanvas'), { ssr: false, loading: () => <LoadingVeil /> })`.
+
+  Inside the R3F `Canvas`: `DeskScene` with desk plane (Poly Haven webp texture, procedural dust GLSL shader via `onBeforeCompile`), `CandleGroup` (wax cylinder, five wax drips, brass holder, flame sprite, halo sprite, wick), all four lights (candle PointLight with per-frame flicker perturbing intensity and position via noise, key SpotLight, rim PointLight, sick-green DirectionalLight), contact shadow blob, `FogExp2(0x050302, 1.4)`, PMREM environment at intensity 0.08.
+
+  Load `we500.glb` with `useGLTF('/models/we500.glb')`. After load: apply dust shader to all upward-facing `Western_Electric_500_Material` surfaces (`onBeforeCompile`, amount 0.22). Add procedural spider group near the cord (abdomen, thorax, eight `TubeGeometry` legs on `CatmullRomCurve3` paths, fine hair tubes on each leg, `MeshPhysicalMaterial` with sheen, subtle idle animation).
+
+  **Dial details (port from assets-src/scene-test.html):**
+
+  Compute the dial centre and normal from the `Rotary_Dial_Finger_Wheel` vertex positions: collect every third vertex, transform by `matrixWorld`, compute centroid, build 3x3 covariance matrix, run Jacobi eigenvalue iteration to find the smallest eigenvector (the normal). If `normal.y < 0`, negate. Derive in-plane axes: `uAx` = projection of world back vector onto the dial plane (normalised); `rAx` = cross(uAx, normal). Export `dialCentre`, `dialNormal`, `uAx`, `rAx` from a `useDialGeometry` hook so task 43 can use them. This is the axis to rotate around, NOT `rotation.z`.
+
+  Raycast to find the 10 holes: scan orbital rings at radii from 55% to 92% of max vertex radius in 2% steps, cast rays inward along the normal at 2-degree intervals, record misses. The ring with the most misses in [1, 160] is the hole orbit. Group consecutive missed angles into 10 holes, merge wrap-around runs. Record `holeAngles[]` and `holeR`. Write a test that the 10 detected hole angles match `HOLE_ANGLES` from `lib/dial.ts` within 5 degrees once mapped to dial space (sort both arrays and compare pairwise).
+
+  Build goo meshes as children of `Rotary_Dial_Finger_Wheel` so they rotate with it: `MeshPhysicalMaterial` (color `0x060a06`, roughness 0.05, clearcoat 1, clearcoatRoughness 0.02, emissive `0x031208`, emissiveIntensity 0.4, ior 1.45). Per hole: a `SphereGeometry` pool flattened to `scale.y = 0.08 + amount * 0.1`, positioned by dropping a ray from the hole centre onto the number plate; orient with `Quaternion.setFromUnitVectors(Y, normal)`. On 3 holes (the ones with `amount > 0.8`): add a `TubeGeometry` drip smear running down the face of the dial, tapered and flattened against the dial surface, plus a small teardrop tip mesh at the end.
+
+  Centre card (`Rotary_Dial_Card` node): clone its material, replace `map` with a `CanvasTexture` painted over the original base texture. UV-box: scan the geometry's uv attribute for min/max. Paint: aged paper radial gradient, foxing spots, then in the UV region draw "DIRECTORY" in small monospace above, "1023" in large italic script below. Apply `g.scale(1, -1)` before drawing text to correct the UV flip. Set `t.flipY = base.flipY` and `t.colorSpace = base.colorSpace`.
+
+  Post processing: `Bloom` (threshold 0.9, strength 0.3, radius 0.4), `Vignette` (darkness 0.65, offset 0.35), `Noise` (opacity 0.07) via `@react-three/postprocessing`.
+
+  `LoadingVeil`: full-screen CSS div with candlelit radial gradient and tagline in serif italic. Fades out when canvas `onCreated` fires.
+
+  Done when: dev server renders desk, candle, phone, goo and card at 60 fps; loading veil appears then fades; hole-angle test passes; `pnpm typecheck` clean.
+
+  Requirements: Req 2 (scene is the visual context for all call states)
+
+  Tests: `components/PhoneCanvas/PhoneCanvas.test.tsx` (renders without throwing when WebGL is mocked; LoadingVeil shown before canvas ready); `components/PhoneCanvas/dialGeometry.test.ts` (10 detected hole angles match HOLE_ANGLES within 5 degrees)
+
+- [ ] 43. Add 3D drag interaction to the DialWheel
+
+  Create `components/PhoneCanvas/DialWheel.tsx`. Props: `dialRotation: number`, `onDigit: (d: string) => void`, `disabled: boolean`. Consume `dialCentre`, `dialNormal`, `uAx`, `rAx` from the `useDialGeometry` hook built in task 42. Apply rotation to the `Rotary_Dial_Finger_Wheel` group as `Quaternion.setFromAxisAngle(dialNormal, -dialRotation * DEG2RAD)` around `dialCentre` in world space (not `rotation.z`).
+
+  Pointer events on the goo mesh group: on `pointerdown`, record the touched hole index by projecting the hit point into dial space and finding the nearest `HOLE_ANGLES` entry. On `pointermove`, project the pointer world position onto the dial plane, compute the angle in dial space, call `accumulateRotation` from `lib/dial.ts`, clamp to `[0, travelDegrees(d)]`. On `pointerup`: call `shouldRegister`. If true, call `onDigit` and start the return animation via `useInterval` at 100 ms per pulse, decrementing `dialRotation` by `HOLE_SPACING` per tick, firing one click sound stub per step. If false, snap back. Apply `touch-action: none` to the canvas wrapper.
+
+  Done when: drag-to-stop in 3D calls `onDigit` with the correct digit; early release does not; `pnpm test` clean; `pnpm typecheck` clean.
+
+  Requirements: Req 1.1, 1.2, 1.3, 1.5
+
+  Tests: `components/PhoneCanvas/DialWheel.test.tsx` (full drag calls onDigit; early release does not, using mocked R3F pointer events and mocked useDialGeometry)
 
 - [ ] 9. Add keyboard interaction to RotaryDial
 
@@ -306,35 +357,51 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `app/page.test.tsx` or dedicated hook test (4 tests)
 
-- [ ] 25. Build business section of phone book (yellow-style)
+- [ ] 25. Build accessible HTML business section (HtmlOverlay layer of PhoneBook3D)
 
-  Create `components/PhoneBookPage/BusinessSection.tsx`. CSS columns (2-3 desktop, 1 mobile): bold name, suburb, phone, hours, description. `is_advert` rows render as `AdvertCard` with CSS box border. Page header shows letter range and fictional page number. Aged yellow paper: `background-color: #f5e6a3`, `filter: sepia(0.3)`. Candlelight vignette via CSS radial gradient (static when prefers-reduced-motion). Body text `#1a1008` for 4.5:1 contrast. `ListingDetail` as `<dialog>` with torn-edge SVG border.
+  Create `components/PhoneBookPage/BusinessSection.tsx`. This is the visually-hidden accessible counterpart to PhoneBook3D's business page. It renders in the `HtmlOverlay` div, invisible to sighted users (positioned off-screen or under the canvas via CSS, not `display:none`), but readable by screen readers and keyboard users. Renders the same data as the 3D page: bold name, suburb, phone, hours, description in a logical DOM order. `is_advert` rows get an `AdvertCard` with an accessible label. `ListingDetail` as a `<dialog>` that opens on Enter/Space or click on a row, containing full listing details. All text meets WCAG AA contrast (minimum 4.5:1) for users on devices without WebGL.
 
-  Done when: tests pass (3 results render as 3 cards; is_advert renders advert-card class; clicking opens detail dialog); contrast verified >= 4.5:1; `pnpm test` clean; `pnpm typecheck` clean.
+  Done when: tests pass (3 results render as 3 accessible listing rows; is_advert renders with accessible label; Enter on a row opens the detail dialog; focus is managed correctly); `pnpm test` clean; `pnpm typecheck` clean.
 
-  Requirements: Req 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7
+  Requirements: Req 5.1, 5.2, 5.5, 5.6, Req 9.3
 
-  Tests: `components/PhoneBookPage/BusinessSection.test.tsx` (3 tests)
+  Tests: `components/PhoneBookPage/BusinessSection.test.tsx` (3 results rendered; is_advert accessible label; dialog opens on activation)
 
-- [ ] 26. Build white pages (resident section)
+- [ ] 26. Build accessible HTML white pages section (HtmlOverlay layer of PhoneBook3D)
 
-  Create `components/PhoneBookPage/WhiteSection.tsx`. Dense multi-column layout (1 column mobile). Each row: SURNAME Initial, street address, suburb, phone in CSS grid. Plain white aged-paper background (`#faf8f5`). No adverts. All text meets WCAG AA contrast.
+  Create `components/PhoneBookPage/WhiteSection.tsx`. Accessible counterpart to PhoneBook3D's white-pages page. Visually hidden behind the canvas for sighted users, readable by screen readers and keyboard users. Each row: SURNAME Initial, street address, suburb, phone in a logical `<dl>` or grid. No adverts. All text meets WCAG AA contrast for non-WebGL users.
 
-  Done when: tests pass (3 residents render as 3 rows; surname in uppercase; phone present); `pnpm test` clean; `pnpm typecheck` clean.
+  Done when: tests pass (3 residents render as 3 rows; surname in uppercase; phone present in each row); `pnpm test` clean; `pnpm typecheck` clean.
 
-  Requirements: Req 6.1, 6.2, 6.3, 6.5
+  Requirements: Req 6.1, 6.2, 6.3, 6.5, Req 9.3
 
-  Tests: `components/PhoneBookPage/WhiteSection.test.tsx` (3 tests)
+  Tests: `components/PhoneBookPage/WhiteSection.test.tsx` (3 residents rendered; surname uppercase; phone present)
 
-- [ ] 27. Build PhoneBookPage container with section tabs
+- [ ] 27. Build PhoneBookPage container with section tabs (HtmlOverlay)
 
-  Create `components/PhoneBookPage/PhoneBookPage.tsx`. Render `SectionTabs` with "White Pages" and "Business" tabs. Tab switch with 200 ms CSS fade (instant with prefers-reduced-motion). Tabs use `role="tab"`, arrow key navigation, Enter/Space selects. When `spiritOnly` is true: no tabs, header reads "The Dead Pages: Spirit Listings".
+  Create `components/PhoneBookPage/PhoneBookPage.tsx`. Container for the accessible HTML book layer in the `HtmlOverlay`. Renders `SectionTabs` with "White Pages" and "Business" tabs. Tab switch fires `onSectionChange`, which updates `activeSection` on both `PhoneBook3D` (3D page mode) and the accessible HTML sections. Tabs use `role="tab"`, `role="tabpanel"`, arrow key navigation, Enter/Space selects. With `prefers-reduced-motion`: section transitions are instant. When `spiritOnly` is true: no tabs, header reads "The Dead Pages: Spirit Listings".
 
-  Done when: tests pass (both tab labels visible; clicking "Business" calls onSectionChange; spiritOnly hides tabs; keyboard navigation works); `pnpm test` clean; `pnpm typecheck` clean.
+  Done when: tests pass (both tab labels visible; clicking "Business" calls onSectionChange; spiritOnly hides tabs; keyboard arrow navigation moves focus between tabs; Enter selects); `pnpm test` clean; `pnpm typecheck` clean.
 
-  Requirements: Req 6.4, 6.6, Req 5.3, 5.4, Req 7.3
+  Requirements: Req 6.4, 6.6, Req 5.4, Req 7.3, Req 9.3
 
-  Tests: `components/PhoneBookPage/PhoneBookPage.test.tsx` (4 tests)
+  Tests: `components/PhoneBookPage/PhoneBookPage.test.tsx` (tab labels visible; tab click calls onSectionChange; spiritOnly hides tabs; keyboard navigation)
+
+- [ ] 44. Build PhoneBook3D (3D open book, ported from book-test.html)
+
+  Create `components/PhoneCanvas/PhoneBook3D.tsx`. An open book positioned to the right of the phone on the desk. Visible only when `results` prop is non-empty.
+
+  **Book geometry:** Two page meshes using `PlaneGeometry(BOOK_W, BOOK_H, 60, 40)`. Displace vertices procedurally: sag into the gutter (exponential curve from spine to outer edge, amplitude 0.012), gentle wave along the page length (amplitude 0.0006), outer-corner curl-up on the right page when `uv.y < 0.12` and `u > 0.9`. A thick block between the pages (box, striped edge texture painted on a canvas). A worn cloth cover on each side. All geometry uses `computeVertexNormals` after displacement. The book receives and casts shadows.
+
+  **Page textures (canvas-painted, matching book-test.html exactly):** Base: yellowed newsprint `#d9c9a0` with per-pixel darkening towards edges and gutter, fine noise, foxing brown spots (160 radial gradients), water tide line on right page. Print layer: running head in bold condensed font (letter range left, page number right), three-column listings drawn from `businesses` or `residents` prop data (bold surname/name, address, phone in monospace, leader dots, ink variation), red hand-drawn pen crossing-out on 5% of entries or on specific names. Left page bottom: the Ashgrove undertaker advert box (double border, bold display name, italic subtitle, phone in monospace). Right page margin: handwritten note "don't answer if it / rings at 3am" in dark blue italic at a slight rotation. Gutter: a centipede silhouette path crawling out from between the pages. Apply the print layer twice: first blurred (ink bleed into paper fibres), then sharp, then faded/rubbed patches, then broken-letter specks, then fingerprint smears near the outer corners. The texture pipeline uses a seeded PRNG so every run produces the same page.
+
+  **Two page modes:** When `activeSection === 'business'`, the left page shows the letter range and business columns; the right shows the continuation and the Ashgrove advert. When `activeSection === 'white'`, the layout switches to the denser white-pages style (SURNAME Initial, address, phone in three tight columns, plain background, no advert box).
+
+  Done when: book appears when results are present; page textures match the reference renders in `assets-src/renders/book-render-test-*.png`; `pnpm typecheck` clean; shadow and 60 fps maintained.
+
+  Requirements: Req 5.1, 5.2, 5.3, Req 6.1, 6.2, Req 7.3
+
+  Tests: `components/PhoneCanvas/PhoneBook3D.test.tsx` (renders without throwing when WebGL mocked; does not render when results array is empty; switches layout on activeSection prop change)
 
 - [ ] 28. Build StaticOverlay component
 
@@ -474,5 +541,9 @@ The rotary dial is the hero feature and comes first within Phase 2.
 - The EMERGENCY_NUMBERS set in `lib/operators.ts` is the single source of truth used by both the state machine and the operator safety hook.
 - Do not start any task from Phase 5 onwards before the seed data (Tasks 17 and 18) is loaded into the database, as the operator route depends on real search results.
 - The `.env.example` file must be updated whenever a new env var is added, before closing the task that introduced it.
+- The 3D canvas (PhoneCanvas) is loaded with `dynamic(..., { ssr: false })`. Never import it at the top level of a server component.
+- `lib/dial.ts` and its four property tests are unchanged by the 3D direction. The same maths drive both the R3F DialWheel and the 2D SVG fallback.
+- Run `pnpm optimize-assets` before the first deployment and whenever the source GLB or texture is updated. Never commit unoptimised assets to `public/`.
+- The phone model (we500.glb) is CC Attribution. The desk texture is CC0. Both must be credited in README and in the app. See design section "Asset Pipeline".
 - Submission target: 2 December 2026. Judging runs until 29 January 2027.
 - Tasks 6 to 8 were completed with Claude Code on 14 Nov 2026 while waiting for the Kiroween Kiro credits to arrive. The work follows this spec and the steering files. Two changes came out of it: the dial geometry was corrected to match a real desk phone (finger stop at about 4 o'clock, not near 12), and design.md was updated to match. RotaryDial owns its own rotation state, so the `rotation` prop from task 7 was dropped. A local preview page lives at /dev/dial and is not served in production.

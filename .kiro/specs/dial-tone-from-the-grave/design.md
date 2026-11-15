@@ -261,40 +261,68 @@ The Edge Function accepts `{ text: string }` and returns `{ embedding: number[] 
 
 ## Components and Interfaces
 
+The page has two layers stacked in the same viewport. The 3D canvas is the primary visual. The accessible HTML layer sits on top of it, visually transparent, and handles all keyboard navigation, screen reader output, and the typed input fallback.
+
 ```
 app/page.tsx
-  PhoneScene
-    Handset              (pick up / hang up button, call state display)
-    RotaryDial           (SVG dial, emits onDigit(d: string))
-    DialledDisplay       (shows digits dialled so far)
-    MuteToggle           (global audio mute, persists in sessionStorage)
-    OperatorPanel        (shown when connected)
-      TranscriptScroll   (streamed operator text)
-      InputArea          (voice input OR typed fallback)
-    PhoneBookOverlay     (shown when results arrive)
-      PhoneBookPage
-        PageHeader       (letter range, page number)
-        BusinessSection  (business directory columns + boxed adverts)
-          ListingCard    (individual listing, click for detail)
-          AdvertCard     (boxed advert variant)
-          ListingDetail  (torn-paper overlay on click)
-        WhiteSection     (white pages columns)
-          ResidentRow    (SURNAME Initial, address, phone)
-        SectionTabs      (flip between white / business sections)
-    StaticOverlay        (visual crackle/flicker on wrong-number and connect)
+  PhoneScene                      (layout root; stacks 3D canvas + HTML overlay)
+    PhoneCanvas                   (dynamic import, ssr:false; R3F Canvas)
+      DeskScene                   (R3F scene graph root; fog, lighting, shadow)
+        DeskMesh                  (Poly Haven dark planks texture, dust shader)
+        CandleGroup               (wax cylinder, drips, holder, flame sprite, halo sprite)
+        PhoneModel                (we500.glb via useGLTF; casts/receives shadows)
+          DialWheel               (Rotary_Dial_Finger_Wheel node, rotation driven by dialRotation state)
+            GooMeshes             (children of DialWheel; turn with it)
+          CentreCard              (canvas texture: handwritten "1023")
+          HairstySpider           (animated near the cord)
+        PhoneBook3D               (open book mesh; page textures from canvas; shown on results)
+        PostProcessing            (bloom on flame, film grain, vignette via @react-three/postprocessing)
+    HtmlOverlay                   (absolute fill, pointer-events: none by default)
+      DialAccessible              (2D RotaryDial SVG, visible only with prefers-reduced-motion or no WebGL)
+      DialledDisplay              (shows digits dialled so far; aria-live)
+      HandsetButtons              (pick up / hang up; always interactive)
+      MuteToggle                  (mute button)
+      EmergencyNotice             (plain white overlay, shown for emergency-notice state)
+      OperatorPanel               (shown when connected)
+        TranscriptScroll          (streamed operator text)
+        InputArea                 (voice input OR typed fallback)
+      PhoneBookOverlay            (accessible HTML mirror of PhoneBook3D results)
+        PhoneBookPage
+          PageHeader
+          BusinessSection
+            ListingCard
+            AdvertCard
+            ListingDetail
+          WhiteSection
+            ResidentRow
+          SectionTabs
+      StaticOverlay               (CSS crackle/flicker on wrong-number and connect)
+      LoadingVeil                 (candlelit full-screen state while 3D assets load)
 ```
 
 Props interfaces for key components:
 
 ```typescript
-// RotaryDial is purely presentational
+// PhoneCanvas receives call state so it can animate the model
+type PhoneCanvasProps = {
+  dialRotation: number; // current wheel rotation in degrees, driven by parent
+  callState: CallState['status'];
+};
+
+// DialWheel sits inside the R3F scene; pure 3D presenter
+type DialWheelProps = {
+  rotation: number; // degrees; parent converts to radians for the mesh
+};
+
+// 2D fallback, unchanged from original RotaryDial spec
 type RotaryDialProps = {
   disabled: boolean;
   onDigit: (digit: string) => void;
+  rotation: number;
 };
 
-// Handset owns nothing except the callback
-type HandsetProps = {
+// Handset owns nothing except the callbacks
+type HandsetButtonsProps = {
   state: CallState;
   onPickUp: () => void;
   onHangUp: () => void;
@@ -389,45 +417,22 @@ The 2-second dial timer fires `CALL_PLACED`. The server 429 response fires `RATE
 
 ## Rotary Dial Design
 
-The dial is an SVG component (`components/RotaryDial/RotaryDial.tsx`). It is purely presentational: it receives `disabled` and `onDigit`, and emits nothing else.
+There are two dial implementations that share the same maths from `lib/dial.ts`:
 
-### Geometry
+1. `DialWheel` (3D): rotates the `Rotary_Dial_Finger_Wheel` node of the we500.glb model inside the R3F scene.
+2. `RotaryDial` (2D SVG fallback): used when WebGL is unavailable or `prefers-reduced-motion` is active.
 
-Matches a real desk phone dial. Angles are degrees clockwise from 12 o'clock.
+Both receive `rotation` (degrees) from a parent state hook and call `onDigit` when a digit registers. Neither holds call logic.
 
-- Fixed base plate with the numbers and letters (2 ABC, 3 DEF and so on) printed on the outer ring, so they stay visible while the wheel turns.
-- Clear finger wheel with 10 holes, 30 degrees apart, showing the pale plate underneath.
-- Metal finger stop at `STOP_ANGLE = 130` (about 4 o'clock, bottom right).
-- The 1 hole is 60 degrees anticlockwise of the stop, then each digit is one hole step further: `travelDegrees(d) = 60 + (PULSES[d] - 1) * 30`. So 1 travels 60 degrees and 0 travels 330 degrees, with a blank gap between the 0 hole and the stop.
-- `HOLE_ANGLES[d] = (STOP_ANGLE - travelDegrees(d)) mod 360`.
-- Centre card with the number handwritten in pen.
+### Geometry constants (lib/dial.ts, shared by both implementations)
 
-### Drag interaction
+Angles are degrees clockwise from 12 o'clock (matching the 3D model's local coordinate system mapped to degrees).
 
-On `pointerdown` on a hole, the component records the hole index. On `pointermove`, it tracks the current angle. The dial plate SVG group rotates by `currentAngle - startAngle` (clamped to clockwise only, max = `STOP_ANGLE - holeAngle(d)`). On `pointerup`:
-
-- If the hole reached the stop (within a 3-degree tolerance): register the digit.
-- Otherwise: spring back without registering.
-
-### Return animation
-
-After registration, the dial returns anticlockwise from `STOP_ANGLE` to `holeAngle(d)` at exactly 10 pulses per second. Total return duration = `pulseCount(d) * 100` ms, where `pulseCount("1") = 1`, `pulseCount("0") = 10`. A click sound fires at each 100 ms interval.
-
-With `prefers-reduced-motion`: skip the CSS transform animation entirely; set the rotation back to 0 immediately; still schedule the click sounds at 100 ms intervals (sound is not affected by motion preference).
-
-### Keyboard path
-
-On `keydown` for keys 0-9:
-
-1. Animate the correct hole clockwise to the stop over ~150 ms (CSS transition).
-2. After 150 ms, start the return animation as normal.
-3. This triggers the same `onDigit` callback and the same click sequence.
-
-With `prefers-reduced-motion`: skip both animations, fire `onDigit` immediately, still play clicks.
-
-### Angle-to-digit mapping (property-tested)
-
-All values live in `lib/dial.ts` and are derived from `STOP_ANGLE`, `HOLE_SPACING` (30) and `FIRST_HOLE_TRAVEL` (60), so the layout cannot drift out of step with the pulse counts.
+- `STOP_ANGLE = 130` (4 o'clock position, bottom right of the dial, where the finger stop is).
+- `HOLE_SPACING = 30` degrees between adjacent holes.
+- `FIRST_HOLE_TRAVEL = 60` degrees: how far digit 1 travels to reach the stop.
+- `travelDegrees(d) = 60 + (PULSES[d] - 1) * 30`. Digit 1 travels 60 degrees, digit 0 travels 330 degrees.
+- `HOLE_ANGLES[d] = (STOP_ANGLE - travelDegrees(d) + 360) % 360`.
 
 | Digit | Hole angle | Travel to stop | Pulses |
 | ----- | ---------- | -------------- | ------ |
@@ -442,12 +447,30 @@ All values live in `lib/dial.ts` and are derived from `STOP_ANGLE`, `HOLE_SPACIN
 | 9     | 190        | 300            | 9      |
 | 0     | 160        | 330            | 10     |
 
-Drag tracking uses `accumulateRotation`: each pointer move adds the shortest turn between the previous and current pointer angle, clamped between 0 and the digit's travel. This lets the 0 hole go most of the way round without jumping.
+### 3D drag interaction (DialWheel)
 
-Property tests (fast-check):
+Pointer events hit-test against the visible goo meshes (children of the finger wheel node). On `pointerdown`, the component records which hole was touched and the initial pointer angle projected onto the dial plane. On `pointermove`, `accumulateRotation` adds the shortest-arc delta, clamped to `[0, travelDegrees(d)]`. The wheel group is rotated each frame by calling `Quaternion.setFromAxisAngle(dialNormal, -dialRotation * DEG2RAD)` around `dialCentre` in world space. Both `dialNormal` and `dialCentre` come from the `useDialGeometry` hook (computed via PCA of the finger wheel vertices). This is correct regardless of how the model is oriented on the desk. On `pointerup`:
 
-- P1: `returnDuration(d) === PULSES[d] * 100` for every digit.
-- P2: `PULSES[d]` equals the face value, 10 for "0".
+- If `dialRotation >= travelDegrees(d) - 3`: register the digit, start return animation.
+- Otherwise: return without registering.
+
+### Return animation (both implementations)
+
+After registration the wheel returns at 10 pulses per second (100 ms per pulse). `useInterval` fires every 100 ms, decrementing the rotation by `HOLE_SPACING` until it reaches `HOLE_ANGLES[d]`. One click sound fires per step.
+
+With `prefers-reduced-motion`: skip all rotation, fire `onDigit` immediately, still play clicks.
+
+### Keyboard path (both implementations)
+
+On `keydown` for 0-9 (when not disabled): animate the correct hole to the stop over 150 ms, then run the normal return. With `prefers-reduced-motion`: skip both animations, fire `onDigit`, play clicks.
+
+### 2D SVG fallback (RotaryDial)
+
+Keeps all the existing geometry from `lib/dial.ts`. Activated when:
+
+- `window.WebGLRenderingContext` is absent or context creation fails.
+- `prefers-reduced-motion: reduce` is active.
+- The user is navigating by keyboard or screen reader (always rendered in the DOM, visually hidden behind the canvas otherwise so keyboard focus works).
 - P3: hole angles are unique integers in [0, 360); travel grows by exactly one hole step per pulse and stays under a full turn.
 - P4: `shouldRegister(d, short)` is true when released 3 degrees or less short of the stop, false otherwise; `accumulateRotation` never leaves the range 0 to `travelDegrees(d)` for any pointer path.
 
@@ -998,6 +1021,115 @@ Migrations live in `supabase/migrations/` and are applied with `supabase db push
 7. `0007_seed_residents.sql`: insert ~80 fictional residents.
 
 Seed files call the embed Edge Function for each row to generate and store embeddings.
+
+---
+
+## 3D Scene Design
+
+The 3D scene matches the reference renders in `assets-src/renders/`. All descriptions below refer to those renders as the visual ground truth.
+
+### Renderer settings
+
+```typescript
+// ACESFilmic tonemapping, exposure 1.05
+// PCFSoft shadow maps, shadow map 2048x2048
+// scene.fog: FogExp2(0x050302, 1.4)
+// scene.environmentIntensity: 0.08 (dim PMREM from RoomEnvironment)
+```
+
+### Desk
+
+Mesh: `PlaneGeometry(3, 3)` rotated flat. Material: `MeshStandardMaterial` with the Poly Haven dark wooden planks texture (`public/textures/dark_wooden_planks_diff_2k.webp`, repeat 4x4). A procedural dust GLSL shader (vertex normal dot up, multiplied by 3D noise) is patched in via `onBeforeCompile` on upward-facing surfaces. Contact shadow blob under the phone.
+
+### Lighting
+
+| Light          | Type             | Colour     | Intensity | Notes                                          |
+| -------------- | ---------------- | ---------- | --------- | ---------------------------------------------- |
+| Candle flicker | PointLight       | `0xff9a40` | 1.1       | distance 2.5, decay 2, casts shadows           |
+| Key            | SpotLight        | `0xffae6a` | 0.9       | angle 0.45, penumbra 0.9, aimed at desk centre |
+| Rim            | PointLight       | `0xff7a30` | 0.7       | distance 1.4, behind and left                  |
+| Sick green     | DirectionalLight | `0x4f8a72` | 0.18      | low, side fill, gives the spooky cast          |
+
+Candle flicker: each frame, perturb the candle PointLight intensity by `+= (Math.random() - 0.5) * 0.08` and position by a small noise offset. Cap intensity to `[0.6, 1.5]`.
+
+### Candle
+
+Wax cylinder (`CylinderGeometry(0.017, 0.019, 0.11)`), emissive glow. Five drip capsules around the base. Brass holder. Flame: `Sprite` with a hand-painted canvas gradient texture, `AdditiveBlending`. Halo: larger sprite behind the flame. Both sprites face the camera. Wick: thin dark cylinder.
+
+### Phone model (we500.glb)
+
+Loaded with `useGLTF` from `@react-three/drei`. The `Rotary_Dial_Finger_Wheel` node is extracted by name. Its rotation is applied each frame as `Quaternion.setFromAxisAngle(dialNormal, -dialRotation * DEG2RAD)` around `dialCentre`, where both values come from `useDialGeometry` (see Rotary Dial Design). All goo meshes are children of that node and rotate with it.
+
+The centre card uses the model's own `Rotary_Dial_Card` mesh. Its material is cloned and its `map` is replaced with a `CanvasTexture` painted over the original base texture: scan the mesh's `uv` attribute to find the UV bounding box, paint aged paper and foxing over that region on a full-resolution canvas copy, then draw "DIRECTORY" in small monospace and "1023" in large italic script inside the UV region. Apply `g.scale(1, -1)` before drawing text to correct for the texture's vertical flip. Set `t.flipY = base.flipY` and `t.colorSpace = base.colorSpace` on the new texture.
+
+Dust shader is applied to all upward-facing mesh materials of the phone body (same GLSL patch as the desk, lower amount).
+
+### Spider
+
+Procedural geometry group positioned near the phone cord: oval abdomen, smaller thorax, eight `TubeGeometry` legs following `CatmullRomCurve3` paths. Fine tube hairs on each leg. `MeshPhysicalMaterial` with sheen for the iridescent hairs. Slight idle animation (body bobs, one leg twitches).
+
+### Phone book (PhoneBook3D)
+
+An open book sitting to the right of the phone. Two page meshes with bent `PlaneGeometry` (60x40 segments, procedurally displaced to sag into the gutter and curl at the outer corner). Page textures are `CanvasTexture` painted per the same logic as `book-test.html`: aged paper base, foxing spots, water tide marks, ink-bleed listings, red pen crossings, the Ashgrove advert on the left page, the handwritten margin note on the right. Book spine is a rounded block. Visible only when results are present.
+
+### Post processing
+
+Via `@react-three/postprocessing`: `Bloom` (threshold 0.9, strength 0.3, radius 0.4) on the flame. `Vignette` (darkness 0.65, offset 0.35). `Noise` (premultiply false, opacity 0.07) for film grain. All at `BlendFunction.NORMAL`.
+
+### Loading veil
+
+While the GLB and textures load, a full-screen `div` shows a candlelit background (CSS radial gradient on black) with the tagline in serif italic. Fades out when the R3F `onCreated` callback fires and assets are ready.
+
+---
+
+## Asset Pipeline
+
+### Source files
+
+| File                                                 | Licence                                   | Use          |
+| ---------------------------------------------------- | ----------------------------------------- | ------------ |
+| `assets-src/phone/we500.glb`                         | CC Attribution, author Skyice (Sketchfab) | Phone model  |
+| `assets-src/textures/dark_wooden_planks_diff_2k.jpg` | CC0, Poly Haven                           | Desk texture |
+
+### Optimisation
+
+Run once before first deployment. Output goes to `public/`:
+
+```bash
+# Compress the GLB (meshopt + 2K webp textures)
+npx gltf-transform optimize assets-src/phone/we500.glb public/models/we500.glb   --texture-compress webp --texture-size 2048 --compress meshopt
+
+# Convert desk texture to webp
+cwebp -q 85 assets-src/textures/dark_wooden_planks_diff_2k.jpg   -o public/textures/dark_wooden_planks_diff_2k.webp
+```
+
+Target: `we500.glb` under 5 MB after optimisation. If meshopt alone does not reach that, apply Draco geometry compression as well.
+
+Add a `pnpm optimize-assets` script in `package.json` that runs both commands. Run it once and commit the output to `public/`. Do not commit the source GLB or the uncompressed JPEG to `public/`.
+
+### Attribution
+
+The README and the app's `/about` route (or footer) must credit:
+
+- Phone model: "WE 500 by Skyice, CC Attribution, sketchfab.com"
+- Desk texture: "Dark Wooden Planks by Poly Haven, CC0, polyhaven.com"
+
+---
+
+## Performance Budget
+
+| Metric                 | Target                       | How to verify                                     |
+| ---------------------- | ---------------------------- | ------------------------------------------------- |
+| First 3D frame         | under 3 s on broadband       | Lighthouse, Chrome DevTools network throttle      |
+| Steady-state framerate | 60 fps on a mid-range laptop | Chrome Performance panel, `Stats` R3F debug panel |
+| Compressed GLB size    | under 5 MB                   | `ls -lh public/models/we500.glb`                  |
+| Total JS (gzip)        | under 300 KB first load      | Next.js bundle analyser                           |
+
+If the GLB is still over 5 MB after `gltf-transform`, reduce the texture size to 1K for non-hero materials (book pages, candle holder).
+
+The R3F canvas is loaded with `dynamic(() => import('./PhoneCanvas'), { ssr: false, loading: () => <LoadingVeil /> })`. This keeps the SSR bundle clean and shows the loading veil immediately.
+
+Stretch goal (only if everything else is done): WebXR "Enter VR" view using `@react-three/xr`. Add an `EnterVR` button that only renders if `navigator.xr?.isSessionSupported('immersive-vr')` resolves to true.
 
 ---
 
