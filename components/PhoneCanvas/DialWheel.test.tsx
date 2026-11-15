@@ -54,7 +54,7 @@ function buildPhone(): PreparedPhone {
   );
   wheel.add(marker);
   object.updateMatrixWorld(true);
-  return { object, dial, wheel, card: undefined, goo: new THREE.Group() };
+  return { object, dial, wheel, card: undefined, goo: new THREE.Group(), drips: new THREE.Group() };
 }
 
 /** Where on the screen a spot on the dial appears. The camera looks straight at the dial face. */

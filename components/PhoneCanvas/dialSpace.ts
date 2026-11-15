@@ -22,6 +22,15 @@ export function angleInDial(point: THREE.Vector3, dial: DialGeometry): number {
   return ((degrees % 360) + 360) % 360;
 }
 
+/**
+ * The way a drop of slime runs across the dial face: world down, projected onto the dial plane.
+ * `normal` is the dial normal. It is never hard-coded, because the phone is tilted and turned.
+ */
+export function downhillOf(normal: THREE.Vector3): THREE.Vector3 {
+  const down = new THREE.Vector3(0, -1, 0);
+  return down.addScaledVector(normal, -down.dot(normal)).normalize();
+}
+
 /** Where a ray from the camera meets the plane of the dial, or null if it never does. */
 export function pointOnDialPlane(ray: THREE.Ray, dial: DialGeometry): THREE.Vector3 | null {
   const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(dial.normal, dial.centre);

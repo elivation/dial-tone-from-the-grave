@@ -213,11 +213,19 @@ export type DripShape = {
   length: number;
   /** Which way it runs, a unit vector in the x-z plane. */
   direction: { x: number; z: number };
+  /** Raises the drip at `s` along it, 0 to 1, so it can follow a surface that is not flat. */
+  lift?: (s: number) => number;
   seed: number;
 };
 
 /** A short, thick blob of slime lying on the surface, ending in a fat rounded bead. It starts at the origin. */
-export function buildDrip({ radius, length, direction, seed }: DripShape): THREE.BufferGeometry {
+export function buildDrip({
+  radius,
+  length,
+  direction,
+  lift,
+  seed,
+}: DripShape): THREE.BufferGeometry {
   const side = { x: -direction.z, z: direction.x };
   const positions: number[] = [];
   const thickness: number[] = [];
@@ -228,10 +236,15 @@ export function buildDrip({ radius, length, direction, seed }: DripShape): THREE
     const cx = direction.x * s * length + side.x * wobble;
     const cz = direction.z * s * length + side.z * wobble;
     const { width, height } = dripProfile(s);
+    const raise = lift ? lift(s) : 0;
     for (let k = 0; k <= DRIP_SIDES; k++) {
       const phi = (Math.PI * k) / DRIP_SIDES;
       const across = Math.cos(phi) * width * radius;
-      positions.push(cx + side.x * across, Math.sin(phi) * height * radius, cz + side.z * across);
+      positions.push(
+        cx + side.x * across,
+        raise + Math.sin(phi) * height * radius,
+        cz + side.z * across,
+      );
       thickness.push(0.6 * (1 - s));
     }
   }

@@ -12,8 +12,10 @@ export type PreparedPhone = {
   wheel: THREE.Mesh;
   /** The card in the middle of the dial. Undefined if the model has none. */
   card: THREE.Mesh | undefined;
-  /** Goo in the finger holes. A child of the wheel, so it turns with it. */
+  /** Pools and smears in the finger holes. A child of the wheel, so they turn with it. */
   goo: THREE.Group;
+  /** Drips on the number plate. A child of the static phone body: gravity moves them, not the wheel. */
+  drips: THREE.Group;
 };
 
 function findMesh(root: THREE.Object3D, pattern: RegExp): THREE.Mesh | undefined {
@@ -84,9 +86,9 @@ export function preparePhone(source: THREE.Object3D): PreparedPhone {
   });
 
   const dial = computeDialGeometry(wheel, PHONE_ROTATION_Y, stop);
-  const goo = buildGoo({ dial, plate });
-  // attach keeps the goo where it is in the world while making it follow the wheel.
+  const { pools: goo, drips } = buildGoo({ dial, plate });
+  // attach keeps each group where it is in the world. The pools then follow the wheel, the drips stay put.
   wheel.attach(goo);
-
-  return { object, dial, wheel, card, goo };
+  object.attach(drips);
+  return { object, dial, wheel, card, goo, drips };
 }

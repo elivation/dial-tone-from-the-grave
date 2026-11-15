@@ -18,12 +18,25 @@ import { loadSourcePhone } from './__fixtures__/loadSource';
 let phone: PreparedPhone;
 let pools: THREE.Object3D[];
 let rest: THREE.Vector3[];
+let gooMeshes: THREE.Object3D[];
+let gooRest: THREE.Vector3[];
+let drips: THREE.Object3D[];
+let dripRest: THREE.Matrix4[];
 
 const worldPositions = () =>
   pools.map((p) => {
     p.updateWorldMatrix(true, false);
     return new THREE.Vector3().setFromMatrixPosition(p.matrixWorld);
   });
+
+const positionOf = (o: THREE.Object3D) => {
+  o.updateWorldMatrix(true, false);
+  return new THREE.Vector3().setFromMatrixPosition(o.matrixWorld);
+};
+const matrixOf = (o: THREE.Object3D) => {
+  o.updateWorldMatrix(true, false);
+  return o.matrixWorld.clone();
+};
 
 beforeAll(async () => {
   phone = preparePhone(await loadSourcePhone());
@@ -32,6 +45,16 @@ beforeAll(async () => {
     if (o.name === 'goo-pool') pools.push(o);
   });
   rest = worldPositions();
+  gooMeshes = [];
+  phone.goo.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) gooMeshes.push(o);
+  });
+  gooRest = gooMeshes.map(positionOf);
+  drips = [];
+  phone.drips.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) drips.push(o);
+  });
+  dripRest = drips.map(matrixOf);
 }, 60_000);
 
 describe('createWheelPivot', () => {
@@ -89,5 +112,60 @@ describe('createWheelPivot', () => {
     // More than a degree off, so turning about z would visibly wobble the wheel.
     expect(offAxisDegrees).toBeGreaterThan(1);
     console.info(`wheel local z is ${offAxisDegrees.toFixed(1)} degrees off the dial normal`);
+  });
+});
+
+describe('goo while the wheel turns', () => {
+  const turn = () => createWheelPivot(phone.wheel, phone.dial);
+
+  it('[Req 1.1] carries every pool and smear round with the wheel, about the dial normal', () => {
+    const rotate = turn();
+    rotate(90);
+    phone.object.updateMatrixWorld(true);
+    const quarter = new THREE.Quaternion().setFromAxisAngle(
+      phone.dial.normal,
+      -THREE.MathUtils.degToRad(90),
+    );
+    gooMeshes.forEach((mesh, i) => {
+      const expected = (gooRest[i] as THREE.Vector3)
+        .clone()
+        .sub(phone.dial.centre)
+        .applyQuaternion(quarter)
+        .add(phone.dial.centre);
+      expect(positionOf(mesh).distanceTo(expected)).toBeLessThan(1e-6);
+    });
+    rotate(0);
+  });
+
+  it('[Req 1.1] leaves every drip exactly where it was, in position and orientation', () => {
+    const rotate = turn();
+    rotate(90);
+    phone.object.updateMatrixWorld(true);
+    drips.forEach((drip, i) => {
+      const before = dripRest[i] as THREE.Matrix4;
+      const after = matrixOf(drip);
+      after.elements.forEach((e, k) =>
+        expect(Math.abs(e - (before.elements[k] ?? 0))).toBeLessThan(1e-6),
+      );
+    });
+    rotate(0);
+  });
+
+  it('never moves a drip, whatever the wheel angle', () => {
+    const rotate = turn();
+    fc.assert(
+      fc.property(fc.double({ min: 0, max: 330, noNaN: true }), (degrees) => {
+        rotate(degrees);
+        phone.object.updateMatrixWorld(true);
+        return drips.every((drip, i) => {
+          const before = dripRest[i] as THREE.Matrix4;
+          return matrixOf(drip).elements.every(
+            (e, k) => Math.abs(e - (before.elements[k] ?? 0)) < 1e-6,
+          );
+        });
+      }),
+      { numRuns: 25 },
+    );
+    rotate(0);
   });
 });

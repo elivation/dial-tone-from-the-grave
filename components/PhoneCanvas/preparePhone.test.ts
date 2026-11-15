@@ -1,15 +1,17 @@
 // @vitest-environment node
 /**
- * [Req 1.1, 1.6] The phone is prepared for the scene: goo in every finger hole,
- * attached to the wheel so it turns with it, and a readable frame for the card.
+ * [Req 1.1, 1.6] The phone is prepared for the scene: pools of goo in every finger hole,
+ * attached to the wheel so they turn with it, drips on the fixed number plate that never turn,
+ * and a readable frame for the card.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
 import { preparePhone, type PreparedPhone } from './preparePhone';
 import { holeRadiusOf } from './goo';
-import { angleInDial, radiusInDial } from './dialSpace';
+import { angleInDial, downhillOf, radiusInDial } from './dialSpace';
 import { computeCardFrame } from './cardTexture';
 import { GOO, GOO_SHAPE, PHONE_ROTATION_Y } from './sceneConstants';
+import { pointAt } from './__fixtures__/dial';
 import { loadSourcePhone } from './__fixtures__/loadSource';
 
 function descendantsNamed(root: THREE.Object3D, name: string): THREE.Object3D[] {
@@ -94,7 +96,7 @@ describe('preparePhone', () => {
   });
 
   it('runs each drip from green near the hole to dark olive at the tip', () => {
-    const drip = descendantsNamed(phone.goo, 'goo-drip')[0] as THREE.Mesh;
+    const drip = descendantsNamed(phone.drips, 'goo-drip')[0] as THREE.Mesh;
     const color = drip.geometry.getAttribute('color');
     const brightness = (i: number) => {
       const c = new THREE.Color().fromBufferAttribute(color, i);
@@ -116,72 +118,108 @@ describe('slime shape on the real dial', () => {
     );
   };
   const originOf = (mesh: THREE.Mesh) => mesh.getWorldPosition(new THREE.Vector3());
-  const downhill = () => {
-    const { normal } = phone.dial;
-    return new THREE.Vector3(0, -1, 0).addScaledVector(normal, normal.y).normalize();
-  };
+  const downhill = () => downhillOf(phone.dial.normal);
+  const drips = () => descendantsNamed(phone.drips, 'goo-drip') as THREE.Mesh[];
+  const holeCentre = (drip: THREE.Mesh) =>
+    pointAt(
+      phone.dial,
+      phone.dial.holeAngles[drip.userData['hole'] as number] ?? 0,
+      phone.dial.holeR,
+    );
   const outwardOf = (point: THREE.Vector3) => {
     const { centre, normal } = phone.dial;
     const d = point.clone().sub(centre);
     return d.addScaledVector(normal, -d.dot(normal)).normalize();
   };
-  const heightAboveFace = (point: THREE.Vector3) =>
-    point.clone().sub(phone.dial.centre).dot(phone.dial.normal) - phone.dial.faceHeight;
-
   it('[Req 1.1] runs only 2 or 3 drips', () => {
-    const count = meshes('goo-drip').length;
+    const count = drips().length;
     expect(count).toBeGreaterThanOrEqual(2);
     expect(count).toBeLessThanOrEqual(GOO_SHAPE.maxDrips);
   });
 
+  it('parents the drips to the static phone body, never to the finger wheel', () => {
+    for (const drip of drips()) {
+      const chain: THREE.Object3D[] = [];
+      for (let node: THREE.Object3D | null = drip; node; node = node.parent) chain.push(node);
+      expect(chain).toContain(phone.object);
+      expect(chain).not.toContain(phone.wheel);
+    }
+  });
+
   it('drips only from holes in the lower half of the dial', () => {
-    for (const drip of meshes('goo-drip')) {
-      expect(outwardOf(originOf(drip)).dot(downhill())).toBeGreaterThan(GOO_SHAPE.lowerHalf);
+    for (const drip of drips()) {
+      expect(outwardOf(holeCentre(drip)).dot(downhill())).toBeGreaterThan(GOO_SHAPE.lowerHalf);
     }
   });
 
-  it('starts each drip at the rim of its hole, with open hole on one side and wheel on the other', () => {
+  it('starts each drip just outside the rim of its hole, on solid wheel and not in an opening', () => {
     const { dial } = phone;
-    for (const drip of meshes('goo-drip')) {
+    for (const drip of drips()) {
       const origin = originOf(drip);
-      const reach = holeRadius() * 0.6;
-      let open = 0;
-      let closed = 0;
-      for (let k = 0; k < 24; k++) {
-        const t = (k / 24) * Math.PI * 2;
-        const sample = origin
-          .clone()
-          .addScaledVector(dial.uAx, Math.cos(t) * reach)
-          .addScaledVector(dial.rAx, Math.sin(t) * reach);
-        if (dial.isOpen(radiusInDial(sample, dial), angleInDial(sample, dial))) open++;
-        else closed++;
+      const r = radiusInDial(origin, dial);
+      const at = angleInDial(origin, dial);
+      expect(dial.isOpen(r, at)).toBe(false);
+      // The nearest opening at rest is less than a hole radius away, so the drip is at the rim, not adrift.
+      let nearest = Infinity;
+      for (
+        let reach = 0.0002;
+        reach <= holeRadius() * 1.5 && nearest === Infinity;
+        reach += 0.0002
+      ) {
+        for (let k = 0; k < 72; k++) {
+          const t = (k / 72) * Math.PI * 2;
+          const du = r * Math.cos((at * Math.PI) / 180) + reach * Math.cos(t);
+          const dr = r * Math.sin((at * Math.PI) / 180) + reach * Math.sin(t);
+          const degrees = (Math.atan2(dr, du) * 180) / Math.PI;
+          if (dial.isOpen(Math.hypot(du, dr), degrees)) nearest = Math.min(nearest, reach);
+        }
       }
-      expect(open).toBeGreaterThan(2);
-      expect(closed).toBeGreaterThan(2);
+      expect(nearest).toBeLessThan(holeRadius());
     }
   });
 
-  it('runs each drip outward and downhill, never towards the centre card', () => {
+  it('runs each drip downhill, found by projecting world down onto the dial plane', () => {
     const { dial } = phone;
-    for (const drip of meshes('goo-drip')) {
+    const up = new THREE.Vector3(0, 1, 0);
+    for (const drip of drips()) {
       const origin = originOf(drip);
-      const vertices = worldVertices(drip);
-      const tip = vertices.reduce((far, v) =>
-        v.distanceTo(origin) > far.distanceTo(origin) ? v : far,
-      );
+      // The drip closes to a point, so its last ring of vertices is where it ends.
+      const ring = worldVertices(drip).slice(-15);
+      const tip = ring
+        .reduce((sum, v) => sum.add(v), new THREE.Vector3())
+        .divideScalar(ring.length);
       const direction = tip.clone().sub(origin);
       direction.addScaledVector(dial.normal, -direction.dot(dial.normal)).normalize();
-      expect(direction.dot(outwardOf(origin))).toBeGreaterThan(0.5);
-      expect(direction.dot(downhill())).toBeGreaterThan(0.2);
-      // No part of it reaches closer to the middle of the dial than where it started.
-      const startRadius = radiusInDial(origin, dial);
-      for (const v of vertices)
-        expect(radiusInDial(v, dial)).toBeGreaterThan(startRadius - holeRadius() * 0.7);
+      expect(direction.dot(up)).toBeLessThan(0);
+      expect(direction.dot(downhill())).toBeGreaterThan(0.9);
     }
   });
 
-  it('keeps each drip short: 0.4 to 0.7 of a hole diameter past the rim', () => {
-    for (const drip of meshes('goo-drip')) {
+  it('never lets a drip overlap a finger hole, at any wheel angle from 0 to 330 degrees', () => {
+    const { dial } = phone;
+    for (const drip of drips()) {
+      for (const v of worldVertices(drip)) {
+        const r = radiusInDial(v, dial);
+        // Past the rim of the wheel there are no holes to pass over.
+        if (r >= dial.radius * 0.97) continue;
+        const at = angleInDial(v, dial);
+        for (let turn = 0; turn <= 330; turn += 1) {
+          expect(dial.isOpen(r, at - turn), `r ${r}, ${at} degrees, wheel at ${turn}`).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('keeps every drip clear of the centre card, outside the ring the holes sit on', () => {
+    for (const drip of drips()) {
+      for (const v of worldVertices(drip)) {
+        expect(radiusInDial(v, phone.dial)).toBeGreaterThan(phone.dial.holeR);
+      }
+    }
+  });
+
+  it('keeps each drip short: 0.4 to 0.7 of a hole diameter long', () => {
+    for (const drip of drips()) {
       const origin = originOf(drip);
       const reach = Math.max(...worldVertices(drip).map((v) => v.distanceTo(origin)));
       const diameter = holeRadius() * 2;
@@ -190,11 +228,30 @@ describe('slime shape on the real dial', () => {
     }
   });
 
-  it('lays each drip on the face of the wheel, as a low blob', () => {
-    for (const drip of meshes('goo-drip')) {
-      const heights = worldVertices(drip).map(heightAboveFace);
-      expect(Math.min(...heights)).toBeGreaterThan(-0.0003);
-      expect(Math.max(...heights)).toBeLessThan(holeRadius() * 0.5);
+  it('lays each drip on the number plate, as a low blob', () => {
+    const plate = descendantsNamed(
+      phone.object,
+      'Dial_Number_Plate_Western_Electric_500_Material_0',
+    )[0];
+    expect(plate).toBeDefined();
+    const raycaster = new THREE.Raycaster();
+    const down = phone.dial.normal.clone().negate();
+    for (const drip of drips()) {
+      let lowest = Infinity;
+      for (const v of worldVertices(drip)) {
+        raycaster.set(v.clone().addScaledVector(phone.dial.normal, 0.01), down);
+        const hit = raycaster.intersectObject(plate as THREE.Object3D, false)[0];
+        expect(hit, 'plate under the drip').toBeDefined();
+        const height = v
+          .clone()
+          .sub((hit as THREE.Intersection).point)
+          .dot(phone.dial.normal);
+        // Sunk a little into the plate, which curves up at its edge, but never floating above it.
+        expect(height).toBeGreaterThan(-0.0005);
+        expect(height).toBeLessThan(holeRadius() * 0.5);
+        lowest = Math.min(lowest, height);
+      }
+      expect(lowest, 'the drip touches the plate').toBeLessThan(0.0001);
     }
   });
 
@@ -223,18 +280,22 @@ describe('slime shape on the real dial', () => {
 
   it('smears slime over the rim of the fullest holes, including every dripping hole', () => {
     const smeared = new Set(meshes('goo-smear').map((m) => m.userData['hole']));
-    expect(smeared.size).toBeGreaterThanOrEqual(meshes('goo-drip').length);
+    expect(smeared.size).toBeGreaterThanOrEqual(drips().length);
     expect(smeared.size).toBeLessThanOrEqual(6);
-    for (const drip of meshes('goo-drip')) expect(smeared.has(drip.userData['hole'])).toBe(true);
+    for (const drip of drips()) expect(smeared.has(drip.userData['hole'])).toBe(true);
     expect(smeared.size).toBeLessThan(10);
   });
 
-  it('makes the slime a child of the wheel, with every piece in the goo group', () => {
-    const names = new Set<string>();
-    phone.goo.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh) names.add(o.name);
-    });
-    expect([...names].sort()).toEqual(['goo-drip', 'goo-pool', 'goo-smear']);
+  it('keeps pools and smears in the goo group on the wheel, and drips in their own group', () => {
+    const names = (root: THREE.Object3D) => {
+      const found = new Set<string>();
+      root.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh) found.add(o.name);
+      });
+      return [...found].sort();
+    };
+    expect(names(phone.goo)).toEqual(['goo-pool', 'goo-smear']);
+    expect(names(phone.drips)).toEqual(['goo-drip']);
   });
 });
 

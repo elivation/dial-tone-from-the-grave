@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import type { DialGeometry } from './dialGeometry';
+import { downhillOf } from './dialSpace';
+import { findDripStart } from './dripSites';
 import { glowWithSlimeColour, paintGoo } from './gooColour';
 import { buildDrip, buildPool, buildSmear } from './gooShapes';
 import { seededRandom } from './noise';
@@ -17,6 +19,8 @@ export function holeRadiusOf(dial: DialGeometry): number {
 }
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+/** A drip sinks this far into the plate, so no sliver of light shows under it. */
+const DRIP_SINK = 0.00005;
 
 /** Gives each slime mesh its colour, from the thickness its shape recorded. */
 function colour(geometry: THREE.BufferGeometry): void {
@@ -24,15 +28,23 @@ function colour(geometry: THREE.BufferGeometry): void {
   paintGoo(geometry, (i) => thickness.getX(i));
 }
 
+export type GooPieces = {
+  /** Pools in the holes and smears over their rims. These ride on the wheel, so the caller attaches them to it. */
+  pools: THREE.Group;
+  /** Drips on the number plate. Gravity pulls them, not the wheel, so the caller attaches them to the static phone body. */
+  drips: THREE.Group;
+};
 /**
  * Wet green slime in the finger holes. Every hole holds a column of it, filled to a different
- * level with an uneven outline. The fullest are smeared over part of the rim, and two or three of
- * those, on the lower half of the dial, run a short thick drip ending in a bead.
+ * level with an uneven outline. The fullest are smeared over part of the rim.
  *
- * Built in world space from the dial's own geometry, then attached to the wheel by the caller
- * so it turns with it.
+ * Two or three holes on the lower half of the dial also drip. A drip is not part of the wheel: it
+ * lies on the fixed number plate just outside its hole's rest position, runs downhill, and stays
+ * out of the path of every hole, so it never moves or crosses a hole as the wheel turns.
+ *
+ * Built in world space from the dial's own geometry. The caller attaches each group.
  */
-export function buildGoo({ dial, plate }: GooInput): THREE.Group {
+export function buildGoo({ dial, plate }: GooInput): GooPieces {
   const { centre, normal, uAx, rAx, radius, holeR, holeAngles, faceHeight, isOpen } = dial;
   const holeRadius = holeRadiusOf(dial);
   const random = seededRandom(11);
@@ -45,7 +57,12 @@ export function buildGoo({ dial, plate }: GooInput): THREE.Group {
   );
   const toLocal = (v: THREE.Vector3) => ({ x: v.dot(rAx), z: -v.dot(uAx) });
   // Slime runs downhill across the face of the tilted dial.
-  const downhill = new THREE.Vector3(0, -1, 0).addScaledVector(normal, normal.y).normalize();
+  const downhill = downhillOf(normal);
+  const plateAt = (point: THREE.Vector3): THREE.Vector3 | undefined => {
+    if (!plate) return undefined;
+    raycaster.set(point.clone().addScaledVector(normal, 0.02), into);
+    return raycaster.intersectObject(plate, false)[0]?.point.clone();
+  };
 
   // White base so the vertex colours, painted by thickness, set the green.
   const material = new THREE.MeshPhysicalMaterial({
@@ -101,18 +118,30 @@ export function buildGoo({ dial, plate }: GooInput): THREE.Group {
     };
   });
 
-  // Two or three drips, from holes in the lower half of the dial.
-  const lower = holes.filter((h) => h.outward.dot(downhill) > GOO_SHAPE.lowerHalf);
-  const shuffled = lower
-    .map((h) => ({ h, key: random() }))
+  // Two or three drips, from holes in the lower half of the dial that have a clear place for one.
+  const lowerHoles = holes.filter((h) => h.outward.dot(downhill) > GOO_SHAPE.lowerHalf);
+  const sites = lowerHoles.flatMap((hole) => {
+    const length =
+      holeRadius * 2 * lerp(GOO_SHAPE.dripLength.min, GOO_SHAPE.dripLength.max, random());
+    const start = findDripStart({
+      dial,
+      holeMiddle: hole.middle,
+      direction: downhill,
+      length,
+      holeRadius,
+    });
+    const onPlate = start ? plateAt(start) : undefined;
+    return start && onPlate ? [{ hole, length, onPlate }] : [];
+  });
+  const chosen = sites
+    .map((site) => ({ site, key: random() }))
     .sort((a, b) => a.key - b.key)
-    .map((x) => x.h);
-  const dripping = new Set(
-    shuffled.slice(0, Math.min(GOO_SHAPE.maxDrips, lower.length)).map((h) => h.index),
-  );
+    .slice(0, GOO_SHAPE.maxDrips)
+    .map((x) => x.site);
+  const dripping = new Map(chosen.map((site) => [site.hole.index, site]));
 
   // A drip comes with a smear. One or two more holes are just as full, wherever they are.
-  const full = new Set(dripping);
+  const full = new Set(dripping.keys());
   const others = holes
     .filter((h) => !full.has(h.index))
     .map((h) => ({ h, key: random() }))
@@ -121,6 +150,8 @@ export function buildGoo({ dial, plate }: GooInput): THREE.Group {
 
   const goo = new THREE.Group();
   goo.name = 'goo';
+  const drips = new THREE.Group();
+  drips.name = 'goo-drips';
 
   for (const hole of holes) {
     const isFull = full.has(hole.index);
@@ -129,12 +160,17 @@ export function buildGoo({ dial, plate }: GooInput): THREE.Group {
       : lerp(GOO_SHAPE.fill.min, GOO_SHAPE.fill.max, random());
     const seed = 100 + hole.index;
     const dome = isFull ? GOO_SHAPE.dome.full : GOO_SHAPE.dome.puddle;
-    const place = (mesh: THREE.Mesh, name: string, position: THREE.Vector3) => {
+    const place = (
+      mesh: THREE.Mesh,
+      name: string,
+      position: THREE.Vector3,
+      parent: THREE.Group = goo,
+    ) => {
       mesh.name = name;
       mesh.userData['hole'] = hole.index;
       mesh.position.copy(position);
       mesh.quaternion.copy(frame);
-      goo.add(mesh);
+      parent.add(mesh);
     };
 
     const poolGeometry = buildPool({
@@ -166,21 +202,27 @@ export function buildGoo({ dial, plate }: GooInput): THREE.Group {
     colour(smearGeometry);
     place(new THREE.Mesh(smearGeometry, material), 'goo-smear', hole.top);
 
-    if (!dripping.has(hole.index)) continue;
-
-    const length =
-      holeRadius * 2 * lerp(GOO_SHAPE.dripLength.min, GOO_SHAPE.dripLength.max, random());
-    const dripGeometry = buildDrip({ radius: holeRadius, length, direction: local, seed });
+    const drip = dripping.get(hole.index);
+    if (!drip) continue;
+    // The drip hugs the plate, which is not flat, so each ring of it is raised to meet the plate.
+    const lift = (along: number) => {
+      const hit = plateAt(drip.onPlate.clone().addScaledVector(downhill, along * drip.length));
+      return (hit ? hit.sub(drip.onPlate).dot(normal) : 0) - DRIP_SINK;
+    };
+    const dripGeometry = buildDrip({
+      radius: holeRadius,
+      length: drip.length,
+      direction: toLocal(downhill),
+      lift,
+      seed,
+    });
     colour(dripGeometry);
-    place(
-      new THREE.Mesh(dripGeometry, material),
-      'goo-drip',
-      hole.top.clone().addScaledVector(way, holeRadius),
-    );
+    place(new THREE.Mesh(dripGeometry, material), 'goo-drip', drip.onPlate, drips);
   }
-
-  goo.traverse((o) => {
-    o.castShadow = true;
-  });
-  return goo;
+  for (const group of [goo, drips]) {
+    group.traverse((o) => {
+      o.castShadow = true;
+    });
+  }
+  return { pools: goo, drips };
 }
