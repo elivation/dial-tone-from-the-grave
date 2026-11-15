@@ -215,6 +215,7 @@ create policy "public read non-spirit"
 -- Write is secret key only (no insert/update/delete policy for anon or authenticated).
 
 -- Every listing can be dialled. Digits only, unique, so a dialled number finds one listing.
+-- A check constraint keeps every number in the fictional 011 000 xxxx range.
 alter table businesses add column phone_digits text
   generated always as (regexp_replace(phone, '\D', '', 'g')) stored;
 create unique index businesses_phone_digits_idx on businesses (phone_digits);
@@ -768,7 +769,7 @@ as $$
 $$;
 ```
 
-Scoring weights: 50% vector similarity, 35% full-text rank, 15% suburb exact match. These are tunable constants; the 1313 path passes `spirit_only = true`.
+Scoring weights: 50% vector similarity, 35% full-text rank, 15% suburb exact match. These are tunable constants; the 1313 path passes `spirit_only = true`. As built in `0005_rpcs.sql`: a row with no embedding scores 0 on meaning (a null would sort first in a descending order), ties break by name, `match_count` is clamped to 1 to 50, and the function runs with `search_path = public, extensions`. The embedding indexes are HNSW: IVFFlat with 50 lists has poor recall on about 150 rows.
 
 ### search_residents SQL RPC
 
@@ -815,7 +816,7 @@ as $$
 $$;
 ```
 
-Trigram similarity requires `pg_trgm` extension (enabled in migration). Fuzzy surname matching handles "van der Merwe" vs "vd Merwe" through the similarity function and the 0.4 threshold.
+Trigram similarity requires `pg_trgm` extension (enabled in migration). Surnames are compared with case, spaces and punctuation removed, so "Vandermerwe" is an exact match for "van der Merwe". A near miss scores by its trigram similarity (0 to 1) instead of passing a fixed threshold, so "Bota" still ranks "Botha" first. Built as in `0005_rpcs.sql`.
 
 ### Spooky flag
 
@@ -898,6 +899,8 @@ end;
 $$;
 ```
 
+As built in `0004_rate_limits.sql`, two fixes to the sketch above. The first insert counts the request as 1, not 0: the sketch started every counter at 0, so the first request of each hour went uncounted. An unknown counter name raises an error instead of passing silently. Execute is granted only to `service_role`.
+
 ### Environment variables
 
 | Variable                            | Default          | Meaning                                   |
@@ -962,13 +965,13 @@ Every API route parses the request body through a Zod schema before any other wo
 
 ### RLS summary
 
-| Table       | Public read    | Public write | Secret key |
-| ----------- | -------------- | ------------ | ---------- |
-| businesses  | Yes (all rows) | No           | Yes        |
-| residents   | Yes (all rows) | No           | Yes        |
-| rate_limits | No             | No           | Yes        |
+| Table       | Public read | Public write | Secret key |
+| ----------- | ----------- | ------------ | ---------- |
+| businesses  | No          | No           | Yes        |
+| residents   | No          | No           | Yes        |
+| rate_limits | No          | No           | Yes        |
 
-Spirit listings are readable by the public (the RPC filters them out in the default case; the `include_spirit` flag is set only by server-side code, not passed from the browser directly).
+The browser never queries Supabase: every read goes through our API routes with the secret key, which bypasses RLS. So RLS is on with no policies, and the migrations revoke the table privileges Supabase gives the public roles by default. The database functions (`increment_rate_limit`, `search_businesses`, `search_residents`, `lookup_number`) are revoked from `public`, `anon` and `authenticated` and granted only to `service_role`. Otherwise anyone with the publishable key could call them and use up the daily cap. The spirit listings cannot be scraped either. `supabase/migrations.test.ts` runs the migrations in PGlite, set up with Supabase's roles and default privileges, and checks all of this.
 
 ### Secret handling
 

@@ -28,6 +28,8 @@
     "three": "0.177.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.16",
+    "@electric-sql/pglite-pgvector": "0.0.17",
     "@gltf-transform/cli": "^4.5.1",
     "@playwright/test": "1.52.0",
     "@tailwindcss/turbopack": "4.3.3",
