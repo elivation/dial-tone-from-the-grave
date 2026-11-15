@@ -8,7 +8,7 @@ import type { DialController, DialPhase } from '@/components/RotaryDial/useDialC
 import { returnSpeed, stepShown } from './dialMotion';
 import { angleInDial, holeAtPoint, pointOnDialPlane } from './dialSpace';
 import type { PreparedPhone } from './preparePhone';
-import { usePreparedPhone } from './useDialGeometry';
+import { useGooPainter, usePreparedPhone } from './useDialGeometry';
 import { createWheelPivot } from './wheelPivot';
 
 /**
@@ -18,7 +18,7 @@ import { createWheelPivot } from './wheelPivot';
 function isDialPart(hit: THREE.Object3D, phone: PreparedPhone): boolean {
   if (/Dial/.test(hit.name)) return true;
   for (let node: THREE.Object3D | null = hit; node && node !== phone.object; node = node.parent) {
-    if (node === phone.wheel || node === phone.stains) return true;
+    if (node === phone.wheel || node === phone.bodyGoo) return true;
   }
   return false;
 }
@@ -27,16 +27,20 @@ function isDialPart(hit: THREE.Object3D, phone: PreparedPhone): boolean {
  * Lets people dial the 3D phone with a finger or a mouse.
  *
  * It turns pointer events on the canvas into calls on the shared dial controller, the same one
- * the 2D dial uses, and turns the finger wheel to match. It draws nothing of its own.
+ * the 2D dial uses, and turns the finger wheel to match. While a hole is dragged it tells the goo
+ * painter how far the wheel has turned, so the hole leaves a trail.
  */
 export function DialWheel({ controller }: { controller: DialController }) {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera);
   const phone = usePreparedPhone();
+  const painter = useGooPainter();
+  const latestPainter = useRef(painter);
 
   const latest = useRef(controller);
   useLayoutEffect(() => {
     latest.current = controller;
+    latestPainter.current = painter;
   });
 
   const turn = useMemo(() => createWheelPivot(phone.wheel, phone.dial), [phone]);
@@ -44,6 +48,8 @@ export function DialWheel({ controller }: { controller: DialController }) {
   const lastPhase = useRef<DialPhase>('idle');
   // Held in a ref so a drag survives the listeners being set up again.
   const activePointer = useRef<number | null>(null);
+  /** The digit whose hole is leaving a goo trail, or null when nothing is being dragged. */
+  const smudging = useRef<string | null>(null);
 
   useFrame((_, delta) => {
     const c = latest.current;
@@ -60,6 +66,18 @@ export function DialWheel({ controller }: { controller: DialController }) {
       returnSpeed: c.activeDigit ? returnSpeed(c.activeDigit) : 0,
       dt: delta,
     });
+    // Goo is only painted while a finger drags a hole, and only when the wheel has moved.
+    const goo = latestPainter.current;
+    if (c.phase === 'dragging' && c.activeDigit) {
+      if (smudging.current !== c.activeDigit) {
+        smudging.current = c.activeDigit;
+        goo?.beginDrag(c.activeDigit);
+      }
+      if (next !== shown.current) goo?.dragTo(next);
+    } else if (smudging.current !== null) {
+      smudging.current = null;
+      goo?.endDrag();
+    }
     if (next === shown.current) return;
     shown.current = next;
     turn(next);

@@ -2,7 +2,15 @@ import * as THREE from 'three';
 import type { DialGeometry } from './dialGeometry';
 import { angleInDial, downhillOf, radiusInDial } from './dialSpace';
 import { glowWithSlimeColour, paintGoo } from './gooColour';
-import { buildPool, buildStain } from './gooShapes';
+import {
+  buildBlob,
+  buildPool,
+  buildSpecks,
+  buildStain,
+  buildTube,
+  poolSurface,
+  type Speck,
+} from './gooShapes';
 import { seededRandom } from './noise';
 import { GOO, GOO_SHAPE } from './sceneConstants';
 
@@ -17,11 +25,33 @@ export type GooInput = {
 };
 
 export type GooPieces = {
-  /** Pools in the holes. These ride on the wheel, so the caller attaches them to it. */
+  /** Pools in the holes, globs on the webs and a strand between two holes. These ride on the wheel. */
   pools: THREE.Group;
   /** Old leaks on the number plate. They never move, so the caller attaches them to the static phone body. */
   stains: THREE.Group;
+  /** The holes filled to about 80 percent. */
+  fullHoles: number[];
+  /** The edge of the 1023 card, as a distance from the dial's axis. */
+  cardRadius: number;
+  /** Height of each hole's pool top, along the dial normal from the dial centre, by hole index. */
+  poolTops: Map<number, number>;
+  /** Radius of each hole's pool, by hole index. */
+  poolRadii: Map<number, number>;
+  /** The slime the pools are made of, for goo that runs out of them. */
+  material: THREE.MeshPhysicalMaterial;
 };
+
+/** How many bubbles a pool gets: none in a film, one or two in a full pool, sometimes up to three. */
+function bubblesFor(kind: 'full' | 'film' | 'part', random: () => number): number {
+  if (kind === 'film') return 0;
+  if (kind === 'full') return 1 + Math.floor(random() * 2);
+  return random() < 0.5 ? 0 : 1 + Math.floor(random() * 3);
+}
+
+/** Dark grime: soot and dirt caught in the goo. */
+function grimeMaterial(): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({ color: GOO.grimeColour, roughness: 0.9, metalness: 0 });
+}
 
 /** Fraction of a hole's open radius a pool may fill, so its edge never touches the wheel. */
 const HOLE_FILL = 0.97;
@@ -129,12 +159,21 @@ const RIM_SAMPLES = 24;
 const STAIN_CLEAR = { card: 0.0012, edge: 0.92 };
 const STAIN_TRIES = 6;
 
-function colour(geometry: THREE.BufferGeometry): void {
+/** Paints a shape by its own thickness. `crustOf` turns thickness into how dried the goo is there. */
+export function colourGoo(
+  geometry: THREE.BufferGeometry,
+  crustOf: (thickness: number, index: number) => number = () => 0,
+): void {
   const thickness = geometry.getAttribute('thickness');
-  paintGoo(geometry, (i) => thickness.getX(i));
+  paintGoo(
+    geometry,
+    (i) => thickness.getX(i),
+    (i) => crustOf(thickness.getX(i), i),
+  );
 }
 
-function slimeMaterial(): THREE.MeshPhysicalMaterial {
+/** Wet slime, with the crust of each vertex making old goo rough and dull. */
+export function slimeMaterial(): THREE.MeshPhysicalMaterial {
   // White base so the vertex colours, painted by thickness, set the green.
   const material = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
@@ -153,7 +192,7 @@ function slimeMaterial(): THREE.MeshPhysicalMaterial {
   return material;
 }
 
-function worldVertices(mesh: THREE.Mesh): THREE.Vector3[] {
+export function worldVertices(mesh: THREE.Mesh): THREE.Vector3[] {
   mesh.updateWorldMatrix(true, false);
   const position = mesh.geometry.getAttribute('position');
   return Array.from({ length: position.count }, (_, i) =>
@@ -250,11 +289,24 @@ export function buildGoo({ dial, wheel, plate, card }: GooInput): GooPieces {
     .sort((a, b) => a.key - b.key)
     .map((x) => x.hole);
   const material = slimeMaterial();
+  const fullHoles: number[] = [];
+  const poolTop = new Map<number, number>();
+  const poolRadii = new Map<number, number>();
+  // Bubbles and grime draw from their own sequence, so the rest of the layout stays as it was.
+  const dirt = seededRandom(41);
+  const flecks: Speck[] = [];
   order.forEach((hole, rank) => {
     const floorHeight = heightOf(hole.floor);
+    const kind =
+      rank < GOO_SHAPE.fullHoles
+        ? 'full'
+        : rank < GOO_SHAPE.fullHoles + GOO_SHAPE.filmHoles
+          ? 'film'
+          : 'part';
     const highest = hole.rim - GOO_SHAPE.minClearance - floorHeight;
     let top: number;
     if (rank < GOO_SHAPE.fullHoles) {
+      fullHoles.push(hole.index);
       const gap = lerp(GOO_SHAPE.fullGap.min + RIM_MARGIN, GOO_SHAPE.fullGap.max, random());
       top = hole.rim - gap - floorHeight;
     } else if (rank < GOO_SHAPE.fullHoles + GOO_SHAPE.filmHoles) {
@@ -262,12 +314,44 @@ export function buildGoo({ dial, wheel, plate, card }: GooInput): GooPieces {
     } else {
       top = highest * lerp(GOO_SHAPE.partFill.min, GOO_SHAPE.partFill.max, random());
     }
-    const geometry = buildPool({
+    const shape = {
       radius: hole.poolRadius,
       top: Math.min(top, highest),
       seed: 100 + hole.index,
-    });
-    colour(geometry);
+      bubbles: bubblesFor(kind, dirt),
+    };
+    const geometry = buildPool(shape);
+    poolTop.set(hole.index, floorHeight + shape.top);
+    poolRadii.set(hole.index, hole.poolRadius);
+    if (kind !== 'film') {
+      // Grime caught in the goo: some just under the surface, some floating on it.
+      const { outline, heightAt } = poolSurface(shape);
+      const n = (kind === 'full' ? 3 : 2) + Math.floor(dirt() * 2);
+      for (let i = 0; i < n; i++) {
+        const t = dirt() * Math.PI * 2;
+        const reach = Math.sqrt(dirt()) * 0.6 * outline(t);
+        const x = Math.cos(t) * reach;
+        const z = Math.sin(t) * reach;
+        const surface = heightAt(x, z);
+        const floating = dirt() < 0.5;
+        const y = floating
+          ? surface + 0.00001
+          : Math.max(0.00003, surface - lerp(0.00005, 0.0002, dirt()));
+        flecks.push({
+          // The pool's own frame: x to 3 o'clock, y out of the dial, z to 6 o'clock.
+          point: hole.floor
+            .clone()
+            .addScaledVector(rAx, x)
+            .addScaledVector(normal, y)
+            .addScaledVector(uAx, -z),
+          normal: normal.clone(),
+          radius: lerp(0.00004, 0.00009, dirt()),
+          tail: null,
+        });
+      }
+    }
+    // Fresh in the middle, drying where it has crept up the wall.
+    colourGoo(geometry, (t) => 0.35 * (1 - t) ** 3);
     const mesh = place(pools, new THREE.Mesh(geometry, material), 'goo-pool', hole.floor);
     mesh.userData['hole'] = hole.index;
   });
@@ -310,7 +394,8 @@ export function buildGoo({ dial, wheel, plate, card }: GooInput): GooPieces {
     let size = lerp(GOO_SHAPE.stainSize.min, GOO_SHAPE.stainSize.max, random());
     for (let attempt = 0; attempt < STAIN_TRIES; attempt++, size *= 0.85) {
       const geometry = buildStain({ size, run, direction: toLocal(downhill), seed: 300 + i });
-      colour(geometry);
+      // Old leaks: half dried in the middle, crusted at the edge.
+      colourGoo(geometry, (t) => 1 - t);
       const mesh = new THREE.Mesh(geometry, stainMaterial);
       mesh.position.copy(onPlate);
       mesh.quaternion.copy(frame);
@@ -324,5 +409,163 @@ export function buildGoo({ dial, wheel, plate, card }: GooInput): GooPieces {
     }
   });
 
-  return { pools, stains };
+  addWebGoo({
+    dial,
+    wheel,
+    group: pools,
+    material,
+    openings,
+    fullHoles,
+    poolTop,
+    random,
+    frameAt: (normalHere: THREE.Vector3, along: THREE.Vector3) =>
+      new THREE.Quaternion().setFromRotationMatrix(
+        new THREE.Matrix4().makeBasis(
+          along,
+          normalHere,
+          new THREE.Vector3().crossVectors(along, normalHere).normalize(),
+        ),
+      ),
+  });
+
+  const grime = new THREE.Mesh(buildSpecks({ spots: flecks, seed: 61 }), grimeMaterial());
+  grime.name = 'goo-grime';
+  grime.userData['count'] = flecks.length;
+  grime.receiveShadow = true;
+  pools.add(grime);
+
+  return { pools, stains, fullHoles, cardRadius, poolTops: poolTop, poolRadii, material };
+}
+
+type WebGooInput = {
+  dial: DialGeometry;
+  wheel: THREE.Mesh;
+  group: THREE.Group;
+  material: THREE.MeshPhysicalMaterial;
+  openings: HoleOpening[];
+  fullHoles: number[];
+  /** Height of each pool's top above the dial centre, along the normal. */
+  poolTop: Map<number, number>;
+  random: () => number;
+  /** A rotation whose y is `normalHere` and whose x lies along `along`. */
+  frameAt: (normalHere: THREE.Vector3, along: THREE.Vector3) => THREE.Quaternion;
+};
+
+/** Holes this far apart, in degrees, are neighbours with a web of wheel between them. */
+const NEIGHBOUR = { min: 25, max: 35 };
+
+/**
+ * Globs left on the webs of wheel between holes, and one strand of goo stretched from a full hole
+ * into the next and sagging. Built in world space at rest and added to the wheel's group.
+ */
+function addWebGoo({
+  dial,
+  wheel,
+  group,
+  material,
+  openings,
+  fullHoles,
+  poolTop,
+  random,
+  frameAt,
+}: WebGooInput): void {
+  const { centre, normal, uAx, rAx } = dial;
+  const raycaster = new THREE.Raycaster();
+  const into = normal.clone().negate();
+  const heightOf = (v: THREE.Vector3) => v.clone().sub(centre).dot(normal);
+  const toWorld = (x: number, y: number) =>
+    centre.clone().addScaledVector(uAx, x).addScaledVector(rAx, y);
+  const wheelTop = (point: THREE.Vector3) => {
+    raycaster.set(point.clone().addScaledVector(normal, 0.02), into);
+    const hit = raycaster.intersectObject(wheel, false)[0];
+    if (!hit) return undefined;
+    const faceNormal = (hit.face?.normal ?? normal).clone().transformDirection(wheel.matrixWorld);
+    if (faceNormal.dot(normal) < 0) faceNormal.negate();
+    return { point: hit.point.clone(), normal: faceNormal };
+  };
+  const gap = (a: number, b: number) => Math.abs(((((a - b) % 360) + 540) % 360) - 180);
+  const webs: Array<{ a: number; b: number }> = [];
+  openings.forEach((oa, a) => {
+    openings.forEach((ob, b) => {
+      const g = gap(oa.degrees, ob.degrees);
+      if (a < b && g > NEIGHBOUR.min && g < NEIGHBOUR.max) webs.push({ a, b });
+    });
+  });
+  const shuffled = webs
+    .map((w) => ({ w, key: random() }))
+    .sort((x, y) => x.key - y.key)
+    .map((x) => x.w);
+
+  // Globs on a few webs. One is fresh, the rest have been there a while.
+  let globs = 0;
+  for (const web of shuffled) {
+    if (globs >= GOO_SHAPE.globs) break;
+    const oa = openings[web.a] as HoleOpening;
+    const ob = openings[web.b] as HoleOpening;
+    const spot = toWorld((oa.x + ob.x) / 2, (oa.y + ob.y) / 2);
+    const top = wheelTop(spot);
+    if (!top) continue;
+    const outward = spot.clone().sub(centre);
+    outward.addScaledVector(top.normal, -outward.dot(top.normal)).normalize();
+    const geometry = buildBlob({
+      radius: lerp(0.0008, 0.0011, random()),
+      height: lerp(0.0006, 0.0009, random()),
+      stretch: lerp(1.5, 1.9, random()),
+      seed: 500 + globs,
+    });
+    const fresh = globs === 0;
+    const age = lerp(0.45, 0.8, random());
+    colourGoo(geometry, (t) => (fresh ? 0.25 * (1 - t) : age + (1 - age) * (1 - t)));
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = 'goo-glob';
+    mesh.position.copy(top.point).addScaledVector(top.normal, -0.00004);
+    mesh.quaternion.copy(frameAt(top.normal, outward));
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    globs++;
+  }
+
+  // One strand, from a full hole into its neighbour, over the web between them.
+  const pair = shuffled.find((w) => fullHoles.includes(w.a) || fullHoles.includes(w.b));
+  if (!pair) return;
+  const from = fullHoles.includes(pair.a) ? pair.a : pair.b;
+  const to = from === pair.a ? pair.b : pair.a;
+  const oa = openings[from] as HoleOpening;
+  const ob = openings[to] as HoleOpening;
+  const ca = toWorld(oa.x, oa.y);
+  const cb = toWorld(ob.x, ob.y);
+  const across = cb.clone().sub(ca).normalize();
+  const mid = toWorld((oa.x + ob.x) / 2, (oa.y + ob.y) / 2);
+  const midTop = wheelTop(mid);
+  const rimA = wheelTop(ca.clone().addScaledVector(across, oa.radius * 1.15));
+  const rimB = wheelTop(cb.clone().addScaledVector(across, -ob.radius * 1.15));
+  if (!midTop || !rimA || !rimB) return;
+  const lift = (p: THREE.Vector3, h: number) => p.clone().addScaledVector(normal, h - heightOf(p));
+  const downhill = downhillOf(normal);
+  const path = new THREE.CatmullRomCurve3([
+    lift(ca.clone().addScaledVector(across, oa.radius * 0.45), (poolTop.get(from) ?? 0) - 0.0001),
+    lift(ca.clone().addScaledVector(across, oa.radius * 0.95), heightOf(rimA.point) + 0.0003),
+    // Sagging: it hangs a little downhill of the straight line, low over the web.
+    midTop.point.clone().addScaledVector(midTop.normal, 0.00035).addScaledVector(downhill, 0.0009),
+    lift(cb.clone().addScaledVector(across, -ob.radius * 0.95), heightOf(rimB.point) + 0.0003),
+    lift(cb.clone().addScaledVector(across, -ob.radius * 0.45), (poolTop.get(to) ?? 0) - 0.0001),
+  ]).getPoints(40);
+  const sides = 10;
+  const strand = buildTube({
+    path,
+    // Thin where it leaves the pools, with a drop of goo gathered low in the sag.
+    radiusAt: (t) =>
+      0.00018 + 0.00012 * Math.sin(Math.PI * t) + 0.00022 * Math.exp(-(((t - 0.56) / 0.09) ** 2)),
+    sides,
+    seed: 77,
+  });
+  colourGoo(strand, () => 0);
+  const mesh = new THREE.Mesh(strand, material);
+  mesh.name = 'goo-strand';
+  mesh.userData['from'] = from;
+  mesh.userData['to'] = to;
+  mesh.userData['sides'] = sides;
+  mesh.castShadow = true;
+  group.add(mesh);
 }

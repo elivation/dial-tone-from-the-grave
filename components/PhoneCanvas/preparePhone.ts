@@ -1,7 +1,18 @@
 import * as THREE from 'three';
 import { computeDialGeometry, type DialGeometry } from './dialGeometry';
 import { addDust } from './dust';
-import { buildGoo } from './goo';
+import { buildGoo, holeOpenings, worldVertices, type HoleOpening } from './goo';
+import { addBodyGoo } from './gooBody';
+import {
+  planPlatePrints,
+  planWheelFilm,
+  type DecalSpace,
+  type FilmPlan,
+  type Stroke,
+} from './gooDecals';
+import { addPlateGooUv, buildWheelFilm } from './gooFilm';
+import { addSpills } from './gooSpill';
+import { radiusInDial } from './dialSpace';
 import { DUST_AMOUNT, PHONE_ROTATION_Y, PHONE_WIDTH } from './sceneConstants';
 
 export type PreparedPhone = {
@@ -12,11 +23,36 @@ export type PreparedPhone = {
   wheel: THREE.Mesh;
   /** The card in the middle of the dial. Undefined if the model has none. */
   card: THREE.Mesh | undefined;
-  /** Pools of slime recessed in the finger holes. A child of the wheel, so they turn with it. */
+  /** The number plate under the wheel, with its flat goo mapping. */
+  plate: THREE.Mesh | undefined;
+  /** Pools in the holes, globs on the webs and a strand. A child of the wheel, so they turn with it. */
   goo: THREE.Group;
-  /** Old leak stains on the number plate. A child of the static phone body, so they never move. */
-  stains: THREE.Group;
+  /**
+   * Goo on the parts that never move: leak stains on the plate, the finger stop, splatter, and the
+   * run down the front to a puddle on the desk. A child of the static phone body.
+   */
+  bodyGoo: THREE.Group;
+  /** What the painter needs to paint goo onto the wheel's face and the plate. */
+  decals: GooDecals;
 };
+
+export type GooDecals = {
+  openings: HoleOpening[];
+  fullHoles: number[];
+  cardRadius: number;
+  plateRadius: number;
+  /** The skin over the wheel's top face that smears and streaks are painted on. */
+  wheelFilm: THREE.Mesh;
+  wheelSpace: DecalSpace;
+  plateSpace: DecalSpace;
+  film: FilmPlan;
+  prints: Stroke[];
+  /** Where fingers hit the finger stop. */
+  stopEdge: THREE.Vector3;
+};
+
+/** Canvas size for painted goo. Kept at 1024 so updates while dragging stay quick. */
+export const DECAL_SIZE = 1024;
 
 function findMesh(root: THREE.Object3D, pattern: RegExp): THREE.Mesh | undefined {
   let found: THREE.Mesh | undefined;
@@ -86,9 +122,63 @@ export function preparePhone(source: THREE.Object3D): PreparedPhone {
   });
 
   const dial = computeDialGeometry(wheel, PHONE_ROTATION_Y, stop);
-  const { pools: goo, stains } = buildGoo({ dial, wheel, plate, card });
-  // attach keeps each group where it is in the world. The pools then follow the wheel, the stains stay put.
+  const {
+    pools: goo,
+    stains: bodyGoo,
+    fullHoles,
+    cardRadius,
+    poolTops,
+    poolRadii,
+    material,
+  } = buildGoo({
+    dial,
+    wheel,
+    plate,
+    card,
+  });
+  bodyGoo.name = 'goo-body';
+  const { stopEdge } = addBodyGoo({ dial, object, wheel, stop, group: bodyGoo });
+
+  const openings = holeOpenings(dial);
+  const plateRadius = plate
+    ? Math.max(...worldVertices(plate).map((v) => radiusInDial(v, dial)))
+    : dial.radius * 1.5;
+  const wheelSpace = { extent: dial.radius * 1.02, size: DECAL_SIZE };
+  const plateSpace = { extent: plateRadius * 1.01, size: DECAL_SIZE };
+  const wheelFilm = buildWheelFilm(wheel, dial, wheelSpace.extent);
+  if (plate) addPlateGooUv(plate, dial, plateSpace.extent);
+  const film = planWheelFilm({
+    openings,
+    fullHoles,
+    dialRadius: dial.radius,
+    cardRadius,
+    seed: 5,
+  });
+  addSpills({ dial, wheel, group: goo, material, openings, film, poolTops, poolRadii });
+  const prints = planPlatePrints({ dialRadius: dial.radius, plateRadius, cardRadius, seed: 8 });
+
+  // attach keeps each group where it is in the world. The wheel goo then turns with the wheel, the body goo stays put.
   wheel.attach(goo);
-  object.attach(stains);
-  return { object, dial, wheel, card, goo, stains };
+  object.attach(bodyGoo);
+  return {
+    object,
+    dial,
+    wheel,
+    card,
+    plate,
+    goo,
+    bodyGoo,
+    decals: {
+      openings,
+      fullHoles,
+      cardRadius,
+      plateRadius,
+      wheelFilm,
+      wheelSpace,
+      plateSpace,
+      film,
+      prints,
+      stopEdge,
+    },
+  };
 }

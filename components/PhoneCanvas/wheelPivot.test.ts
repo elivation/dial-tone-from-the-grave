@@ -23,8 +23,8 @@ let pools: THREE.Object3D[];
 let rest: THREE.Vector3[];
 let gooMeshes: THREE.Object3D[];
 let gooRest: THREE.Vector3[];
-let stains: THREE.Object3D[];
-let stainRest: THREE.Matrix4[];
+let statics: THREE.Object3D[];
+let staticRest: THREE.Matrix4[];
 
 const worldPositions = () =>
   pools.map((p) => {
@@ -53,11 +53,11 @@ beforeAll(async () => {
     if ((o as THREE.Mesh).isMesh) gooMeshes.push(o);
   });
   gooRest = gooMeshes.map(positionOf);
-  stains = [];
-  phone.stains.traverse((o) => {
-    if ((o as THREE.Mesh).isMesh) stains.push(o);
+  statics = [];
+  phone.bodyGoo.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) statics.push(o);
   });
-  stainRest = stains.map(matrixOf);
+  staticRest = statics.map(matrixOf);
 }, 60_000);
 
 describe('createWheelPivot', () => {
@@ -121,6 +121,19 @@ describe('createWheelPivot', () => {
 describe('goo while the wheel turns', () => {
   const turn = () => createWheelPivot(phone.wheel, phone.dial);
 
+  it('[Req 1.1] holds all of the wheel goo and the wheel film on the wheel, and the body goo off it', () => {
+    const onWheel = (o: THREE.Object3D) => {
+      for (let node: THREE.Object3D | null = o; node; node = node.parent)
+        if (node === phone.wheel) return true;
+      return false;
+    };
+    expect(gooMeshes.length).toBeGreaterThan(10);
+    for (const mesh of gooMeshes) expect(onWheel(mesh), mesh.name).toBe(true);
+    expect(onWheel(phone.decals.wheelFilm)).toBe(true);
+    expect(statics.length).toBeGreaterThan(5);
+    for (const mesh of statics) expect(onWheel(mesh), mesh.name).toBe(false);
+  });
+
   it('[Req 1.1] carries every pool round with the wheel, about the dial normal', () => {
     const rotate = turn();
     rotate(90);
@@ -140,12 +153,12 @@ describe('goo while the wheel turns', () => {
     rotate(0);
   });
 
-  it('[Req 1.1] leaves every stain exactly where it was, in position and orientation', () => {
+  it('[Req 1.1] leaves every piece of body goo exactly where it was, in position and orientation', () => {
     const rotate = turn();
     rotate(90);
     phone.object.updateMatrixWorld(true);
-    stains.forEach((stain, i) => {
-      const before = stainRest[i] as THREE.Matrix4;
+    statics.forEach((stain, i) => {
+      const before = staticRest[i] as THREE.Matrix4;
       const after = matrixOf(stain);
       after.elements.forEach((e, k) =>
         expect(Math.abs(e - (before.elements[k] ?? 0))).toBeLessThan(1e-6),
@@ -154,14 +167,14 @@ describe('goo while the wheel turns', () => {
     rotate(0);
   });
 
-  it('never moves a stain, whatever the wheel angle', () => {
+  it('never moves the body goo, whatever the wheel angle', () => {
     const rotate = turn();
     fc.assert(
       fc.property(fc.double({ min: 0, max: 330, noNaN: true }), (degrees) => {
         rotate(degrees);
         phone.object.updateMatrixWorld(true);
-        return stains.every((stain, i) => {
-          const before = stainRest[i] as THREE.Matrix4;
+        return statics.every((stain, i) => {
+          const before = staticRest[i] as THREE.Matrix4;
           return matrixOf(stain).elements.every(
             (e, k) => Math.abs(e - (before.elements[k] ?? 0)) < 1e-6,
           );

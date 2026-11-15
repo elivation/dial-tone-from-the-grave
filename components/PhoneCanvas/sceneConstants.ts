@@ -15,21 +15,30 @@ export const PHONE_WIDTH = 0.23;
 export const LIGHT_GAIN = 0.55;
 
 /**
- * The slime in the finger holes. Thick goo is deep toxic green, thin films and stains run to dark olive.
- * Wet and a little see-through, with a faint glow so it reads against the black phone in the dark.
+ * The slime. Murky: near black olive, with deep toxic green only in the thick middle, where light
+ * gets into it. Wet and a little see-through there, with a faint glow so it reads in the dark.
  */
 export const GOO = {
   thickColour: 0x3f7a1c,
-  thinColour: 0x1d3a0c,
+  thinColour: 0x1a2410,
+  /** How much of the way to the green a thickness gets, as thickness to this power. Higher keeps the edges murky. */
+  greenCurve: 2.4,
   /** White, because the shader multiplies the glow by the slime's own colour at each point. */
   emissive: 0xffffff,
-  emissiveIntensity: 0.25,
+  emissiveIntensity: 0.12,
   roughness: 0.05,
   clearcoat: 1,
   clearcoatRoughness: 0.02,
   transmission: 0.35,
   thickness: 0.004,
   ior: 1.4,
+  /** Old goo dries towards this dark brown-olive, this far at full crust, 0 to 1. */
+  crustColour: 0x1a1f08,
+  crustDarkening: 0.75,
+  /** How rough fully dried goo is. Fresh goo keeps `roughness`. */
+  crustRoughness: 0.82,
+  /** Soot and dirt caught in the goo. */
+  grimeColour: 0x0c0a05,
 } as const;
 
 /** Shape of the slime. Lengths are in metres. */
@@ -49,6 +58,10 @@ export const GOO_SHAPE = {
   stains: { min: 5, max: 7 },
   /** Half the width of a stain before its outline is roughened. */
   stainSize: { min: 0.0012, max: 0.0022 },
+  /** Globs left on the webs of wheel between holes. */
+  globs: 3,
+  /** Fine splatter on the body round the dial. */
+  specks: 200,
 } as const;
 
 /** How strong the dust is on the phone body, 0 to 1. A faint film, never patches. */

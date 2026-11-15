@@ -1067,7 +1067,7 @@ Wax cylinder (`CylinderGeometry(0.017, 0.019, 0.11)`), emissive glow. Five drip 
 
 ### Phone model (we500.glb)
 
-Loaded with `useGLTF` from `@react-three/drei`. The `Rotary_Dial_Finger_Wheel` node is extracted by name. Its rotation is applied each frame as `Quaternion.setFromAxisAngle(dialNormal, -dialRotation * DEG2RAD)` around `dialCentre`, where both values come from `useDialGeometry` (see Rotary Dial Design). The pools of goo are children of that node and rotate with it. The leak stains are not: they are children of the static phone body (see Slime in the finger holes).
+Loaded with `useGLTF` from `@react-three/drei`. The `Rotary_Dial_Finger_Wheel` node is extracted by name. Its rotation is applied each frame as `Quaternion.setFromAxisAngle(dialNormal, -dialRotation * DEG2RAD)` around `dialCentre`, where both values come from `useDialGeometry` (see Rotary Dial Design). The wheel goo (pools, spills, globs, the strand, grime and the painted film) is a child of that node and rotates with it. The body goo is not: it is a child of the static phone body (see Slime in the finger holes).
 
 The centre card uses the model's own `Rotary_Dial_Card` mesh. Its material is cloned and its `map` is replaced with a `CanvasTexture` painted over the original base texture: scan the mesh's `uv` attribute to find the UV bounding box, paint aged paper and foxing over that region on a full-resolution canvas copy, then draw "DIRECTORY" in small monospace and "1023" in large italic script inside the UV region. The text transform is derived, not guessed: fit how the card's UV coordinates map onto the card in the world (least squares over its vertices), then build the canvas matrix that takes text space (1 unit is 1 mm on the card) to texture pixels along the dial's reading axes. That covers any rotation or mirroring of the UV island, including the vertical flip, and is tested against real card vertices. Set `t.flipY = base.flipY` and `t.colorSpace = base.colorSpace` on the new texture.
 
@@ -1094,6 +1094,17 @@ Wheel angle check: `/dev/phone?wheel=90` (dev only) pins the wheel at an angle. 
 Render check: `tests/e2e/dial-render.spec.ts` takes a close-up of the dial at a fixed viewport. It checks that at least 8 green shapes show, that none is stringy (aspect ratio under 4), that no green reaches the card or its brass rim, and that the console is clean. It cannot judge wetness, so the geometry tests and the wheel angle check are what guard the look.
 
 Transmission adds a render pass. In the headless software renderer used for checks, the scene held 60 fps at a 1x pixel ratio with it on or off. There are no real GPU numbers yet.
+
+#### The horror pass (unfinished)
+
+Status: built and tested, but the look is not right yet. It is parked to be revisited later. The parenting rule stays: anything on the wheel turns with it, anything on the body never moves.
+
+- Colour: murky. Edges are near black olive (`#1a2410`), and deep green (`#3f7a1c`), transmission and glow appear only in the thick middle. Glow is at half its old strength. Each vertex carries a `crust` value (0 fresh, 1 dried): dried goo is darker, rougher, duller and opaque.
+- Pools: lumpy surfaces. Some pools hold 1 to 3 bubbles, and dark grime sits in or on the goo (`goo-grime`). Pools stay recessed in the holes.
+- On the wheel: a spill (`goo-spill`) runs from each of 4 or 5 overflowing pools, up the wall, over the lip and into a painted smear. Finger streaks run clockwise out of the full holes. There are 3 globs on the webs between holes and one sagging strand from a full hole into its neighbour.
+- On the body: goo on the finger stop, about 200 splatter specks, and a run draped flat on the body (every point across it raycast onto the surface), with 2 or 3 bulges and crusted edges. It hangs off the bottom edge as a widening sheet and ends in a puddle on the desk.
+- Painted goo (`gooDecals.ts`, `gooPainter.ts`): smears and streaks are painted on a film over the wheel's top face. Fingerprints and live trails are painted into the plate's own shader through a flat `gooUv` mapping. The glass wheel only shows opaque objects through it, so a separate see-through decal on the plate would be invisible. Canvases are 1024 pixels. Live trails are painted only while a hole is dragged, uploaded at most every 50 ms, capped so no spot is ever more than about 64 percent covered, and they reset on reload.
+- Dev: `/dev/phone?dial=1023` replays a dial sequence. `tests/render/goo-horror.spec.ts` renders the five `goo-horror-*.png` shots.
 
 ### Spider
 

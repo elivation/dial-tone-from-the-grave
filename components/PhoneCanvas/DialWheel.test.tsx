@@ -6,6 +6,8 @@ import { useDialController } from '@/components/RotaryDial/useDialController';
 import { angleGap, makeDial } from './__fixtures__/dial';
 import { angleInDial } from './dialSpace';
 import { DialWheel } from './DialWheel';
+import { GooPainterContext } from './useDialGeometry';
+import type { GooPainter } from './gooPainter';
 import type { PreparedPhone } from './preparePhone';
 
 // The real scene needs WebGL. These tests keep everything else real: the controller, the DOM
@@ -26,7 +28,10 @@ vi.mock('@react-three/fiber', () => ({
     shared.frame = callback;
   },
 }));
-vi.mock('./useDialGeometry', () => ({ usePreparedPhone: () => shared.phone }));
+vi.mock('./useDialGeometry', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./useDialGeometry')>()),
+  usePreparedPhone: () => shared.phone,
+}));
 
 const SIZE = 800;
 const dial = makeDial(true);
@@ -60,7 +65,10 @@ function buildPhone(): PreparedPhone {
     wheel,
     card: undefined,
     goo: new THREE.Group(),
-    stains: new THREE.Group(),
+    bodyGoo: new THREE.Group(),
+    plate: undefined,
+    // DialWheel never reads the decals. The painter, which does, is tested on its own.
+    decals: {} as PreparedPhone['decals'],
   };
 }
 
@@ -213,8 +221,8 @@ describe('DialWheel', () => {
     stain.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), dial.normal);
     stain.position.copy(dial.centre).addScaledVector(dial.normal, 0.001);
     const phone = shared.phone as PreparedPhone;
-    phone.stains.add(stain);
-    object.add(phone.stains);
+    phone.bodyGoo.add(stain);
+    object.add(phone.bodyGoo);
     object.updateMatrixWorld(true);
     const onDigit = vi.fn();
     render(<Harness onDigit={onDigit} />);
@@ -222,6 +230,42 @@ describe('DialWheel', () => {
     lift(HOLE_ANGLES['1'] + travelDegrees('1'));
     expect(onDigit).toHaveBeenCalledWith('1');
   });
+  it('[Req 1.1] smudges goo only while a hole is being dragged, never at rest', () => {
+    const painter: GooPainter = {
+      beginDrag: vi.fn(),
+      dragTo: vi.fn(),
+      endDrag: vi.fn(),
+      dispose: vi.fn(),
+    };
+    const frame = () => act(() => shared.frame?.(null, 1 / 60));
+    render(
+      <GooPainterContext.Provider value={painter}>
+        <Harness onDigit={() => {}} />
+      </GooPainterContext.Provider>,
+    );
+    for (let i = 0; i < 5; i++) frame();
+    expect(painter.beginDrag).not.toHaveBeenCalled();
+    expect(painter.dragTo).not.toHaveBeenCalled();
+    dragHole('5', 60);
+    frame();
+    expect(painter.beginDrag).toHaveBeenCalledWith('5');
+    expect(painter.beginDrag).toHaveBeenCalledTimes(1);
+    const turns = vi.mocked(painter.dragTo).mock.calls.map(([turn]) => turn);
+    expect(turns.at(-1)).toBeCloseTo(60, 0);
+    // The finger holds still: nothing new to paint, so nothing is painted.
+    const before = vi.mocked(painter.dragTo).mock.calls.length;
+    frame();
+    frame();
+    expect(vi.mocked(painter.dragTo).mock.calls.length).toBe(before);
+    lift(HOLE_ANGLES['5'] + 60);
+    frame();
+    expect(painter.endDrag).toHaveBeenCalledTimes(1);
+    for (let i = 0; i < 60; i++) frame();
+    expect(painter.beginDrag).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(painter.dragTo).mock.calls.length).toBe(before);
+    expect(painter.endDrag).toHaveBeenCalledTimes(1);
+  });
+
   it('does nothing while disabled', () => {
     const onDigit = vi.fn();
     render(<Harness onDigit={onDigit} disabled />);

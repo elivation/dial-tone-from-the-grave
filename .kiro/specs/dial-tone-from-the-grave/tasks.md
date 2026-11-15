@@ -185,6 +185,8 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/PhoneCanvas/PhoneCanvas.test.tsx` (renders without throwing when WebGL is mocked; LoadingVeil shown before canvas ready); `components/PhoneCanvas/dialGeometry.test.ts` (10 detected hole angles match HOLE_ANGLES within 5 degrees); `tests/e2e/dial-render.spec.ts` (render check of the dial close-up: green shapes visible, none stringy, none on the card)
 
+  Horror pass (built, look unfinished, parked): murky crusting goo, spills over the rims, finger streaks, globs, a strand, grime and bubbles on the wheel; stop goo, specks and a draped run to a desk puddle on the body; painted wheel film and plate trails while dragging. See design, The horror pass. Tests: `gooShapes`, `gooColour`, `gooDecals`, `gooPainter`, `preparePhone`, `wheelPivot`, `DialWheel`, `app/dev/phone/replay.test.ts`.
+
 - [x] 43. Add 3D drag interaction to the DialWheel
 
   Extracted the 2D dial's drag, return and spring-back logic into one shared `useDialController` hook, used by both `RotaryDial` and the new `DialWheel` (`components/PhoneCanvas/DialWheel.tsx`, which takes the controller as a prop). Pointer events on the canvas are cast at the phone: the first hit must be part of the dial, the ray is intersected with the dial plane, and the hole is found with `holeAtPoint`. The wheel is turned about `dialNormal` through `dialCentre` by `createWheelPivot`, not `rotation.z`. The return runs at constant speed from the stop, one pulse interval per pulse, and fires `onPulse` once per pulse as the click sound hook. `touch-action: none` is on the canvas wrapper. `PhoneScene` and a small `DialledDisplay` wire it into the page.
