@@ -215,7 +215,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/RotaryDial/RotaryDial.test.tsx` (live region updated after digit)
 
-- [ ] 11. Implement the call state machine (useReducer, test-first)
+- [x] 11. Implement the call state machine (useReducer, test-first)
 
   Create `lib/callMachine.ts` exporting `CallState`, `CallEvent`, `callReducer`, and `EMERGENCY_NUMBERS` set (imported from `lib/operators.ts`). Write unit tests for every transition before implementing: idle+PICK_UP, off-hook+DIGIT_DIALLED, dialling+CALL_PLACED (match and no-match), dialling+EMERGENCY_NUMBER (must route to emergency-notice not wrong-number), ringing+RINGS_COMPLETE, connected+HANG_UP, connected+TURN_CAP_REACHED, connected+RATE_LIMITED, busy+SEQUENCE_COMPLETE, wrong-number+SEQUENCE_COMPLETE, emergency-notice+DISMISSED, connected+DIGIT_DIALLED (stays connected). Write fast-check P5 (reducer never returns undefined) and P6 (every emergency number routes to emergency-notice).
 
@@ -223,7 +223,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Requirements: Req 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 2.10
 
-  Tests: `lib/callMachine.test.ts` (13 unit + 2 property tests)
+  Tests: `lib/callMachine.test.ts` (18 unit + 2 property tests)
 
 - [ ] 12. Implement the AudioEngine
 
