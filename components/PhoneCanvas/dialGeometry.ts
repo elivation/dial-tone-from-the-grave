@@ -12,6 +12,8 @@ export type DialGeometry = {
   rAx: THREE.Vector3;
   /** Largest vertex distance from the centre. */
   radius: number;
+  /** How far the wheel's clear top face sits above the centre, along the normal, in metres. */
+  faceHeight: number;
   /** Radius of the ring on which the finger holes sit. */
   holeR: number;
   /** Hole centres in degrees clockwise from 12 o'clock, in dial space. */
@@ -309,5 +311,18 @@ export function computeDialGeometry(
   const holeWidth =
     runs.reduce((sum, h) => sum + ((h[h.length - 1] ?? 0) - (h[0] ?? 0) + ANGLE_STEP), 0) /
     runs.length;
-  return { centre, normal, uAx, rAx, radius, holeR: best.r, holeAngles, holeWidth, isOpen };
+  let faceHeight = -Infinity;
+  for (const p of points) faceHeight = Math.max(faceHeight, p.clone().sub(centre).dot(normal));
+  return {
+    centre,
+    normal,
+    uAx,
+    rAx,
+    radius,
+    faceHeight,
+    holeR: best.r,
+    holeAngles,
+    holeWidth,
+    isOpen,
+  };
 }

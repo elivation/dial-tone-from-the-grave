@@ -163,7 +163,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Inside the R3F `Canvas`: `DeskScene` with desk plane (Poly Haven webp texture, procedural dust GLSL shader via `onBeforeCompile`), `CandleGroup` (wax cylinder, five wax drips, brass holder, flame sprite, halo sprite, wick), all four lights (candle PointLight with per-frame flicker perturbing intensity and position via noise, key SpotLight, rim PointLight, sick-green DirectionalLight), contact shadow blob, `FogExp2(0x050302, 1.4)`, PMREM environment at intensity 0.08.
 
-  Load `we500.glb` with `useGLTF('/models/we500.glb')`. After load: apply dust shader to all upward-facing `Western_Electric_500_Material` surfaces (`onBeforeCompile`, amount 0.22). Add procedural spider group near the cord (abdomen, thorax, eight `TubeGeometry` legs on `CatmullRomCurve3` paths, fine hair tubes on each leg, `MeshPhysicalMaterial` with sheen, subtle idle animation).
+  Load `we500.glb` with `useGLTF('/models/we500.glb')`. After load: apply a fine, faint dust film to the upward-facing `Western_Electric_500_Material` surfaces (`onBeforeCompile`, `DUST_AMOUNT` 0.12, high-frequency grain only so it never forms patches). Add procedural spider group near the cord (abdomen, thorax, eight `TubeGeometry` legs on `CatmullRomCurve3` paths, fine hair tubes on each leg, `MeshPhysicalMaterial` with sheen, subtle idle animation).
 
   **Dial details (port from assets-src/scene-test.html):**
 
@@ -171,7 +171,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Raycast to find the 10 holes: scan orbital rings at radii from 55% to 92% of max vertex radius in 2% steps, cast rays inward along the normal at 2-degree intervals, record misses. The ring with the most misses in [1, 160] is the hole orbit. Group consecutive missed angles into 10 holes, merge wrap-around runs. Record `holeAngles[]` and `holeR`. Write a test that the 10 detected hole angles match `HOLE_ANGLES` from `lib/dial.ts` within 5 degrees once mapped to dial space (sort both arrays and compare pairwise).
 
-  Build goo meshes as children of `Rotary_Dial_Finger_Wheel` so they rotate with it: wet green slime, a `MeshPhysicalMaterial` painted per vertex by thickness (see design, Slime in the finger holes; values in `GOO` in `sceneConstants.ts`). Per hole: a `SphereGeometry` pool flattened to `scale.y = 0.08 + amount * 0.1`, positioned by dropping a ray from the hole centre onto the number plate; orient with `Quaternion.setFromUnitVectors(Y, normal)`. On 3 holes (the ones with `amount > 0.8`): add a `TubeGeometry` drip smear running down the face of the dial, tapered and flattened against the dial surface, plus a small teardrop tip mesh at the end.
+  Build goo meshes as children of `Rotary_Dial_Finger_Wheel` so they rotate with it: wet green slime, a `MeshPhysicalMaterial` painted per vertex by thickness (see design, Slime in the finger holes; values in `GOO` in `sceneConstants.ts`). Per hole: a pool built by `buildPool` (uneven outline, rounded shoulder, slightly domed top) standing on the number plate, found by dropping a ray from the hole centre. Ordinary holes are low puddles and a few are full to the rim, so some are much fuller than others. The full holes get slime smeared over part of the rim (`buildSmear`). Two or three of them, on holes in the lower half of the dial, run a short, thick drip (`buildDrip`) outward and downhill, 0.4 to 0.7 of a hole diameter past the rim, lying on the wheel face and ending in a fat rounded bead. Drips never run towards the centre card. Shapes and numbers are in design, Slime in the finger holes.
 
   Centre card (`Rotary_Dial_Card` node): clone its material, replace `map` with a `CanvasTexture` painted over the original base texture. UV-box: scan the geometry's uv attribute for min/max. Paint: aged paper radial gradient, foxing spots, then in the UV region draw "DIRECTORY" in small monospace above, "1023" in large italic script below. Apply `g.scale(1, -1)` before drawing text to correct the UV flip. Set `t.flipY = base.flipY` and `t.colorSpace = base.colorSpace`.
 
@@ -183,7 +183,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Requirements: Req 2 (scene is the visual context for all call states)
 
-  Tests: `components/PhoneCanvas/PhoneCanvas.test.tsx` (renders without throwing when WebGL is mocked; LoadingVeil shown before canvas ready); `components/PhoneCanvas/dialGeometry.test.ts` (10 detected hole angles match HOLE_ANGLES within 5 degrees)
+  Tests: `components/PhoneCanvas/PhoneCanvas.test.tsx` (renders without throwing when WebGL is mocked; LoadingVeil shown before canvas ready); `components/PhoneCanvas/dialGeometry.test.ts` (10 detected hole angles match HOLE_ANGLES within 5 degrees); `tests/e2e/dial-render.spec.ts` (render check of the dial close-up: green shapes visible, none stringy, none on the card)
 
 - [x] 43. Add 3D drag interaction to the DialWheel
 

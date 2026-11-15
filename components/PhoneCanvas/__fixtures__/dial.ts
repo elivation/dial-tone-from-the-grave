@@ -19,6 +19,7 @@ export function makeDial(tilted: boolean): DialGeometry {
     uAx,
     rAx,
     radius: 0.029,
+    faceHeight: 0.0029,
     holeR: 0.02,
     holeAngles: DIGITS.map((d) => HOLE_ANGLES[d]),
     holeWidth: 20,

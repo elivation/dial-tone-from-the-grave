@@ -1,10 +1,17 @@
 import type * as THREE from 'three';
 
 /**
- * Settles a layer of dust on upward-facing surfaces by patching the standard shader.
- * Ported from the reference scene. `amount` is how much of the surface the dust covers.
+ * Frequencies of the dust grain, per metre. 800 is cells of about 1.2 mm, 1800 about 0.6 mm.
+ * Nothing coarser is allowed: coarse noise shows up as light and dark patches, not a film.
+ */
+export const DUST_NOISE_SCALES = [800, 1800] as const;
+
+/**
+ * Settles a fine, faint, even film of dust on upward-facing surfaces by patching the standard
+ * shader. `amount` is how much of the surface colour the dust takes over, 0 to 1.
  */
 export function addDust(material: THREE.MeshStandardMaterial, amount: number): void {
+  const [coarse, fine] = DUST_NOISE_SCALES;
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vWPos; varying vec3 vWNorm;')
@@ -26,8 +33,8 @@ float n3(vec3 p){ vec3 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
         '#include <roughnessmap_fragment>',
         `#include <roughnessmap_fragment>
 float up = clamp(normalize(vWNorm).y, 0.0, 1.0);
-float dn = n3(vWPos * 260.0) * 0.5 + n3(vWPos * 55.0) * 0.5;
-float dust = smoothstep(0.6, 0.98, up) * smoothstep(0.45, 0.85, dn) * ${amount.toFixed(2)};
+float grain = n3(vWPos * ${coarse}.0) * 0.6 + n3(vWPos * ${fine}.0) * 0.4;
+float dust = smoothstep(0.6, 0.98, up) * (0.6 + 0.4 * grain) * ${amount.toFixed(2)};
 diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.42, 0.38, 0.32), dust);
 roughnessFactor = mix(roughnessFactor, 1.0, dust);`,
       );

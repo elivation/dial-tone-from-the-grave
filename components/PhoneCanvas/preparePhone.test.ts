@@ -6,8 +6,10 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
 import { preparePhone, type PreparedPhone } from './preparePhone';
+import { holeRadiusOf } from './goo';
+import { angleInDial, radiusInDial } from './dialSpace';
 import { computeCardFrame } from './cardTexture';
-import { GOO, PHONE_ROTATION_Y } from './sceneConstants';
+import { GOO, GOO_SHAPE, PHONE_ROTATION_Y } from './sceneConstants';
 import { loadSourcePhone } from './__fixtures__/loadSource';
 
 function descendantsNamed(root: THREE.Object3D, name: string): THREE.Object3D[] {
@@ -46,11 +48,6 @@ describe('preparePhone', () => {
     expect(descendantsNamed(phone.goo, 'goo-pool')).toHaveLength(10);
   });
 
-  it('runs drips from exactly 3 holes', () => {
-    expect(descendantsNamed(phone.goo, 'goo-drip')).toHaveLength(3);
-    expect(descendantsNamed(phone.goo, 'goo-tip')).toHaveLength(3);
-  });
-
   it('makes the goo a child of the finger wheel, so it turns with it', () => {
     let node: THREE.Object3D | null = phone.goo;
     let underWheel = false;
@@ -87,14 +84,13 @@ describe('preparePhone', () => {
     const pool = descendantsNamed(phone.goo, 'goo-pool')[0] as THREE.Mesh;
     const position = pool.geometry.getAttribute('position');
     const color = pool.geometry.getAttribute('color');
-    let top = 0;
-    let rim = 0;
+    // Vertex 0 is the middle of the pool. The highest point is off to one side, as the dome is lopsided.
+    let floor = 0;
     for (let i = 0; i < position.count; i++) {
-      if (position.getY(i) > position.getY(top)) top = i;
-      if (position.getY(i) < position.getY(rim)) rim = i;
+      if (position.getY(i) < position.getY(floor)) floor = i;
     }
-    expect(new THREE.Color().fromBufferAttribute(color, top).getHex()).toBe(GOO.thickColour);
-    expect(new THREE.Color().fromBufferAttribute(color, rim).getHex()).toBe(GOO.thinColour);
+    expect(new THREE.Color().fromBufferAttribute(color, 0).getHex()).toBe(GOO.thickColour);
+    expect(new THREE.Color().fromBufferAttribute(color, floor).getHex()).toBe(GOO.thinColour);
   });
 
   it('runs each drip from green near the hole to dark olive at the tip', () => {
@@ -106,6 +102,139 @@ describe('preparePhone', () => {
     };
     // Rings of 11 vertices run from the hole to the tip.
     expect(brightness(0)).toBeGreaterThan(brightness(color.count - 1));
+  });
+});
+
+describe('slime shape on the real dial', () => {
+  const meshes = (name: string) => descendantsNamed(phone.goo, name) as THREE.Mesh[];
+  const holeRadius = () => holeRadiusOf(phone.dial);
+  const worldVertices = (mesh: THREE.Mesh) => {
+    mesh.updateWorldMatrix(true, false);
+    const position = mesh.geometry.getAttribute('position');
+    return Array.from({ length: position.count }, (_, i) =>
+      new THREE.Vector3().fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld),
+    );
+  };
+  const originOf = (mesh: THREE.Mesh) => mesh.getWorldPosition(new THREE.Vector3());
+  const downhill = () => {
+    const { normal } = phone.dial;
+    return new THREE.Vector3(0, -1, 0).addScaledVector(normal, normal.y).normalize();
+  };
+  const outwardOf = (point: THREE.Vector3) => {
+    const { centre, normal } = phone.dial;
+    const d = point.clone().sub(centre);
+    return d.addScaledVector(normal, -d.dot(normal)).normalize();
+  };
+  const heightAboveFace = (point: THREE.Vector3) =>
+    point.clone().sub(phone.dial.centre).dot(phone.dial.normal) - phone.dial.faceHeight;
+
+  it('[Req 1.1] runs only 2 or 3 drips', () => {
+    const count = meshes('goo-drip').length;
+    expect(count).toBeGreaterThanOrEqual(2);
+    expect(count).toBeLessThanOrEqual(GOO_SHAPE.maxDrips);
+  });
+
+  it('drips only from holes in the lower half of the dial', () => {
+    for (const drip of meshes('goo-drip')) {
+      expect(outwardOf(originOf(drip)).dot(downhill())).toBeGreaterThan(GOO_SHAPE.lowerHalf);
+    }
+  });
+
+  it('starts each drip at the rim of its hole, with open hole on one side and wheel on the other', () => {
+    const { dial } = phone;
+    for (const drip of meshes('goo-drip')) {
+      const origin = originOf(drip);
+      const reach = holeRadius() * 0.6;
+      let open = 0;
+      let closed = 0;
+      for (let k = 0; k < 24; k++) {
+        const t = (k / 24) * Math.PI * 2;
+        const sample = origin
+          .clone()
+          .addScaledVector(dial.uAx, Math.cos(t) * reach)
+          .addScaledVector(dial.rAx, Math.sin(t) * reach);
+        if (dial.isOpen(radiusInDial(sample, dial), angleInDial(sample, dial))) open++;
+        else closed++;
+      }
+      expect(open).toBeGreaterThan(2);
+      expect(closed).toBeGreaterThan(2);
+    }
+  });
+
+  it('runs each drip outward and downhill, never towards the centre card', () => {
+    const { dial } = phone;
+    for (const drip of meshes('goo-drip')) {
+      const origin = originOf(drip);
+      const vertices = worldVertices(drip);
+      const tip = vertices.reduce((far, v) =>
+        v.distanceTo(origin) > far.distanceTo(origin) ? v : far,
+      );
+      const direction = tip.clone().sub(origin);
+      direction.addScaledVector(dial.normal, -direction.dot(dial.normal)).normalize();
+      expect(direction.dot(outwardOf(origin))).toBeGreaterThan(0.5);
+      expect(direction.dot(downhill())).toBeGreaterThan(0.2);
+      // No part of it reaches closer to the middle of the dial than where it started.
+      const startRadius = radiusInDial(origin, dial);
+      for (const v of vertices)
+        expect(radiusInDial(v, dial)).toBeGreaterThan(startRadius - holeRadius() * 0.7);
+    }
+  });
+
+  it('keeps each drip short: 0.4 to 0.7 of a hole diameter past the rim', () => {
+    for (const drip of meshes('goo-drip')) {
+      const origin = originOf(drip);
+      const reach = Math.max(...worldVertices(drip).map((v) => v.distanceTo(origin)));
+      const diameter = holeRadius() * 2;
+      expect(reach / diameter).toBeGreaterThan(GOO_SHAPE.dripLength.min * 0.97);
+      expect(reach / diameter).toBeLessThan(GOO_SHAPE.dripLength.max * 1.03);
+    }
+  });
+
+  it('lays each drip on the face of the wheel, as a low blob', () => {
+    for (const drip of meshes('goo-drip')) {
+      const heights = worldVertices(drip).map(heightAboveFace);
+      expect(Math.min(...heights)).toBeGreaterThan(-0.0003);
+      expect(Math.max(...heights)).toBeLessThan(holeRadius() * 0.5);
+    }
+  });
+
+  it('fills some holes much more than others', () => {
+    const tops = meshes('goo-pool').map((pool) =>
+      Math.max(
+        ...worldVertices(pool).map((v) => v.clone().sub(phone.dial.centre).dot(phone.dial.normal)),
+      ),
+    );
+    const floor = Math.min(
+      ...meshes('goo-pool').map((pool) =>
+        originOf(pool).clone().sub(phone.dial.centre).dot(phone.dial.normal),
+      ),
+    );
+    const depths = tops.map((t) => t - floor);
+    expect(Math.max(...depths) / Math.min(...depths)).toBeGreaterThan(1.8);
+  });
+
+  it('gives every pool its own uneven outline', () => {
+    const outlines = meshes('goo-pool').map((pool) => {
+      const radii = worldVertices(pool).map((v) => radiusInDial(v, phone.dial));
+      return Math.round(Math.max(...radii) * 1e6);
+    });
+    expect(new Set(outlines).size).toBeGreaterThan(5);
+  });
+
+  it('smears slime over the rim of the fullest holes, including every dripping hole', () => {
+    const smeared = new Set(meshes('goo-smear').map((m) => m.userData['hole']));
+    expect(smeared.size).toBeGreaterThanOrEqual(meshes('goo-drip').length);
+    expect(smeared.size).toBeLessThanOrEqual(6);
+    for (const drip of meshes('goo-drip')) expect(smeared.has(drip.userData['hole'])).toBe(true);
+    expect(smeared.size).toBeLessThan(10);
+  });
+
+  it('makes the slime a child of the wheel, with every piece in the goo group', () => {
+    const names = new Set<string>();
+    phone.goo.traverse((o) => {
+      if ((o as THREE.Mesh).isMesh) names.add(o.name);
+    });
+    expect([...names].sort()).toEqual(['goo-drip', 'goo-pool', 'goo-smear']);
   });
 });
 

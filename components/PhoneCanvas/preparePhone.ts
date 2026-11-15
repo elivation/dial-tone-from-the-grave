@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { computeDialGeometry, type DialGeometry } from './dialGeometry';
 import { addDust } from './dust';
 import { buildGoo } from './goo';
-import { PHONE_ROTATION_Y, PHONE_WIDTH } from './sceneConstants';
+import { DUST_AMOUNT, PHONE_ROTATION_Y, PHONE_WIDTH } from './sceneConstants';
 
 export type PreparedPhone = {
   /** The phone, scaled, placed on the desk and turned. Add this to the scene. */
@@ -78,7 +78,7 @@ export function preparePhone(source: THREE.Object3D): PreparedPhone {
     ) {
       material.color.multiplyScalar(0.9);
       material.roughness = Math.min(1, material.roughness + 0.1);
-      addDust(material, 0.22);
+      addDust(material, DUST_AMOUNT);
       material.userData['dusted'] = true;
     }
   });

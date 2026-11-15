@@ -268,7 +268,7 @@ app/page.tsx
   PhoneScene                      (layout root; stacks 3D canvas + HTML overlay)
     PhoneCanvas                   (dynamic import, ssr:false; R3F Canvas)
       DeskScene                   (R3F scene graph root; fog, lighting, shadow)
-        DeskMesh                  (Poly Haven dark planks texture, dust shader)
+        DeskMesh                  (Poly Haven dark planks texture, stained roughness map)
         CandleGroup               (wax cylinder, drips, holder, flame sprite, halo sprite)
         PhoneModel                (we500.glb via useGLTF; casts/receives shadows)
           DialWheel               (Rotary_Dial_Finger_Wheel node, rotation driven by dialRotation state)
@@ -1049,7 +1049,7 @@ The 3D scene matches the reference renders in `assets-src/renders/`. All descrip
 
 ### Desk
 
-Mesh: `PlaneGeometry(3, 3)` rotated flat. Material: `MeshStandardMaterial` with the Poly Haven dark wooden planks texture (`public/textures/dark_wooden_planks_diff_2k.webp`, repeat 4x4). A procedural dust GLSL shader (vertex normal dot up, multiplied by 3D noise) is patched in via `onBeforeCompile` on upward-facing surfaces. Contact shadow blob under the phone.
+Mesh: `PlaneGeometry(3, 3)` rotated flat. Material: `MeshStandardMaterial` with the Poly Haven dark wooden planks texture (`public/textures/dark_wooden_planks_diff_2k.webp`, repeat 4x4). A small canvas roughness map gives it dark stains and a water ring. Contact shadow blob under the phone.
 
 ### Lighting
 
@@ -1072,15 +1072,25 @@ Loaded with `useGLTF` from `@react-three/drei`. The `Rotary_Dial_Finger_Wheel` n
 
 The centre card uses the model's own `Rotary_Dial_Card` mesh. Its material is cloned and its `map` is replaced with a `CanvasTexture` painted over the original base texture: scan the mesh's `uv` attribute to find the UV bounding box, paint aged paper and foxing over that region on a full-resolution canvas copy, then draw "DIRECTORY" in small monospace and "1023" in large italic script inside the UV region. The text transform is derived, not guessed: fit how the card's UV coordinates map onto the card in the world (least squares over its vertices), then build the canvas matrix that takes text space (1 unit is 1 mm on the card) to texture pixels along the dial's reading axes. That covers any rotation or mirroring of the UV island, including the vertical flip, and is tested against real card vertices. Set `t.flipY = base.flipY` and `t.colorSpace = base.colorSpace` on the new texture.
 
-Dust shader is applied to all upward-facing mesh materials of the phone body (same GLSL patch as the desk, lower amount).
+The phone body gets a fine, faint film of dust on its upward-facing surfaces (`DUST_AMOUNT` 0.12), so it reads as old black Bakelite with a light dust film. The grain is high frequency only, with cells about 1.2 mm and 0.6 mm (`DUST_NOISE_SCALES`). A coarser noise was tried first and showed up as large camouflage blotches on the body. A test fails if a coarser scale is added.
 
 ### Slime in the finger holes
 
-The finger holes hold wet green slime, so they read against the black phone in the dark. It is a `MeshPhysicalMaterial` with clearcoat 1, roughness 0.05, transmission 0.35, thickness 0.004 and ior 1.4, so it is glossy and slightly see-through, with a faint inner glow (emissive intensity 0.25). Every value lives in `GOO` in `sceneConstants.ts`.
+The finger holes hold wet green slime, so they read against the black phone in the dark. It is a `MeshPhysicalMaterial` with clearcoat 1, roughness 0.05, transmission 0.35, thickness 0.004 and ior 1.4, so it is glossy and slightly see-through, with a faint inner glow (emissive intensity 0.25). Every value lives in `GOO` in `sceneConstants.ts`, and the shape numbers in `GOO_SHAPE`.
 
-The colour comes from the shape, not the material. Each slime mesh is painted per vertex by how thick the slime is there: deep toxic green (`#3f7a1c`) in the thick middle, dark olive (`#1d3a0c`) at thin edges and at the tips of drips. A pool is measured across its width, not up its height, because from above a flat pool is nearly all one height and would read as one even green. The glow is multiplied by the same vertex colour in the shader, so thin edges glow olive. A plain emissive colour would paint every pixel the same green and hide the gradient.
+Colour comes from the shape, not the material. Each slime mesh is painted per vertex by how thick the slime is there: deep toxic green (`#3f7a1c`) in the thick middle, dark olive (`#1d3a0c`) at thin edges and drip tips. A pool is measured across its width, not up its height, because from above a flat pool is nearly all one height and would read as one even green. The glow is multiplied by the same vertex colour in the shader, so thin edges glow olive. A plain emissive colour would paint every pixel the same green and hide the gradient.
 
-The wet look comes from the clearcoat. The candle's highlights show on the drips and the pool rims, which are the only parts steep enough to catch it, because the pools themselves are flat. The shape, positions and drips are unchanged, and the slime is still a child of the finger wheel.
+Each finger hole is a well about 6 mm deep: the plate it stands on is 3.1 mm below the dial centre and the wheel's clear face is 2.9 mm above it. `computeDialGeometry` measures this as `faceHeight`. Pools stand on the plate. Smears and drips lie on the wheel face.
+
+Pools: every hole holds a column of slime with an uneven outline (three sine waves of noise on the radius), a rounded shoulder, and a slightly domed, lopsided top. Ordinary holes are low puddles, 12 to 38 percent of the depth. A few are full, 90 to 100 percent, and bulge over the rim. Some holes are therefore much fuller than others.
+
+Smears: the full holes get slime smeared over part of the rim, a 60 to 90 degree arc that climbs the lip, bulges, then fades flat onto the glass, biased downhill.
+
+Drips: two or three, only from holes whose outward direction points downhill, which are the holes in the lower half of the dial as seen. Each starts at the outer rim, runs outward and downhill, and never towards the centre card. It is short, 0.4 to 0.7 of a hole diameter past the rim, and low, lying on the face. It is a blob that narrows to a neck and ends in a fat rounded bead, the widest part. Earlier versions made drips thin tubes that ran across the card and read as wires, which is why these limits are written down and tested.
+
+The slime is still a child of the finger wheel. Shape, positions and counts are covered by tests on the real model (`preparePhone.test.ts`, `gooShapes.test.ts`).
+
+Render check: `tests/e2e/dial-render.spec.ts` takes a close-up of the dial at a fixed viewport. It checks that at least 8 green shapes show, that none is stringy (aspect ratio under 4), that no green reaches the card or its brass rim, and that the console is clean. It cannot judge wetness or whether a drip looks right. A thin wire attached to a pool barely changes that pool's proportions, so the geometry tests are what guard against wires. A pixel thinness measure was tried and dropped: it scored the new slime as thinner than the old wires, because highlights break the green into lumpy pieces.
 
 Transmission adds a render pass. In the headless software renderer used for checks, the scene held 60 fps at a 1x pixel ratio with it on or off. There are no real GPU numbers yet.
 

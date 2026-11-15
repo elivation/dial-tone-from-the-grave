@@ -31,3 +31,22 @@ export const GOO = {
   thickness: 0.004,
   ior: 1.4,
 } as const;
+
+/** Shape of the slime. Lengths are in fractions of a hole's diameter unless it says otherwise. */
+export const GOO_SHAPE = {
+  /** How far a drip runs past the rim of its hole. */
+  dripLength: { min: 0.4, max: 0.7 },
+  /** At most this many holes drip. At least two do. */
+  maxDrips: 3,
+  /** A hole counts as in the lower half of the dial if its outward direction points this far downhill, 0 to 1. */
+  lowerHalf: 0.5,
+  /** How full an ordinary hole is, as a fraction of its depth. These are low puddles. */
+  fill: { min: 0.12, max: 0.38 },
+  /** Holes this full reach the rim, and get goo smeared over part of it. */
+  fullFill: { min: 0.9, max: 1 },
+  /** How much the middle of the surface rises above its edge, in metres. A puddle is nearly flat, a full hole bulges. */
+  dome: { puddle: 0.0005, full: 0.0011 },
+} as const;
+
+/** How strong the dust is on the phone body, 0 to 1. A faint film, never patches. */
+export const DUST_AMOUNT = 0.12;
