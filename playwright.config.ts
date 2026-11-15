@@ -11,5 +11,14 @@ export default defineConfig({
     baseURL: process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:3000',
     trace: 'on-first-retry',
   },
+  // Tests run against the production build. Run `pnpm build` first.
+  webServer: process.env['PLAYWRIGHT_BASE_URL']
+    ? undefined
+    : {
+        command: 'pnpm start',
+        url: 'http://localhost:3000',
+        reuseExistingServer: true,
+        timeout: 60_000,
+      },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
 });

@@ -157,7 +157,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: file size check (`ls -lh public/models/we500.glb`); `pnpm build` still passes
 
-- [ ] 42. Build the R3F 3D scene (desk, candle, phone model, dial details, loading veil)
+- [x] 42. Build the R3F 3D scene (desk, candle, phone model, dial details, loading veil)
 
   Install `three`, `@types/three`, `@react-three/fiber`, `@react-three/drei`, `@react-three/postprocessing`. Create `components/PhoneCanvas/PhoneCanvas.tsx` as a client component loaded with `dynamic(() => import('./PhoneCanvas'), { ssr: false, loading: () => <LoadingVeil /> })`.
 

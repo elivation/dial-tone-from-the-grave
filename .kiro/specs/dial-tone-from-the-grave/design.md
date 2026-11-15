@@ -1031,8 +1031,9 @@ The 3D scene matches the reference renders in `assets-src/renders/`. All descrip
 ### Renderer settings
 
 ```typescript
-// ACESFilmic tonemapping, exposure 1.05
-// PCFSoft shadow maps, shadow map 2048x2048
+// AgX tone mapping, applied as a post-processing effect (ACES turned the desk too orange)
+// PCFSoft shadow maps, candle shadow map 1024x1024
+// every light intensity is scaled by LIGHT_GAIN (0.55) to match the reference render
 // scene.fog: FogExp2(0x050302, 1.4)
 // scene.environmentIntensity: 0.08 (dim PMREM from RoomEnvironment)
 ```
@@ -1060,7 +1061,7 @@ Wax cylinder (`CylinderGeometry(0.017, 0.019, 0.11)`), emissive glow. Five drip 
 
 Loaded with `useGLTF` from `@react-three/drei`. The `Rotary_Dial_Finger_Wheel` node is extracted by name. Its rotation is applied each frame as `Quaternion.setFromAxisAngle(dialNormal, -dialRotation * DEG2RAD)` around `dialCentre`, where both values come from `useDialGeometry` (see Rotary Dial Design). All goo meshes are children of that node and rotate with it.
 
-The centre card uses the model's own `Rotary_Dial_Card` mesh. Its material is cloned and its `map` is replaced with a `CanvasTexture` painted over the original base texture: scan the mesh's `uv` attribute to find the UV bounding box, paint aged paper and foxing over that region on a full-resolution canvas copy, then draw "DIRECTORY" in small monospace and "1023" in large italic script inside the UV region. Apply `g.scale(1, -1)` before drawing text to correct for the texture's vertical flip. Set `t.flipY = base.flipY` and `t.colorSpace = base.colorSpace` on the new texture.
+The centre card uses the model's own `Rotary_Dial_Card` mesh. Its material is cloned and its `map` is replaced with a `CanvasTexture` painted over the original base texture: scan the mesh's `uv` attribute to find the UV bounding box, paint aged paper and foxing over that region on a full-resolution canvas copy, then draw "DIRECTORY" in small monospace and "1023" in large italic script inside the UV region. The text transform is derived, not guessed: fit how the card's UV coordinates map onto the card in the world (least squares over its vertices), then build the canvas matrix that takes text space (1 unit is 1 mm on the card) to texture pixels along the dial's reading axes. That covers any rotation or mirroring of the UV island, including the vertical flip, and is tested against real card vertices. Set `t.flipY = base.flipY` and `t.colorSpace = base.colorSpace` on the new texture.
 
 Dust shader is applied to all upward-facing mesh materials of the phone body (same GLSL patch as the desk, lower amount).
 
@@ -1074,7 +1075,13 @@ An open book sitting to the right of the phone. Two page meshes with bent `Plane
 
 ### Post processing
 
-Via `@react-three/postprocessing`: `Bloom` (threshold 0.9, strength 0.3, radius 0.4) on the flame. `Vignette` (darkness 0.65, offset 0.35). `Noise` (premultiply false, opacity 0.07) for film grain. All at `BlendFunction.NORMAL`.
+Via `@react-three/postprocessing`: `Bloom` (threshold 0.9, strength 0.3, radius 0.4) on the flame, then `ToneMapping` in AgX mode.
+
+The vignette and film grain are CSS overlays on top of the canvas, with the same numbers as the reference scene: a radial gradient (`ellipse 70% 75% at 52% 55%`, clear to 45%, 55% black at 75%, 92% black at 100%) and an SVG noise tile at 8% opacity with `mix-blend-mode: overlay`. They are cheaper than GPU passes and match the reference exactly. The result was calibrated against `assets-src/renders/phone-render-test-4-spider.png`: average brightness is within about 15% in every region measured and mostly within 5%.
+
+### Hole detection
+
+`computeDialGeometry` finds the 10 finger holes without raycasting the wheel mesh. A ray cast down the dial normal hits the wheel exactly where a triangle's projection onto the dial plane covers that point, so the triangles are drawn once into a 768 by 768 bitmap and holes are read from it. This takes about 60 ms. Raycasting 4,500 rays against 14,848 triangles took about 7 seconds and would have missed the 3 second first-frame budget. The centre of the wheel is the middle of its in-plane extent, because vertices bunch around the hole edges and pull a vertex average off the axis.
 
 ### Loading veil
 

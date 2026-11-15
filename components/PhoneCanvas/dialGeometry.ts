@@ -16,6 +16,13 @@ export type DialGeometry = {
   holeR: number;
   /** Hole centres in degrees clockwise from 12 o'clock, in dial space. */
   holeAngles: number[];
+  /** Average angular width of a hole, in degrees. */
+  holeWidth: number;
+  /**
+   * True when nothing of the wheel lies at this spot of the dial, looking straight down the normal.
+   * `r` is the distance from the centre in metres, `degrees` is clockwise from 12 o'clock in dial space.
+   */
+  isOpen: (r: number, degrees: number) => boolean;
 };
 
 type Mat3 = [[number, number, number], [number, number, number], [number, number, number]];
@@ -87,6 +94,82 @@ export function smallestEigenvector(input: Mat3): THREE.Vector3 {
     if (at(a, i, i) < at(a, smallest, smallest)) smallest = i;
   }
   return new THREE.Vector3(at(v, 0, smallest), at(v, 1, smallest), at(v, 2, smallest)).normalize();
+}
+
+const GRID_SIZE = 768;
+/** Rays were sampled this many degrees apart, so each hole is this much wider than its samples show. */
+const ANGLE_STEP = 2;
+
+/**
+ * Draws the wheel's triangles, projected flat onto the dial plane, into a bitmap.
+ * A ray cast straight down the normal hits the wheel exactly where a projected triangle
+ * covers the spot, so this answers the same question as raycasting, thousands of times faster.
+ */
+function coverWheel(
+  wheel: THREE.Mesh,
+  centre: THREE.Vector3,
+  uAx: THREE.Vector3,
+  rAx: THREE.Vector3,
+  extent: number,
+): (du: number, dr: number) => boolean {
+  const position = wheel.geometry.getAttribute('position');
+  const scale = GRID_SIZE / (2 * extent);
+  const px = new Float32Array(position.count);
+  const py = new Float32Array(position.count);
+  const v = new THREE.Vector3();
+  for (let i = 0; i < position.count; i++) {
+    v.fromBufferAttribute(position, i).applyMatrix4(wheel.matrixWorld).sub(centre);
+    px[i] = (v.dot(rAx) + extent) * scale;
+    py[i] = (v.dot(uAx) + extent) * scale;
+  }
+
+  const covered = new Uint8Array(GRID_SIZE * GRID_SIZE);
+  const index = wheel.geometry.getIndex();
+  const triangleCount = (index ? index.count : position.count) / 3;
+  const corner = (t: number, k: number) => (index ? index.getX(t * 3 + k) : t * 3 + k);
+
+  for (let t = 0; t < triangleCount; t++) {
+    const a = corner(t, 0);
+    const b = corner(t, 1);
+    const c = corner(t, 2);
+    const ax = px[a] ?? 0;
+    const ay = py[a] ?? 0;
+    const bx = px[b] ?? 0;
+    const by = py[b] ?? 0;
+    const cx = px[c] ?? 0;
+    const cy = py[c] ?? 0;
+    const area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+    if (Math.abs(area) < 1e-9) continue; // edge-on faces cover nothing
+
+    const sign = area > 0 ? 1 : -1;
+    const lengths = [
+      Math.hypot(cx - bx, cy - by),
+      Math.hypot(ax - cx, ay - cy),
+      Math.hypot(bx - ax, by - ay),
+    ];
+    const x0 = Math.max(0, Math.floor(Math.min(ax, bx, cx) - 1));
+    const x1 = Math.min(GRID_SIZE - 1, Math.ceil(Math.max(ax, bx, cx) + 1));
+    const y0 = Math.max(0, Math.floor(Math.min(ay, by, cy) - 1));
+    const y1 = Math.min(GRID_SIZE - 1, Math.ceil(Math.max(ay, by, cy) + 1));
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const qx = x + 0.5;
+        const qy = y + 0.5;
+        // Signed distance from each edge, in pixels. Half a pixel of slack stops cracks between triangles.
+        const d0 = (sign * ((cx - bx) * (qy - by) - (cy - by) * (qx - bx))) / (lengths[0] || 1);
+        const d1 = (sign * ((ax - cx) * (qy - cy) - (ay - cy) * (qx - cx))) / (lengths[1] || 1);
+        const d2 = (sign * ((bx - ax) * (qy - ay) - (by - ay) * (qx - ax))) / (lengths[2] || 1);
+        if (d0 >= -0.5 && d1 >= -0.5 && d2 >= -0.5) covered[y * GRID_SIZE + x] = 1;
+      }
+    }
+  }
+
+  return (du: number, dr: number) => {
+    const x = Math.floor((dr + extent) * scale);
+    const y = Math.floor((du + extent) * scale);
+    if (x < 0 || y < 0 || x >= GRID_SIZE || y >= GRID_SIZE) return false;
+    return covered[y * GRID_SIZE + x] === 1;
+  };
 }
 
 /**
@@ -187,21 +270,17 @@ export function computeDialGeometry(
   let radius = 0;
   for (const p of points) radius = Math.max(radius, p.distanceTo(centre));
 
-  // A ray cast down the normal that misses the wheel has found a hole.
-  const raycaster = new THREE.Raycaster();
-  const down = normal.clone().negate();
+  // A spot where nothing of the wheel lies, looking down the normal, is a hole.
+  const wheelAt = coverWheel(wheel, centre, uAx, rAx, radius * 1.05);
+  const isOpen = (r: number, degrees: number): boolean => {
+    const t = THREE.MathUtils.degToRad(degrees);
+    return !wheelAt(Math.cos(t) * r, Math.sin(t) * r);
+  };
   let best = { r: 0, misses: [] as number[] };
   for (let r = radius * 0.55; r < radius * 0.92; r += radius * 0.02) {
     const misses: number[] = [];
-    for (let angle = 0; angle < 360; angle += 2) {
-      const t = THREE.MathUtils.degToRad(angle);
-      const origin = centre
-        .clone()
-        .addScaledVector(uAx, Math.cos(t) * r)
-        .addScaledVector(rAx, Math.sin(t) * r)
-        .addScaledVector(normal, 0.02);
-      raycaster.set(origin, down);
-      if (raycaster.intersectObject(wheel, false).length === 0) misses.push(angle);
+    for (let angle = 0; angle < 360; angle += ANGLE_STEP) {
+      if (isOpen(r, angle)) misses.push(angle);
     }
     if (misses.length > best.misses.length && misses.length < 160) best = { r, misses };
   }
@@ -210,7 +289,7 @@ export function computeDialGeometry(
   let run: number[] = [];
   for (const angle of best.misses) {
     const previous = run[run.length - 1];
-    if (previous !== undefined && angle - previous > 2) {
+    if (previous !== undefined && angle - previous > ANGLE_STEP) {
       runs.push(run);
       run = [];
     }
@@ -226,5 +305,9 @@ export function computeDialGeometry(
   }
 
   const holeAngles = runs.map((h) => ((h[0] ?? 0) + (h[h.length - 1] ?? 0)) / 2);
-  return { centre, normal, uAx, rAx, radius, holeR: best.r, holeAngles };
+  // Samples sit a step apart, so add one step to get the true width.
+  const holeWidth =
+    runs.reduce((sum, h) => sum + ((h[h.length - 1] ?? 0) - (h[0] ?? 0) + ANGLE_STEP), 0) /
+    runs.length;
+  return { centre, normal, uAx, rAx, radius, holeR: best.r, holeAngles, holeWidth, isOpen };
 }
