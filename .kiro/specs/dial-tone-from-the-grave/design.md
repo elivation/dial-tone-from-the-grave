@@ -1127,6 +1127,12 @@ Seed files call the embed Edge Function for each row to generate and store embed
 As built:
 
 - **The data:** 158 ordinary businesses across 33 trades, 12 spirit listings, 11 boxed adverts and 80 invented residents, spread over 19 suburbs. Business numbers run from 011 000 1001 and residents from 011 000 5001.
+- **Short dial numbers:** every listing also has a five-digit `dial_number`, which is what dial-a-listing uses. Ordinary businesses are on the Holloway exchange (61001 upwards), spirit listings on Duskvale (31301 to 31312) and residents on Mourne (72001 upwards).
+  - `lib/dialPlan.ts` holds the rule: five digits starting 2 to 9, never an operator or emergency number, and never a prefix of one or starting with one. The two-second pause would otherwise cut one call off as another.
+  - The database repeats the format check, adds unique indexes, and requires the column (migrations `20261116103742_add_dial_numbers` and `20261116104307_require_dial_numbers`). `lookup_number` matches a dial number or an 011 number. The searches return `dial_number`.
+- **Exchange style:** `lib/exchange.ts` maps the first digit to an invented exchange (2 Ashgrove, 3 Duskvale, 4 Gloaming, 5 Knell, 6 Holloway, 7 Mourne, 8 Ravenhill, 9 Wychwood). `formatDialNumber('61001')` prints "HO 6-1001". The letters are printed only, never dialled.
+- **Name twists:** every ordinary business name carries a Dead Pages twist from `supabase/seed/twists.ts`, for example "Mokoena and Sons Plumbing (Est. 1931, Night Calls Only)". The twist is about the business or its telephone, never a person, culture or accent, so no listing reads like a real firm. Spirit listings keep their own names.
+- **Fictional notice:** `FictionNotice` shows "All businesses, people and numbers in The Dead Pages are fictional." in small print at the foot of the page, and the README says the same.
 - **The files:** the data lives in TypeScript (`supabase/seed/businesses.ts`, `residents.ts`), not in SQL migrations, so the tests can check it.
 - **Seeding:** `pnpm db:seed` embeds each listing as "{name}. {trade} in {suburb}, Johannesburg. {description}" and upserts on `phone_digits`, so running it again updates the same rows. It prints only counts.
 - **Checking:** `pnpm db:search-smoke` checks live search end to end.
@@ -1148,7 +1154,7 @@ These are what make the app feel like the phone and the book are back in 2026, n
 
 ### Dialling a listing
 
-Every listing has a fictional ten-digit number (`011 000 xxxx`). Dialling one rings twice and connects to the ghost of that listing.
+Every listing has a fictional ten-digit number (`011 000 xxxx`) and a five-digit short dial number. The book prints both, the short one in exchange style ("HO 6-1001"). Dialling the short number (or the 011 number) rings twice and connects to the ghost of that listing. The Dial button dials the short number.
 
 1. `useCall` places the call after the 2-second pause. A number that is not an operator or an emergency number goes to `POST /api/number`.
 2. `kind: 'listing'` rings twice and connects with `callee: 'listing'`. `kind: 'none'` is a wrong number.

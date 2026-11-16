@@ -6,10 +6,13 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import { findBrandNames } from '@/lib/brandNames';
+import { conflictsWithReserved, isShortDialNumber, RESERVED_NUMBERS } from '@/lib/dialPlan';
+import { formatDialNumber } from '@/lib/exchange';
 import { EMERGENCY_NUMBERS, OPERATORS } from '@/lib/operators';
 import { BUSINESSES } from './businesses';
 import { RESIDENTS } from './residents';
 import { embeddingText } from './rows';
+import { TWIST } from './twists';
 
 const digitsOf = (phone: string) => phone.replace(/\D/g, '');
 const allNumbers = [...BUSINESSES.map((b) => b.phone), ...RESIDENTS.map((r) => r.phone)];
@@ -101,6 +104,56 @@ describe('numbers', () => {
       expect(EMERGENCY_NUMBERS.has(digits), phone).toBe(false);
       expect(digits in OPERATORS, phone).toBe(false);
     }
+  });
+});
+
+describe('short dial numbers', () => {
+  const short = [...BUSINESSES.map((b) => b.dial_number), ...RESIDENTS.map((r) => r.dial_number)];
+
+  it('[P14] [Req 11.1] gives every listing a five-digit dial number, no two the same across businesses, spirits and residents', () => {
+    for (const n of short) expect(n).toMatch(/^\d{5}$/);
+    expect(new Set(short).size).toBe(short.length);
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: short.length - 1 }),
+        fc.integer({ min: 0, max: short.length - 1 }),
+        (i, j) => i === j || short[i] !== short[j],
+      ),
+      { numRuns: 2000 },
+    );
+  });
+
+  it('[P14] [Req 2.8, 11.1] never uses, starts with, or is the start of an operator or emergency number', () => {
+    for (const n of short) {
+      expect(isShortDialNumber(n), n).toBe(true);
+      expect(conflictsWithReserved(n), n).toBe(false);
+      for (const reserved of RESERVED_NUMBERS) {
+        expect(n.startsWith(reserved) || reserved.startsWith(n), `${n} and ${reserved}`).toBe(
+          false,
+        );
+      }
+    }
+    for (const n of ['1023', '1026', '666', '1313', ...EMERGENCY_NUMBERS])
+      expect(short).not.toContain(n);
+  });
+
+  it('never lets a dial number be mistaken for the start of an 011 number', () => {
+    for (const n of short) expect(n.startsWith('0')).toBe(false);
+  });
+
+  it('[Req 11.1] prints every dial number in exchange style', () => {
+    for (const n of short) expect(formatDialNumber(n), n).toMatch(/^[A-Z]{2} \d-\d{4}$/);
+    expect(formatDialNumber(BUSINESSES[0]?.dial_number ?? '')).toBe('HO 6-1001');
+  });
+});
+
+describe('business names', () => {
+  it('give every ordinary business a Dead Pages twist no real firm would use', () => {
+    for (const b of BUSINESSES.filter((x) => !x.is_spirit)) expect(b.name, b.name).toMatch(TWIST);
+  });
+
+  it('keep names short enough for a directory column', () => {
+    for (const b of BUSINESSES) expect(b.name.length, b.name).toBeLessThanOrEqual(72);
   });
 });
 

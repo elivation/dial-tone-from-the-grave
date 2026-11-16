@@ -118,4 +118,22 @@ check(
   `${(nobody ?? []).length} rows`,
 );
 
+const { data: short } = await supabase.rpc('lookup_number', { digits: '61001' });
+check(
+  'dialling HO 6-1001 reaches the same business',
+  short?.[0]?.name === found?.[0]?.name,
+  short?.[0]?.name ?? 'nobody',
+);
+const { data: spiritLine } = await supabase.rpc('lookup_number', { digits: '31301' });
+check(
+  'dialling DU 3-1301 reaches a spirit listing',
+  spiritLine?.[0]?.is_spirit === true,
+  spiritLine?.[0]?.name ?? 'nobody',
+);
+check(
+  'search results carry their dial number',
+  geyser.every((b) => /^[2-9]\d{4}$/.test(b.dial_number ?? '')),
+  `${geyser.length} results`,
+);
+
 process.exit(ok ? 0 : 1);

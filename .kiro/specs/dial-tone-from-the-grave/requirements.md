@@ -206,14 +206,14 @@ A web app that brings back the rotary phone and the printed phone book, The Dead
 
 #### Acceptance Criteria
 
-1. Every business and resident listing SHALL have its own fictional ten-digit number in the `011 000 xxxx` range. No two listings SHALL share a number, and no listing number SHALL equal an operator number or an emergency number.
-2. WHEN the dialled digits match a listing number THEN the system SHALL ring twice and connect the call to that listing's ghost: a ghost receptionist for a business, the ghost of the household for a resident.
+1. Every business and resident listing SHALL have its own fictional ten-digit number in the `011 000 xxxx` range, and its own five-digit short dial number. No two listings SHALL share either number, across businesses, spirit listings and residents. A short dial number SHALL start with 2 to 9, SHALL never be an operator number (1023, 1026, 666, 1313) or an emergency number, and SHALL never start with one or be the start of one.
+2. WHEN the dialled digits match a listing's short dial number (or, as a fallback, its 011 number) THEN the system SHALL ring twice and connect the call to that listing's ghost: a ghost receptionist for a business, the ghost of the household for a resident.
 3. The listing's ghost SHALL stay in character and SHALL use only that listing's own details (name, trade, suburb, hours, description). It SHALL NEVER invent other listings, prices it was not given, or real people.
 4. The server SHALL look the listing up by number. The browser SHALL send only the dialled digits, never persona text or listing details.
 5. A listing call SHALL be limited to `MAX_TURNS_PER_LISTING_CALL` user turns (default: 4, configurable via env var), and SHALL count against the same per-IP and daily limits as operator calls (Requirement 10).
 6. A spirit listing's ghost SHALL be noticeably eerier than an ordinary one, and SHALL still follow the safety rules of Requirement 3, AC 11 and 12.
-7. Each listing in the phone book SHALL offer a "Dial" action that dials its number on the rotary phone digit by digit, with the same animation, clicks and announcements as dialling by hand. The action SHALL work by keyboard and screen reader.
-8. WHEN the user dials a ten-digit number that is not a listing THEN the system SHALL treat it as a wrong number (Requirement 2, AC 6).
+7. The phone book SHALL print each listing's short dial number in exchange style (for example "HO 6-1001") next to its 011 number. The exchange letters are printed only and are never dialled. Each listing SHALL offer a "Dial" action that dials its short number on the rotary phone digit by digit, with the same animation, clicks and announcements as dialling by hand. The action SHALL work by keyboard and screen reader.
+8. WHEN the user dials a five-digit or ten-digit number that is not a listing THEN the system SHALL treat it as a wrong number (Requirement 2, AC 6).
 
 ---
 
@@ -258,6 +258,17 @@ A web app that brings back the rotary phone and the printed phone book, The Dead
 3. The operators and listing ghosts SHALL speak South African English. The voice SHALL use a South African English (`en-ZA`) voice where the browser has one, and SHALL otherwise fall back to the operator's configured voice hint.
 4. Each operator's backstory SHALL be tied to the city and its telephone history, invented and respectful. No real people, businesses, brands or political figures SHALL be named.
 5. All times the operators state SHALL be in the Africa/Johannesburg time zone.
+
+---
+
+### Requirement 15: Fictional notice
+
+**User Story:** As the owner, I want it to be clear that nothing in the book is real, so nobody mistakes a listing for a real business or person.
+
+#### Acceptance Criteria
+
+1. The app SHALL show a small footer line, "All businesses, people and numbers in The Dead Pages are fictional.", that never blocks the dial or the handset. The README SHALL carry the same line.
+2. Every ordinary business name SHALL carry a Dead Pages twist that no real firm would use (an old-fashioned or eerie touch about the business or its telephone), so no name is a plain surname plus a trade. The twists SHALL be tasteful and SHALL never joke about a culture, a language or an accent.
 
 ---
 

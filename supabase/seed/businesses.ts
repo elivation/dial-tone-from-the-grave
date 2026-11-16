@@ -1,9 +1,13 @@
 import { listingNumber, type BusinessSeed } from './rows';
+import { twisted } from './twists';
 
 /**
  * The business section of The Dead Pages: invented Johannesburg businesses, spread over the city and
  * the trades people need, plus the spirit listings, which only a spooky search or 1313 turns up.
- * Every name is made up. Numbers run from 011 000 1001 in this order.
+ * Every name is made up, and every ordinary one carries a Dead Pages twist (see twists.ts).
+ *
+ * Numbers, in this order: 011 000 1001 upwards. Short dial numbers: ordinary businesses on the
+ * Holloway exchange from 61001, spirit listings on the Duskvale exchange from 31301.
  *
  * Each row: name, trade, suburb, address, hours, description, boxed advert, spirit listing.
  */
@@ -1712,17 +1716,24 @@ const ROWS: Row[] = [
   ],
 ];
 
+let ordinary = 0;
+let spirit = 0;
+
 export const BUSINESSES: BusinessSeed[] = ROWS.map(
-  ([name, category, suburb, address, hours, description, is_advert, is_spirit], i) => ({
-    name,
-    category,
-    suburb,
-    address,
-    phone: listingNumber(1001 + i),
-    hours,
-    is_24hr: /24 hours/i.test(hours),
-    description,
-    is_advert,
-    is_spirit,
-  }),
+  ([name, category, suburb, address, hours, description, is_advert, is_spirit], i) => {
+    const n = is_spirit ? spirit++ : ordinary++;
+    return {
+      name: is_spirit ? name : twisted(name, n),
+      category,
+      suburb,
+      address,
+      phone: listingNumber(1001 + i),
+      dial_number: String(is_spirit ? 31301 + n : 61001 + n),
+      hours,
+      is_24hr: /24 hours/i.test(hours),
+      description,
+      is_advert,
+      is_spirit,
+    };
+  },
 );

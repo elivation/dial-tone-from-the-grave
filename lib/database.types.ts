@@ -9,6 +9,7 @@ export type Database = {
           category: string;
           created_at: string;
           description: string;
+          dial_number: string;
           embedding: string | null;
           hours: string;
           id: string;
@@ -26,6 +27,7 @@ export type Database = {
           category: string;
           created_at?: string;
           description: string;
+          dial_number: string;
           embedding?: string | null;
           hours: string;
           id?: string;
@@ -42,6 +44,7 @@ export type Database = {
           category?: string;
           created_at?: string;
           description?: string;
+          dial_number?: string;
           embedding?: string | null;
           hours?: string;
           id?: string;
@@ -93,6 +96,7 @@ export type Database = {
         Row: {
           address: string;
           created_at: string;
+          dial_number: string;
           embedding: string | null;
           id: string;
           initials: string;
@@ -105,6 +109,7 @@ export type Database = {
         Insert: {
           address: string;
           created_at?: string;
+          dial_number: string;
           embedding?: string | null;
           id?: string;
           initials: string;
@@ -116,6 +121,7 @@ export type Database = {
         Update: {
           address?: string;
           created_at?: string;
+          dial_number?: string;
           embedding?: string | null;
           id?: string;
           initials?: string;
@@ -141,6 +147,7 @@ export type Database = {
           address: string;
           category: string;
           description: string;
+          dial_number: string;
           hours: string;
           id: string;
           is_spirit: boolean;
@@ -162,6 +169,7 @@ export type Database = {
           address: string;
           category: string;
           description: string;
+          dial_number: string;
           hours: string;
           id: string;
           is_24hr: boolean;
@@ -183,6 +191,7 @@ export type Database = {
         };
         Returns: {
           address: string;
+          dial_number: string;
           id: string;
           initials: string;
           phone: string;

@@ -4,4 +4,6 @@ Kiroween 2026 entry (Resurrection). A haunted rotary phone that dials into a cur
 
 Built with Kiro. See `.kiro/` for specs and steering docs.
 
+All businesses, people and numbers in The Dead Pages are fictional.
+
 Full documentation, setup instructions and architecture diagram will be added in task 36.

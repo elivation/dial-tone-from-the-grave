@@ -3,7 +3,8 @@ import { listingNumber, type ResidentSeed } from './rows';
 /**
  * The white pages: invented Johannesburg households. No real people: the surnames are common South
  * African ones, paired with made-up initials, streets and numbers. Some surnames are spelt two ways
- * on purpose, so the fuzzy search has something to find. Numbers run from 011 000 5001 in this order.
+ * on purpose, so the fuzzy search has something to find. Numbers run from 011 000 5001 in this
+ * order, and short dial numbers on the Mourne exchange from 72001.
  *
  * Each row: surname, initials, suburb, address.
  */
@@ -98,4 +99,5 @@ export const RESIDENTS: ResidentSeed[] = ROWS.map(([surname, initials, suburb, a
   suburb,
   address,
   phone: listingNumber(5001 + i),
+  dial_number: String(72001 + i),
 }));

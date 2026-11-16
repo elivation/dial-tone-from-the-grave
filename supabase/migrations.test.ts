@@ -14,6 +14,7 @@ type Business = {
   category: string;
   suburb: string;
   phone: string;
+  dial: string;
   description: string;
   is_spirit?: boolean;
   axis: number | null;
@@ -25,6 +26,7 @@ const businesses: Business[] = [
     category: 'Plumber',
     suburb: 'Edenvale',
     phone: '011 000 1001',
+    dial: '61001',
     description: 'Burst geysers fixed day and night',
     axis: 0,
   },
@@ -33,6 +35,7 @@ const businesses: Business[] = [
     category: 'Gate motors',
     suburb: 'Randburg',
     phone: '011 000 1002',
+    dial: '61002',
     description: 'Gate motor repairs and batteries',
     axis: 1,
   },
@@ -41,6 +44,7 @@ const businesses: Business[] = [
     category: 'Plumber',
     suburb: 'Kempton Park',
     phone: '011 000 1003',
+    dial: '61003',
     description: 'Geyser installs and repairs',
     axis: 0,
   },
@@ -49,6 +53,7 @@ const businesses: Business[] = [
     category: 'Locksmith',
     suburb: 'Edenvale',
     phone: '011 000 1004',
+    dial: '31301',
     description: 'Opens any door, even the ones that should stay shut',
     is_spirit: true,
     axis: 2,
@@ -58,29 +63,45 @@ const businesses: Business[] = [
     category: 'Panel beater',
     suburb: 'Germiston',
     phone: '011 000 1005',
+    dial: '61005',
     description: 'Dents and scratches',
     axis: null,
   },
 ];
 
 const residents = [
-  { surname: 'Botha', initials: 'J', suburb: 'Edenvale', phone: '011 000 2001', axis: 10 },
+  {
+    surname: 'Botha',
+    initials: 'J',
+    suburb: 'Edenvale',
+    phone: '011 000 2001',
+    dial: '72001',
+    axis: 10,
+  },
   {
     surname: 'van der Merwe',
     initials: 'A',
     suburb: 'Roodepoort',
     phone: '011 000 2002',
+    dial: '72002',
     axis: 11,
   },
-  { surname: 'Nkosi', initials: 'T', suburb: 'Soweto', phone: '011 000 2003', axis: 12 },
+  {
+    surname: 'Nkosi',
+    initials: 'T',
+    suburb: 'Soweto',
+    phone: '011 000 2003',
+    dial: '72003',
+    axis: 12,
+  },
 ];
 
 beforeAll(async () => {
   db = await migratedDatabase();
   for (const b of businesses) {
     await db.query(
-      `insert into businesses (name, category, suburb, address, phone, hours, description, is_spirit, embedding)
-       values ($1, $2, $3, '1 Main Road', $4, 'Mon to Fri 8 to 5', $5, $6, $7)`,
+      `insert into businesses (name, category, suburb, address, phone, dial_number, hours, description, is_spirit, embedding)
+       values ($1, $2, $3, '1 Main Road', $4, $8, 'Mon to Fri 8 to 5', $5, $6, $7)`,
       [
         b.name,
         b.category,
@@ -89,14 +110,15 @@ beforeAll(async () => {
         b.description,
         b.is_spirit ?? false,
         b.axis === null ? null : embedding(b.axis),
+        b.dial,
       ],
     );
   }
   for (const r of residents) {
     await db.query(
-      `insert into residents (surname, initials, suburb, address, phone, embedding)
-       values ($1, $2, $3, '2 Side Street', $4, $5)`,
-      [r.surname, r.initials, r.suburb, r.phone, embedding(r.axis)],
+      `insert into residents (surname, initials, suburb, address, phone, dial_number, embedding)
+       values ($1, $2, $3, '2 Side Street', $4, $6, $5)`,
+      [r.surname, r.initials, r.suburb, r.phone, embedding(r.axis), r.dial],
     );
   }
 }, 60_000);
@@ -229,6 +251,15 @@ describe('search_businesses', () => {
     expect(rows.every((r) => r.is_spirit)).toBe(true);
   });
 
+  it("[Req 11.7] returns each listing's dial number for the book", async () => {
+    const { rows } = await asRole(db, 'service_role', () =>
+      db.query<{ name: string; dial_number: string }>(
+        `select name, dial_number from search_businesses('${embedding(0)}', 'geyser', 'Edenvale')`,
+      ),
+    );
+    expect(rows[0]).toEqual({ name: 'Ndlovu Plumbing', dial_number: '61001' });
+  });
+
   it('[Req 4.4] returns at most the number asked for, 10 by default', async () => {
     expect(await search(`'${embedding(0)}', 'repairs', null, true, false, 2`)).toHaveLength(2);
     expect((await search(`'${embedding(0)}', 'repairs'`)).length).toBeLessThanOrEqual(10);
@@ -275,6 +306,46 @@ describe('lookup_number', () => {
       )
     ).rows;
 
+  it('[Req 11.2] finds a listing by its short dial number too, and says what that number is', async () => {
+    expect(await lookup('61001')).toEqual([{ kind: 'business', name: 'Ndlovu Plumbing' }]);
+    expect(await lookup('72003')).toEqual([{ kind: 'resident', name: 'Nkosi T' }]);
+    const { rows } = await asRole(db, 'service_role', () =>
+      db.query<{ dial_number: string }>(`select dial_number from lookup_number('0110001001')`),
+    );
+    expect(rows[0]?.dial_number).toBe('61001');
+  });
+
+  it('[Req 11.1] refuses a dial number that is not five digits starting 2 to 9, or starts like 666, 911 or 999', async () => {
+    for (const dial of ['10230', '13130', '01234', '1234', '612345', '66601', '91100', '99900']) {
+      await expect(
+        db.query(
+          `insert into businesses (name, category, suburb, address, phone, dial_number, hours, description)
+           values ('Bad Dial', 'Plumber', 'Edenvale', '3 Road', '011 000 1099', $1, 'Never', 'Must not exist')`,
+          [dial],
+        ),
+        dial,
+      ).rejects.toThrow(/check constraint|not-null/);
+    }
+  });
+
+  it('[Req 11.1] refuses two listings with the same dial number', async () => {
+    await expect(
+      db.query(
+        `insert into businesses (name, category, suburb, address, phone, dial_number, hours, description)
+         values ('Copy Dial', 'Plumber', 'Edenvale', '3 Road', '011 000 1098', '61001', 'Never', 'Same dial')`,
+      ),
+    ).rejects.toThrow(/unique|duplicate/);
+  });
+
+  it('[Req 11.1] needs a dial number on every listing', async () => {
+    await expect(
+      db.query(
+        `insert into businesses (name, category, suburb, address, phone, hours, description)
+         values ('No Dial', 'Plumber', 'Edenvale', '3 Road', '011 000 1097', 'Never', 'No dial number')`,
+      ),
+    ).rejects.toThrow(/not-null|null value/);
+  });
+
   it('[Req 11.2, 11.4] finds the business or the household behind a dialled number', async () => {
     expect(await lookup('0110001001')).toEqual([{ kind: 'business', name: 'Ndlovu Plumbing' }]);
     expect(await lookup('0110002003')).toEqual([{ kind: 'resident', name: 'Nkosi T' }]);
@@ -289,8 +360,8 @@ describe('lookup_number', () => {
     for (const phone of ['011 123 4567', '082 000 1234', '011 000 123', '1023']) {
       await expect(
         db.query(
-          `insert into businesses (name, category, suburb, address, phone, hours, description)
-           values ('Real Number', 'Plumber', 'Edenvale', '3 Road', $1, 'Never', 'Must not exist')`,
+          `insert into businesses (name, category, suburb, address, phone, dial_number, hours, description)
+           values ('Real Number', 'Plumber', 'Edenvale', '3 Road', $1, '69999', 'Never', 'Must not exist')`,
           [phone],
         ),
         phone,
@@ -301,14 +372,14 @@ describe('lookup_number', () => {
   it('[Req 11.1] refuses a second listing with the same number, however it is spaced', async () => {
     await expect(
       db.query(
-        `insert into businesses (name, category, suburb, address, phone, hours, description)
-         values ('Copycat', 'Plumber', 'Edenvale', '3 Road', '0110001001', 'Never', 'Same number')`,
+        `insert into businesses (name, category, suburb, address, phone, dial_number, hours, description)
+         values ('Copycat', 'Plumber', 'Edenvale', '3 Road', '0110001001', '69998', 'Never', 'Same number')`,
       ),
     ).rejects.toThrow(/unique|duplicate/);
     await expect(
       db.query(
-        `insert into residents (surname, initials, suburb, address, phone)
-         values ('Dlamini', 'S', 'Soweto', '4 Street', '011-000-2001')`,
+        `insert into residents (surname, initials, suburb, address, phone, dial_number)
+         values ('Dlamini', 'S', 'Soweto', '4 Street', '011-000-2001', '79999')`,
       ),
     ).rejects.toThrow(/unique|duplicate/);
   });

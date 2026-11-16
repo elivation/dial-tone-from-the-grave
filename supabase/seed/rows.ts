@@ -5,6 +5,8 @@ export type BusinessSeed = {
   suburb: string;
   address: string;
   phone: string;
+  /** The short number to dial on the rotary phone, five digits. Printed exchange style, e.g. HO 6-1001. */
+  dial_number: string;
   hours: string;
   is_24hr: boolean;
   description: string;
@@ -18,6 +20,7 @@ export type ResidentSeed = {
   suburb: string;
   address: string;
   phone: string;
+  dial_number: string;
 };
 
 /** A listing number in the fictional 011 000 xxxx range, printed the way the book prints it. */
