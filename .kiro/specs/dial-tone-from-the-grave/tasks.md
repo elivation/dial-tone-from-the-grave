@@ -247,15 +247,15 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/MuteToggle/MuteToggle.test.tsx` (initial state muted; toggle changes state; remembered choice; keyboard); `tests/e2e/call-flow.spec.ts` (unmute survives a reload)
 
-- [ ] 15. Supabase migrations: extensions, tables, RLS, RPCs
+- [x] 15. Supabase migrations: extensions, tables, RLS, RPCs
 
-  Write migration files: `0001_extensions.sql` (enable pgvector, pg_trgm), `0002_businesses.sql` (table, indexes, RLS, public read policy, `phone_digits` generated column with a unique index), `0003_residents.sql` (the same for residents), `0004_rate_limits.sql` (table, RLS no public access, `increment_rate_limit` function), `0005_rpcs.sql` (`search_businesses`, `search_residents` and `lookup_number` per design). Apply with `supabase db push`. Verify RLS on all three tables.
+  Write migration files: `0001_extensions.sql` (enable pgvector, pg_trgm), `0002_businesses.sql` (table, indexes, RLS, public read policy, `phone_digits` generated column with a unique index), `0003_residents.sql` (the same for residents), `0004_rate_limits.sql` (table, RLS no public access, `increment_rate_limit` function), `0005_rpcs.sql` (`search_businesses`, `search_residents` and `lookup_number` per design). Apply with `pnpm db:push:dry` (show the list), then `pnpm db:push`. Verify with `pnpm db:verify` (read-only), then generate `lib/database.types.ts` with `pnpm db:types`.
 
-  Done when: `supabase db push` succeeds; all five migration files committed; RLS verified on all tables via `supabase inspect db rls`.
+  Done when: `pnpm db:push` succeeds; all five migration files committed; `pnpm db:verify` shows RLS on every table, no public read, and every function runnable by `service_role` only; `lib/database.types.ts` generated.
 
   Requirements: Req 4.1, 4.2, Req 6.3, Req 10.6, Req 11.1, 11.4
 
-  Tests: RLS check hook fires on each migration save; manual verification of RLS via inspect.
+  Tests: `supabase/migrations.test.ts` (21 tests in PGlite with Supabase roles); RLS check hook on each migration save; `pnpm db:verify` against the live database.
 
 - [ ] 16. Create the embed Edge Function
 

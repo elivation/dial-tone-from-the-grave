@@ -1105,7 +1105,7 @@ The Vercel build runs `tsc --noEmit` and `eslint` as part of the Next.js build. 
 
 Migrations live in `supabase/migrations/` and are applied with `supabase db push` before deployment. The order is:
 
-1. `0001_extensions.sql`: enable `pgvector`, `pg_trgm`.
+1. `0001_extensions.sql`: enable `pgvector`, `pg_trgm` (in the `extensions` schema).
 2. `0002_businesses.sql`: create businesses table, indexes, RLS.
 3. `0003_residents.sql`: create residents table, indexes, RLS.
 4. `0004_rate_limits.sql`: create rate_limits table, RLS, helper function.
@@ -1114,6 +1114,15 @@ Migrations live in `supabase/migrations/` and are applied with `supabase db push
 7. `0007_seed_residents.sql`: insert ~80 fictional residents.
 
 Seed files call the embed Edge Function for each row to generate and store embeddings.
+
+How migrations reach the live database:
+
+- **New migrations:** schema changes are only ever made as migration files, created with `supabase migration new <name>`, never through the dashboard. The first five use `0001` to `0005` as their version. Anything made with `migration new` gets a timestamp, which sorts after them.
+- **The connection:** `SUPABASE_DB_URL` in `.env.local` holds the session pooler connection string. It is never printed, logged or committed. The Supabase CLI and `dotenv-cli` are pinned dev dependencies.
+- **Pushing:** `pnpm db:push:dry` lists what would be applied. Always run it first and show the list. Then `pnpm db:push`, which needs `--yes` when it runs without a terminal.
+- **Checking:** `pnpm db:verify` runs `supabase/verify.sql` through `scripts/psql-readonly.mjs`. That script splits the URL itself, so psql never parses it (its URI parser misreads some passwords), and opens a read-only session. The session pooler ignores `PGOPTIONS`, so the script sets read-only as the session's first command. It prints nothing from psql's own errors, and every result row starts with `CHECK|`.
+- **Types:** `pnpm db:types` regenerates `lib/database.types.ts` from the live schema.
+- **Never:** no drops or truncates without asking first, and no legacy anon or service_role keys.
 
 ---
 

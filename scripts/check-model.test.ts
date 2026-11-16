@@ -36,7 +36,7 @@ describe('public/models/we500.glb structure', () => {
 
     for (const required of REQUIRED_NODES) {
       const found = [...names].some((n) => n.includes(required));
-      expect(found, `Node "${required}" missing from we500.glb — re-run pnpm optimize-assets`).toBe(
+      expect(found, `Node "${required}" missing from we500.glb. Re-run pnpm optimize-assets`).toBe(
         true,
       );
     }

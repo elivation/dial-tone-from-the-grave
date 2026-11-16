@@ -13,7 +13,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "optimize-assets": "gltf-transform optimize assets-src/phone/we500.glb public/models/we500.glb --compress meshopt --texture-compress webp --texture-size 2048 --join false --flatten false --instance false --simplify false && cwebp -q 85 assets-src/textures/dark_wooden_planks_diff_2k.jpg -o public/textures/dark_wooden_planks_diff_2k.webp"
+    "optimize-assets": "gltf-transform optimize assets-src/phone/we500.glb public/models/we500.glb --compress meshopt --texture-compress webp --texture-size 2048 --join false --flatten false --instance false --simplify false && cwebp -q 85 assets-src/textures/dark_wooden_planks_diff_2k.jpg -o public/textures/dark_wooden_planks_diff_2k.webp",
+    "db:push:dry": "dotenv -e .env.local -- sh -c 'supabase db push --dry-run --db-url \"$SUPABASE_DB_URL\"'",
+    "db:push": "dotenv -e .env.local -- sh -c 'supabase db push --db-url \"$SUPABASE_DB_URL\"'",
+    "db:types": "dotenv -e .env.local -- sh -c 'supabase gen types typescript --db-url \"$SUPABASE_DB_URL\" --schema public > lib/database.types.ts' && prettier --write lib/database.types.ts",
+    "db:verify": "dotenv -e .env.local -- node scripts/psql-readonly.mjs -f supabase/verify.sql"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",
@@ -42,6 +46,7 @@
     "@types/react-dom": "^19",
     "@types/three": "0.177.0",
     "@vitejs/plugin-react": "4.5.2",
+    "dotenv-cli": "11.1.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
     "fast-check": "3.23.2",
@@ -50,6 +55,7 @@
     "lint-staged": "15.5.2",
     "pngjs": "7.0.0",
     "prettier": "3.5.3",
+    "supabase": "3.1.0",
     "tailwindcss": "4.3.3",
     "typescript": "^5",
     "vitest": "3.2.4"
