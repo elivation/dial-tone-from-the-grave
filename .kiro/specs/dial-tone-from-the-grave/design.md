@@ -1059,6 +1059,13 @@ The browser never queries Supabase: every read goes through our API routes with 
 
 The cron fires daily at 10:00 UTC, which calls `/api/health`. This keeps the Supabase free project from pausing.
 
+Hosting decisions (15 November 2026):
+
+- The app runs on the owner's own Vercel Pro team ("Clynton's projects"). It is paid for by the owner, not funded by any sponsor, and stays active until 29 January 2027.
+- The database is a Supabase free project, added through the Vercel integration. A free project pauses after a week without activity, so the daily keepalive cron (task 31) is required.
+- That project sits in a Supabase org Vercel manages, and its connection strings are Vercel sensitive variables, which can't be pulled. Migrations are applied with `supabase db push --db-url` and the owner's direct connection string, entered in the owner's own terminal.
+- Pro allows longer function run times. The streaming operator route sets its maximum duration explicitly (task 22).
+
 ### Environment variables (full list for .env.example)
 
 ```bash

@@ -545,7 +545,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 - [ ] 39. Write SUBMISSION.md checklist
 
-  Checklist table: Requirement, Status, Where to find it. Rows: working public URL, Devpost description, demo video under 3 minutes on YouTube, public GitHub repo with MIT licence in About section, `.kiro/` at repo root and not gitignored, Kiro write-up (KIRO_USAGE.md), free judge access until 29 January 2027. Confirm MIT LICENSE file exists.
+  Checklist table: Requirement, Status, Where to find it. Rows: working public URL, Devpost description, demo video under 3 minutes on YouTube, public GitHub repo with MIT licence in About section, `.kiro/` at repo root and not gitignored, Kiro write-up (KIRO_USAGE.md), free judge access until 29 January 2027. Bonus prizes, done near the end: a public blog post about Kiro and the project for the Bonus Blog Prize, a social post starting with `#KiroweenHackathon26` for the Social Blitz Prize, and both URLs added to the submission. Confirm MIT LICENSE file exists.
 
   Done when: file present; all rows have status and location; MIT LICENSE present.
 
