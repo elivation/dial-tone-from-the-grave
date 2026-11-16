@@ -17,7 +17,9 @@
     "db:push:dry": "dotenv -e .env.local -- sh -c 'supabase db push --dry-run --db-url \"$SUPABASE_DB_URL\"'",
     "db:push": "dotenv -e .env.local -- sh -c 'supabase db push --db-url \"$SUPABASE_DB_URL\"'",
     "db:types": "dotenv -e .env.local -- sh -c 'supabase gen types typescript --db-url \"$SUPABASE_DB_URL\" --schema public > lib/database.types.ts' && prettier --write lib/database.types.ts",
-    "db:verify": "dotenv -e .env.local -- node scripts/psql-readonly.mjs -f supabase/verify.sql"
+    "db:verify": "dotenv -e .env.local -- node scripts/psql-readonly.mjs -f supabase/verify.sql",
+    "fn:deploy": "dotenv -e .env.local -- node scripts/deploy-function.mjs",
+    "fn:smoke": "dotenv -e .env.local -- node scripts/embed-smoke.mjs"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",

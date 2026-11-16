@@ -257,15 +257,15 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `supabase/migrations.test.ts` (21 tests in PGlite with Supabase roles); RLS check hook on each migration save; `pnpm db:verify` against the live database.
 
-- [ ] 16. Create the embed Edge Function
+- [x] 16. Create the embed Edge Function
 
-  Write `supabase/functions/embed/index.ts`: accepts `{ text: string }` POST, calls the Supabase AI gte-small model, returns `{ embedding: number[] }`. Deploy with `supabase functions deploy embed`. Smoke test: call with a known string, assert returned array has length 384.
+  Write `supabase/functions/embed/handler.ts` (pure, testable: POST `{ text }`, at most 2000 characters, returns `{ embedding }` of 384 numbers, errors without internal detail) and `index.ts` (wires it to `withSupabase({ auth: 'secret' })` and `Supabase.ai.Session('gte-small')` with `mean_pool` and `normalize`). Set `verify_jwt = false` for `embed` in `supabase/config.toml`. Deploy with `pnpm fn:deploy embed` (Supabase bundles it, no Docker; `SUPABASE_ACCESS_TOKEN` from `.env.local`). Smoke test with `pnpm fn:smoke`.
 
-  Done when: function deployed; smoke test passes; `pnpm typecheck` clean.
+  Done when: function deployed; smoke test passes (secret key gets 384 normalised numbers; no key and the publishable key are refused; blank text is refused; a geyser query is nearer a plumber than a pharmacy); `pnpm typecheck` clean.
 
   Requirements: Req 4.1, 4.2 (embedding underpins both search tools)
 
-  Tests: `supabase/functions/embed/embed.test.ts` (returned array length 384)
+  Tests: `supabase/embed.test.ts` (7 handler tests); `scripts/embed-smoke.mjs` against the deployed function
 
 - [ ] 17. Seed business listings (150 businesses + 12 spirit listings)
 

@@ -1,52 +1,22 @@
-// Supabase Edge Function: embed
-// Accepts { text: string }, returns { embedding: number[] } using the
-// built-in gte-small model (384 dimensions).
+// Supabase Edge Function: embed.
+// Takes { text } and returns { embedding }, 384 numbers from the built-in gte-small model.
 //
-// Authentication: called only from server-side routes using the secret key.
-// verify_jwt must be set to false in config.toml (secret keys are not JWTs).
+// Only our server may call it: `auth: 'secret'` accepts nothing but the project's default secret
+// key on the apikey header, so nobody else can spend its compute. verify_jwt is off for this
+// function in config.toml, because secret keys are not JWTs.
+import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
+import { withSupabase } from 'npm:@supabase/server@1.9.2';
+import { handleEmbed } from './handler.ts';
 
-import { createClient } from 'npm:@supabase/supabase-js@2';
+const model = new Supabase.ai.Session('gte-small');
 
-Deno.serve(async (req: Request) => {
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
-  }
+const embedFunction = {
+  fetch: withSupabase({ auth: 'secret' }, (req) =>
+    handleEmbed(req, async (text) => {
+      const output = await model.run(text, { mean_pool: true, normalize: true });
+      return Array.from(output as ArrayLike<number>);
+    }),
+  ),
+};
 
-  // Read the secret key from the new SUPABASE_SECRET_KEYS env var (JSON object).
-  const secretKeysJson = Deno.env.get('SUPABASE_SECRET_KEYS');
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-
-  if (!secretKeysJson || !supabaseUrl) {
-    return new Response('Missing environment variables', { status: 500 });
-  }
-
-  const secretKey = (JSON.parse(secretKeysJson) as Record<string, string>)['default'];
-  if (!secretKey) {
-    return new Response('Missing default secret key', { status: 500 });
-  }
-
-  const body = (await req.json()) as { text?: string };
-  if (typeof body.text !== 'string' || body.text.trim() === '') {
-    return new Response(JSON.stringify({ error: 'text is required' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  const supabase = createClient(supabaseUrl, secretKey);
-
-  const { data, error } = await supabase.functions.invoke('_embeddings', {
-    body: { input: body.text, model: 'gte-small' },
-  });
-
-  if (error || !data) {
-    return new Response(JSON.stringify({ error: 'Embedding failed' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  return new Response(JSON.stringify({ embedding: data.embedding as number[] }), {
-    headers: { 'Content-Type': 'application/json' },
-  });
-});
+export default embedFunction;
