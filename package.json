@@ -19,7 +19,9 @@
     "db:types": "dotenv -e .env.local -- sh -c 'supabase gen types typescript --db-url \"$SUPABASE_DB_URL\" --schema public > lib/database.types.ts' && prettier --write lib/database.types.ts",
     "db:verify": "dotenv -e .env.local -- node scripts/psql-readonly.mjs -f supabase/verify.sql",
     "fn:deploy": "dotenv -e .env.local -- node scripts/deploy-function.mjs",
-    "fn:smoke": "dotenv -e .env.local -- node scripts/embed-smoke.mjs"
+    "fn:smoke": "dotenv -e .env.local -- node scripts/embed-smoke.mjs",
+    "db:seed": "dotenv -e .env.local -- tsx supabase/seed/cli.ts",
+    "db:search-smoke": "dotenv -e .env.local -- node scripts/search-smoke.mjs"
   },
   "dependencies": {
     "@react-three/drei": "10.7.9",
@@ -59,6 +61,7 @@
     "prettier": "3.5.3",
     "supabase": "3.1.0",
     "tailwindcss": "4.3.3",
+    "tsx": "4.23.15",
     "typescript": "^5",
     "vitest": "3.2.4"
   },

@@ -855,6 +855,8 @@ export function isSpookyQuery(query: string): boolean {
 
 The server checks this before calling the RPC and passes `include_spirit: true` if the query is spooky.
 
+The 1313 path (`spirit_only`) still needs a query embedding. An empty string is refused by the embed function. A zero vector makes the cosine distance NaN, which breaks the ordering. So 1313 embeds the fixed phrase "haunted spirit listings".
+
 ### Embedding at query time
 
 The search route calls the Supabase Edge Function to get a 384-dimension vector for the user's query string, then passes it to the RPC. The Edge Function is called with the Supabase secret key (`SUPABASE_SECRET_KEY`), which only exists on the server.
@@ -1121,6 +1123,13 @@ Migrations live in `supabase/migrations/` and are applied with `supabase db push
 7. `0007_seed_residents.sql`: insert ~80 fictional residents.
 
 Seed files call the embed Edge Function for each row to generate and store embeddings.
+
+As built:
+
+- **The data:** 158 ordinary businesses across 33 trades, 12 spirit listings, 11 boxed adverts and 80 invented residents, spread over 19 suburbs. Business numbers run from 011 000 1001 and residents from 011 000 5001.
+- **The files:** the data lives in TypeScript (`supabase/seed/businesses.ts`, `residents.ts`), not in SQL migrations, so the tests can check it.
+- **Seeding:** `pnpm db:seed` embeds each listing as "{name}. {trade} in {suburb}, Johannesburg. {description}" and upserts on `phone_digits`, so running it again updates the same rows. It prints only counts.
+- **Checking:** `pnpm db:search-smoke` checks live search end to end.
 
 How migrations reach the live database:
 

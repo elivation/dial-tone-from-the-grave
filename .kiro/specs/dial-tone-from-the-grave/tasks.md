@@ -267,17 +267,17 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `supabase/embed.test.ts` (7 handler tests); `scripts/embed-smoke.mjs` against the deployed function
 
-- [ ] 17. Seed business listings (150 businesses + 12 spirit listings)
+- [x] 17. Seed business listings (150 businesses + 12 spirit listings)
 
-  Write `supabase/seed/businesses.ts`: array of ~150 fictional businesses across Johannesburg (design, Johannesburg flavour): the east, north, west and Soweto, at least 12 suburbs, and at least the trades Req 14.2 lists, with prices in rand where they appear. Include ~12 spirit listings (`is_spirit: true`) and some boxed adverts (`is_advert: true`). Every phone is a unique `011 000 xxxx` number. Write `supabase/seed/run.ts`: for each row, call the embed Edge Function and upsert into businesses via the server secret key client.
+  Write `supabase/seed/businesses.ts`: array of ~150 fictional businesses across Johannesburg (design, Johannesburg flavour): the east, north, west and Soweto, at least 12 suburbs, and at least the trades Req 14.2 lists, with prices in rand where they appear. Include ~12 spirit listings (`is_spirit: true`) and some boxed adverts (`is_advert: true`). Every phone is a unique `011 000 xxxx` number. Write `supabase/seed/run.ts` (`seedAll`: embed every listing through the embed function, then upsert in batches of 25, matched on `phone_digits` so a re-run updates instead of duplicating) and `supabase/seed/cli.ts`, run with `pnpm db:seed`. Check live search with `pnpm db:search-smoke`.
 
   Done when: seed runs without error; `SELECT COUNT(*) FROM businesses` >= 150; at least 12 rows with `is_spirit = true`; brand name grep on seed file returns nothing.
 
   Requirements: Req 4.1, Req 7.1, Req 5.1, 5.2, Req 11.1, Req 14.1, 14.2
 
-  Tests: brand name scan on seed file; row count verification; `supabase/seed/seed.test.ts` with [P14] (unique numbers, `011 000 xxxx`, no clash with operator or emergency numbers, across businesses and residents)
+  Tests: `supabase/seed/seed.test.ts` (brand-name scan, counts, fields, [P14]); `supabase/seed/joburg.test.ts`; `supabase/seed/run.test.ts`; `lib/brandNames.test.ts`; live row counts with `pnpm db:verify` style checks; `pnpm db:search-smoke` (unique numbers, `011 000 xxxx`, no clash with operator or emergency numbers, across businesses and residents)
 
-- [ ] 18. Seed resident listings (80 residents)
+- [x] 18. Seed resident listings (80 residents)
 
   Write `supabase/seed/residents.ts`: array of ~80 invented residents with South African surname mix (van der Merwe, Botha, Nkosi, Dlamini, Patel, Singh, Coetzee, etc.) across the same Johannesburg suburbs, each with a unique `011 000 xxxx` number not used by any business. Include surname variants to exercise fuzzy match. All phones fictional. Run seed with embedding.
 
