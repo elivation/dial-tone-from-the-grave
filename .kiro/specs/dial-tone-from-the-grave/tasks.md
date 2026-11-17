@@ -377,7 +377,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/PhoneBookPage/PhoneBookPage.test.tsx` (tab labels visible; tab click calls onSectionChange; spiritOnly hides tabs; keyboard navigation)
 
-- [-] 44. Build PhoneBook3D (3D open book, ported from book-test.html)
+- [x] 44. Build PhoneBook3D (3D open book, ported from book-test.html)
 
   Create `components/PhoneCanvas/PhoneBook3D.tsx`. An open book positioned to the right of the phone on the desk. Visible only when `results` prop is non-empty.
 
@@ -393,7 +393,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/PhoneCanvas/PhoneBook3D.test.tsx` (renders without throwing when WebGL mocked; does not render when results array is empty; switches layout on activeSection prop change)
 
-- [ ] 28. Build StaticOverlay component
+- [-] 28. Build StaticOverlay component
 
   Create `components/Static/StaticOverlay.tsx`. Full-viewport CSS animation simulating TV static (alternating opacity on a noise-pattern SVG). Triggered when `visible` prop is true. With prefers-reduced-motion: 200 ms opacity fade only.
 
