@@ -676,7 +676,7 @@ Voice: pitch 1.3, rate 0.7, voiceHint "female".
 
 ### Claude call structure
 
-Model: read from `ANTHROPIC_MODEL` env var (default `claude-haiku-5-5`). Max tokens: 300. Temperature: 0.7. Stream: true.
+Model: read from `ANTHROPIC_MODEL` env var (default `claude-haiku-5-5`). Max tokens: 300. Stream: true. No temperature is sent, because the Haiku model rejects it with a 400.
 
 The request to Claude is built in `app/api/operator/route.ts`:
 

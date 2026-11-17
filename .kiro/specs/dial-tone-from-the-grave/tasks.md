@@ -317,7 +317,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/operators.test.ts` (no operator on emergency number; all ring counts valid)
 
-- [-] 22. Implement /api/operator route (streaming SSE)
+- [x] 22. Implement /api/operator route (streaming SSE)
 
   Create `app/api/operator/route.ts`. Zod validation. Reject: unknown number (400), input > MAX_INPUT_CHARS (400), turnIndex >= MAX_TURNS_PER_CALL (send goodbye SSE). Check IP and global rate limits. For 1313: return hardcoded greeting + tool_result with spirit listings, no Claude call. For others: build Claude request using `process.env.ANTHROPIC_MODEL ?? "claude-haiku-5-5"`, stream reply, intercept tool_use blocks, run matching RPC, inject tool_result, continue stream. Inject Johannesburg time into 1026 prompt. Append goodbye instruction on final turn.
 
@@ -327,7 +327,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `app/api/operator/route.test.ts` (6 unit tests)
 
-- [ ] 23. Build OperatorPanel component
+- [-] 23. Build OperatorPanel component
 
   Create `components/OperatorPanel/OperatorPanel.tsx`. Props: `operatorNumber`, `onMessage`, `onHangUp`, `turnIndex`, `maxTurns`. Display: operator name, transcript scroll, input area. Input area: show SpeechRecognition button if available; always show typed text input. Feature-detect `window.SpeechRecognition` on mount. After reply streams, call `speechSynthesis.speak()` with the voice from `pickVoice`: an `en-ZA` voice when the browser has one, otherwise the operator's voice hint. Respect mute state.
 
