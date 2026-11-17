@@ -403,7 +403,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/Static/StaticOverlay.test.tsx` (3 tests)
 
-- [ ] 45. Dial a number from the book
+- [-] 45. Dial a number from the book
 
   Create `app/api/number/route.ts` (Zod `{ digits }`, search rate limit, `lookup_number` RPC, returns `{ kind }` only). In `useCall`, after the 2-second pause, look up numbers that are not operators or emergency numbers, staying in `dialling` while waiting: `listing` sends `NUMBER_MATCHED` with `callee: 'listing'` and 2 rings, anything else `NO_MATCH`. Extend `callReducer` with `callee` on `ringing` and `connected`. In `/api/operator`, accept listing numbers: look the row up server-side, build the prompt from `lib/listingGhost.ts`, apply `MAX_TURNS_PER_LISTING_CALL`. Add a Dial button to `ListingCard` and `ResidentRow` that picks up and presses each digit of the listing's short `dial_number` on the shared dial controller, waiting for rest between digits. Add the new env var to `.env.example`.
 
@@ -473,7 +473,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `app/api/health/route.test.ts` (2 unit tests)
 
-- [-] 32. Offline and fallback handling
+- [x] 32. Offline and fallback handling
 
   In `app/page.tsx`, listen to `window.online`/`window.offline` events. When offline: full-screen in-character overlay "The exchange has gone dark. Check your connection." Disable dial. Clear when online. For Claude-down SSE error: show "The operator is unreachable. Please try again later." with hang-up button. For search 500: operator says "The directory is unavailable right now" in character. For speechSynthesis unavailable: text still displayed, voice silently skipped.
 
