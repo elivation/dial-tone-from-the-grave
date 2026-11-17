@@ -7,8 +7,8 @@ import { Handset } from './Handset';
 const states: CallState[] = [
   { status: 'off-hook' },
   { status: 'dialling', digits: '10' },
-  { status: 'ringing', operatorNumber: '1023', ringsRemaining: 2 },
-  { status: 'connected', operatorNumber: '1023', turnIndex: 1 },
+  { status: 'ringing', operatorNumber: '1023', callee: 'operator', ringsRemaining: 2 },
+  { status: 'connected', operatorNumber: '1023', callee: 'operator', turnIndex: 1 },
   { status: 'wrong-number' },
   { status: 'emergency-notice' },
   { status: 'busy' },

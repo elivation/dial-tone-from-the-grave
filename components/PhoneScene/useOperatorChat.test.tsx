@@ -1,6 +1,7 @@
 import { StrictMode, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { LISTING_GREETING } from '@/lib/listingGhost';
 import {
   OPERATOR_DOWN_MESSAGE,
   useOperatorChat,
@@ -25,10 +26,12 @@ const fetchMock = vi.fn<typeof fetch>();
 function setup(
   number: string | null = '1023',
   wrapper?: (props: { children: ReactNode }) => ReactNode,
+  callee: 'operator' | 'listing' = 'operator',
 ) {
   const callbacks = { onTurnSent: vi.fn(), onRateLimited: vi.fn() };
   const initialProps: OperatorChatOptions = {
     operatorNumber: number,
+    callee,
     turnIndex: 0,
     maxTurns: 6,
     ...callbacks,
@@ -255,5 +258,21 @@ describe('useOperatorChat', () => {
     const { result } = setup('1313');
     await waitFor(() => expect(result.current.closing).toBe(true));
     expect(result.current.bookOpen).toBe(true);
+  });
+  it('[Req 11.2] a listing call opens with the listing greeting and sends only digits and the caller words', async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([frame({ type: 'delta', text: 'We close at five.' }), frame({ type: 'done' })]),
+    );
+    const { result } = setup('61019', undefined, 'listing');
+    expect(result.current.transcript).toEqual([{ speaker: 'operator', text: LISTING_GREETING }]);
+    act(() => result.current.send('When do you close?'));
+    await waitFor(() => expect(result.current.streaming).toBe(false));
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+    expect(body).toEqual({
+      number: '61019',
+      message: 'When do you close?',
+      history: [],
+      turnIndex: 0,
+    });
   });
 });

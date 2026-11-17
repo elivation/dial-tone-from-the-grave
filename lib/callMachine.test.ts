@@ -9,8 +9,18 @@ import {
 } from './callMachine';
 
 const dialling = (digits: string): CallState => ({ status: 'dialling', digits });
-const connected: CallState = { status: 'connected', operatorNumber: '1023', turnIndex: 2 };
-const ringing: CallState = { status: 'ringing', operatorNumber: '1023', ringsRemaining: 3 };
+const connected: CallState = {
+  status: 'connected',
+  operatorNumber: '1023',
+  callee: 'operator',
+  turnIndex: 2,
+};
+const ringing: CallState = {
+  status: 'ringing',
+  operatorNumber: '1023',
+  callee: 'operator',
+  ringsRemaining: 3,
+};
 
 describe('callReducer transitions', () => {
   it('[Req 2.2] starts idle and goes off-hook on PICK_UP', () => {
@@ -35,9 +45,31 @@ describe('callReducer transitions', () => {
       callReducer(dialling('1023'), {
         type: 'NUMBER_MATCHED',
         operatorNumber: '1023',
+        callee: 'operator',
         ringCount: 3,
       }),
     ).toEqual(ringing);
+  });
+  it('[Req 11.2] a listing number rings twice, then connects as a listing', () => {
+    const matched = callReducer(dialling('61019'), {
+      type: 'NUMBER_MATCHED',
+      operatorNumber: '61019',
+      callee: 'listing',
+      ringCount: 2,
+    });
+    expect(matched).toEqual({
+      status: 'ringing',
+      operatorNumber: '61019',
+      callee: 'listing',
+      ringsRemaining: 2,
+    });
+    const once = callReducer(matched, { type: 'RING_TICK' });
+    expect(callReducer(once, { type: 'RING_TICK' })).toEqual({
+      status: 'connected',
+      operatorNumber: '61019',
+      callee: 'listing',
+      turnIndex: 0,
+    });
   });
 
   it('[Req 2.6] a number nobody owns goes to wrong-number', () => {
@@ -65,6 +97,7 @@ describe('callReducer transitions', () => {
     expect(callReducer(twice, { type: 'RING_TICK' })).toEqual({
       status: 'connected',
       operatorNumber: '1023',
+      callee: 'operator',
       turnIndex: 0,
     });
   });
@@ -145,11 +178,13 @@ const anyState: fc.Arbitrary<CallState> = fc.oneof(
   fc.record({
     status: fc.constant('ringing' as const),
     operatorNumber: digits,
+    callee: fc.constantFrom('operator' as const, 'listing' as const),
     ringsRemaining: fc.integer({ min: 0, max: 5 }),
   }),
   fc.record({
     status: fc.constant('connected' as const),
     operatorNumber: digits,
+    callee: fc.constantFrom('operator' as const, 'listing' as const),
     turnIndex: fc.integer({ min: 0, max: 10 }),
   }),
   fc.constant<CallState>({ status: 'wrong-number' }),
@@ -175,6 +210,7 @@ const anyEvent: fc.Arbitrary<CallEvent> = fc.oneof(
   fc.record({
     type: fc.constant('NUMBER_MATCHED' as const),
     operatorNumber: digits,
+    callee: fc.constantFrom('operator' as const, 'listing' as const),
     ringCount: fc.integer({ min: 1, max: 3 }),
   }),
 );

@@ -174,7 +174,7 @@ describe('PhoneScene offline', () => {
   });
 
   it('[Req 9.8] hangs up a call in progress when the line goes dark', () => {
-    setCall({ status: 'connected', operatorNumber: '1023', turnIndex: 0 });
+    setCall({ status: 'connected', operatorNumber: '1023', callee: 'operator', turnIndex: 0 });
     setChat();
     render(<PhoneScene />);
     act(goOffline);

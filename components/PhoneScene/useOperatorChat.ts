@@ -1,6 +1,8 @@
 'use client';
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import type { TranscriptEntry } from '@/components/OperatorPanel';
+import type { Callee } from '@/lib/callMachine';
+import { LISTING_GREETING } from '@/lib/listingGhost';
 import { OPERATORS } from '@/lib/operators';
 import { createSseParser, type Listing } from '@/lib/sse';
 
@@ -86,6 +88,8 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
 export type OperatorChatOptions = {
   /** The operator on the line, or null when there is no call. Changing it ends the previous call. */
   operatorNumber: string | null;
+  /** Whether the number is an operator or a listing from the book. */
+  callee: Callee;
   /** User turns already sent in this call. */
   turnIndex: number;
   /** The server's turn cap. The user turn at index `maxTurns - 1` gets the goodbye. */
@@ -247,7 +251,11 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
 
   const closeBook = useCallback(() => dispatch({ type: 'closeBook' }), []);
 
-  const greeting = operatorNumber === null ? undefined : OPERATORS[operatorNumber]?.greeting;
+  const { callee } = options;
+  const operatorGreeting =
+    operatorNumber === null ? undefined : OPERATORS[operatorNumber]?.greeting;
+  const greeting =
+    callee === 'listing' && operatorNumber !== null ? LISTING_GREETING : operatorGreeting;
   const transcript = useMemo<readonly TranscriptEntry[]>(
     () =>
       greeting && operatorNumber !== SPIRIT_LINE

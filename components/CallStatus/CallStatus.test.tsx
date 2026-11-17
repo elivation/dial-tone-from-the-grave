@@ -22,10 +22,9 @@ describe('CallStatus', () => {
   });
 
   it('[Req 9.1] is a polite live region, so screen readers hear each change', () => {
-    expect(show({ status: 'ringing', operatorNumber: '1023', ringsRemaining: 3 })).toHaveAttribute(
-      'aria-live',
-      'polite',
-    );
+    expect(
+      show({ status: 'ringing', operatorNumber: '1023', callee: 'operator', ringsRemaining: 3 }),
+    ).toHaveAttribute('aria-live', 'polite');
   });
 
   it('says something for every state, except the emergency notice which speaks for itself', () => {
@@ -33,8 +32,8 @@ describe('CallStatus', () => {
       { status: 'idle' },
       { status: 'off-hook' },
       { status: 'dialling', digits: '1' },
-      { status: 'ringing', operatorNumber: '1023', ringsRemaining: 3 },
-      { status: 'connected', operatorNumber: '1023', turnIndex: 0 },
+      { status: 'ringing', operatorNumber: '1023', callee: 'operator', ringsRemaining: 3 },
+      { status: 'connected', operatorNumber: '1023', callee: 'operator', turnIndex: 0 },
       { status: 'wrong-number' },
       { status: 'busy' },
     ];

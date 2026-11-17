@@ -163,6 +163,7 @@ describe('useCall', () => {
     expect(hook.result.current.state).toEqual({
       status: 'connected',
       operatorNumber: '1026',
+      callee: 'operator',
       turnIndex: 0,
     });
     expect(audio.stopRingTone).toHaveBeenCalledTimes(1);
@@ -306,5 +307,151 @@ describe('useCall offline', () => {
     act(() => void hook.result.current.controller.press('5'));
     wait(150 + PULSES['5'] * 100);
     expect(hook.result.current.state.status).toBe('off-hook');
+  });
+});
+
+describe('useCall dialling a listing', () => {
+  const LISTING = '61019';
+  const reply = (body: unknown, ok = true) => ({
+    ok,
+    status: ok ? 200 : 429,
+    json: async () => body,
+  });
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchMock = vi.fn(async () => reply({ kind: 'listing', ringCount: 2 }));
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const settle = (ms: number) =>
+    act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+
+  it('[Req 11.2] a listing number rings twice and connects as a listing', async () => {
+    const hook = setup();
+    pickUp(hook);
+    dial(hook, LISTING);
+    await settle(2000);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/number',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ digits: LISTING }) }),
+    );
+    expect(hook.result.current.state).toEqual({
+      status: 'ringing',
+      operatorNumber: LISTING,
+      callee: 'listing',
+      ringsRemaining: 2,
+    });
+    await settle(1000);
+    expect(status(hook)).toBe('ringing');
+    await settle(3000);
+    expect(hook.result.current.state).toEqual({
+      status: 'connected',
+      operatorNumber: LISTING,
+      callee: 'listing',
+      turnIndex: 0,
+    });
+    expect(audio.stopRingTone).toHaveBeenCalledTimes(1);
+  });
+
+  it('[Req 11.2] the 011 number rings the same way', async () => {
+    const hook = setup();
+    pickUp(hook);
+    dial(hook, '0110001234');
+    await settle(2000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(hook.result.current.state).toMatchObject({ status: 'ringing', callee: 'listing' });
+  });
+
+  it('[Req 2.4, 11.2] stays dialling while the lookup is out, with no static or ring yet', async () => {
+    let finish: (value: unknown) => void = () => undefined;
+    fetchMock.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+    const hook = setup();
+    pickUp(hook);
+    dial(hook, LISTING);
+    await settle(2000);
+    expect(hook.result.current.state).toEqual({ status: 'dialling', digits: LISTING });
+    expect(audio.startRingTone).not.toHaveBeenCalled();
+    expect(audio.startStatic).not.toHaveBeenCalled();
+    await act(async () => finish(reply({ kind: 'listing', ringCount: 2 })));
+    expect(status(hook)).toBe('ringing');
+  });
+
+  it('[Req 11.8] an unknown ten digit number is a wrong number', async () => {
+    fetchMock.mockResolvedValue(reply({ kind: 'none' }));
+    const hook = setup();
+    pickUp(hook);
+    dial(hook, '0110009999');
+    await settle(2000);
+    expect(status(hook)).toBe('wrong-number');
+    expect(audio.startStatic).toHaveBeenCalledTimes(1);
+  });
+
+  it('[Req 11.8] an unknown five digit number is a wrong number', async () => {
+    fetchMock.mockResolvedValue(reply({ kind: 'none' }));
+    const hook = setup();
+    pickUp(hook);
+    dial(hook, '99999');
+    await settle(2000);
+    expect(status(hook)).toBe('wrong-number');
+  });
+
+  it.each([
+    ['the network fails', () => fetchMock.mockRejectedValue(new Error('offline'))],
+    ['the route is rate limited', () => fetchMock.mockResolvedValue(reply({}, false))],
+    ['the reply is nonsense', () => fetchMock.mockResolvedValue(reply({ kind: 'banana' }))],
+    [
+      'the reply is not JSON',
+      () =>
+        fetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => Promise.reject(new Error('bad')),
+        }),
+    ],
+  ])('[Req 15.1] a lookup failure is a wrong number when %s', async (_name, arrange) => {
+    arrange();
+    const hook = setup();
+    pickUp(hook);
+    dial(hook, LISTING);
+    await settle(2000);
+    expect(status(hook)).toBe('wrong-number');
+  });
+
+  it('[Req 2.7] hanging up while the lookup is out ignores the late answer', async () => {
+    let finish: (value: unknown) => void = () => undefined;
+    fetchMock.mockImplementation(() => new Promise((resolve) => (finish = resolve)));
+    const hook = setup();
+    pickUp(hook);
+    dial(hook, LISTING);
+    await settle(2000);
+    act(() => hook.result.current.hangUp());
+    await act(async () => finish(reply({ kind: 'listing', ringCount: 2 })));
+    expect(status(hook)).toBe('idle');
+    expect(audio.startRingTone).not.toHaveBeenCalled();
+  });
+
+  it('[Req 2.4] operators, emergency numbers and other lengths never touch the lookup route', async () => {
+    const hook = setup();
+    for (const number of ['1026', '112', '5555', '123456']) {
+      pickUp(hook);
+      dial(hook, number);
+      await settle(2000);
+      act(() => hook.result.current.hangUp());
+      act(() => hook.result.current.dismiss());
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('[Req 2.8] an emergency number still goes to the notice', async () => {
+    const hook = setup();
+    pickUp(hook);
+    dial(hook, '112');
+    await settle(2000);
+    expect(status(hook)).toBe('emergency-notice');
   });
 });

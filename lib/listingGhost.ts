@@ -17,6 +17,8 @@ export type ListingRow = {
 /** Every listing ghost shares one voice and one opening line. The browser never learns the listing's details. */
 export const LISTING_VOICE: VoiceConfig = { pitch: 0.9, rate: 0.85, voiceHint: 'female' };
 export const LISTING_GREETING = 'Hello? The line is faint. Who is calling?';
+/** Matches the server default for MAX_TURNS_PER_LISTING_CALL. The server enforces the real cap. */
+export const LISTING_DEFAULT_MAX_TURNS = 4;
 /** A listing call rings this many times before the ghost answers. */
 export const LISTING_RING_COUNT = 2;
 

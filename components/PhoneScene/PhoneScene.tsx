@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import type { CallState } from '@/lib/callMachine';
+import { LISTING_DEFAULT_MAX_TURNS } from '@/lib/listingGhost';
 import type { BusinessResult, ResidentResult } from '@/lib/listingSearch';
 import type { Listing } from '@/lib/sse';
 import { useOnline } from '@/lib/useOnline';
@@ -45,10 +46,13 @@ export function PhoneScene() {
   const online = useOnline();
   const { state, controller, pickUp, hangUp, dismiss, send } = useCall({ offline: !online });
   const connected = state.status === 'connected' ? state : null;
+  const callee = connected?.callee ?? 'operator';
+  const maxTurns = callee === 'listing' ? LISTING_DEFAULT_MAX_TURNS : MAX_TURNS;
   const chat = useOperatorChat({
     operatorNumber: connected?.operatorNumber ?? null,
+    callee,
     turnIndex: connected?.turnIndex ?? 0,
-    maxTurns: MAX_TURNS,
+    maxTurns,
     onTurnSent: () => send({ type: 'TURN_SENT' }),
     onRateLimited: () => send({ type: 'RATE_LIMITED' }),
   });
@@ -91,10 +95,11 @@ export function PhoneScene() {
           {connected && (
             <OperatorPanel
               operatorNumber={connected.operatorNumber}
+              callee={connected.callee}
               onMessage={chat.send}
               onHangUp={hangUp}
               turnIndex={connected.turnIndex}
-              maxTurns={MAX_TURNS}
+              maxTurns={maxTurns}
               transcript={chat.transcript}
               streaming={chat.streaming}
               closing={chat.closing}

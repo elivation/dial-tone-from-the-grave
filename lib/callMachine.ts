@@ -2,12 +2,15 @@ import { EMERGENCY_NUMBERS } from './operators';
 
 export { EMERGENCY_NUMBERS };
 
+/** Who answers: a ghost operator, or the ghost of a listing from the book. */
+export type Callee = 'operator' | 'listing';
+
 export type CallState =
   | { status: 'idle' }
   | { status: 'off-hook' }
   | { status: 'dialling'; digits: string }
-  | { status: 'ringing'; operatorNumber: string; ringsRemaining: number }
-  | { status: 'connected'; operatorNumber: string; turnIndex: number }
+  | { status: 'ringing'; operatorNumber: string; callee: Callee; ringsRemaining: number }
+  | { status: 'connected'; operatorNumber: string; callee: Callee; turnIndex: number }
   | { status: 'wrong-number' }
   | { status: 'emergency-notice' }
   | { status: 'busy' };
@@ -18,7 +21,7 @@ export type CallEvent =
   | { type: 'DIGIT_DIALLED'; digit: string }
   | { type: 'CALL_PLACED' }
   | { type: 'EMERGENCY_NUMBER' }
-  | { type: 'NUMBER_MATCHED'; operatorNumber: string; ringCount: number }
+  | { type: 'NUMBER_MATCHED'; operatorNumber: string; callee: Callee; ringCount: number }
   | { type: 'NO_MATCH' }
   | { type: 'RING_TICK' }
   | { type: 'TURN_SENT' }
@@ -61,6 +64,7 @@ export function callReducer(state: CallState, event: CallEvent): CallState {
           return {
             status: 'ringing',
             operatorNumber: event.operatorNumber,
+            callee: event.callee,
             ringsRemaining: event.ringCount,
           };
         case 'NO_MATCH':
@@ -73,7 +77,12 @@ export function callReducer(state: CallState, event: CallEvent): CallState {
       if (event.type !== 'RING_TICK') return state;
       return state.ringsRemaining > 1
         ? { ...state, ringsRemaining: state.ringsRemaining - 1 }
-        : { status: 'connected', operatorNumber: state.operatorNumber, turnIndex: 0 };
+        : {
+            status: 'connected',
+            operatorNumber: state.operatorNumber,
+            callee: state.callee,
+            turnIndex: 0,
+          };
 
     case 'connected':
       switch (event.type) {

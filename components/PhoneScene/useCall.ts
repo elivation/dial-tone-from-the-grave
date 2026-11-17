@@ -1,7 +1,14 @@
 'use client';
 import { useCallback, useEffect, useReducer, useState } from 'react';
 import { getAudioEngine, type AudioEngine } from '@/lib/audio';
-import { callReducer, initialCallState, type CallEvent, type CallState } from '@/lib/callMachine';
+import {
+  EMERGENCY_NUMBERS,
+  callReducer,
+  initialCallState,
+  type CallEvent,
+  type CallState,
+} from '@/lib/callMachine';
+import { LISTING_RING_COUNT } from '@/lib/listingGhost';
 import { OPERATORS, type OperatorDefinition } from '@/lib/operators';
 import { useDialController, type DialController } from '@/components/RotaryDial/useDialController';
 import { useDialKeyboard } from '@/components/RotaryDial/useDialKeyboard';
@@ -33,6 +40,28 @@ export const STATIC_MS = 2000;
 export const PIPS_MS = 900;
 /** The busy tone plays for four beats, then the line goes back to idle. */
 export const BUSY_MS = 3000;
+
+/** Only a five digit short number or a ten digit 011 number can belong to a listing. */
+const LISTING_NUMBER = /^(\d{5}|\d{10})$/;
+
+/** Asks the server what a dialled number reaches. Any failure counts as a wrong number. */
+async function reachesListing(digits: string, signal: AbortSignal): Promise<boolean> {
+  try {
+    const response = await fetch('/api/number', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ digits }),
+      signal,
+    });
+    if (!response.ok) return false;
+    const body: unknown = await response.json();
+    return (
+      typeof body === 'object' && body !== null && (body as { kind?: unknown }).kind === 'listing'
+    );
+  } catch {
+    return false;
+  }
+}
 
 export type UseCall = {
   state: CallState;
@@ -79,25 +108,48 @@ export function useCall({
   const atRest = controller.phase === 'idle';
   useEffect(() => {
     if (dialled === null || !atRest) return;
+    const lookup = new AbortController();
     const timer = setTimeout(() => {
       // The reducer sends emergency numbers to their notice. Anything else is looked up here.
       dispatch({ type: 'CALL_PLACED' });
+      if (EMERGENCY_NUMBERS.has(dialled)) return;
       const operator = operators[dialled];
-      dispatch(
-        operator
-          ? {
-              type: 'NUMBER_MATCHED',
-              operatorNumber: operator.number,
-              ringCount: operator.ringCount,
-            }
-          : { type: 'NO_MATCH' },
-      );
+      if (operator) {
+        dispatch({
+          type: 'NUMBER_MATCHED',
+          operatorNumber: operator.number,
+          callee: 'operator',
+          ringCount: operator.ringCount,
+        });
+      } else if (!LISTING_NUMBER.test(dialled)) {
+        dispatch({ type: 'NO_MATCH' });
+      } else {
+        // The line stays in `dialling` while the answer is out. A hang-up or another digit
+        // aborts the request, and an aborted request sends no event.
+        void reachesListing(dialled, lookup.signal).then((found) => {
+          if (lookup.signal.aborted) return;
+          dispatch(
+            found
+              ? {
+                  type: 'NUMBER_MATCHED',
+                  operatorNumber: dialled,
+                  callee: 'listing',
+                  ringCount: LISTING_RING_COUNT,
+                }
+              : { type: 'NO_MATCH' },
+          );
+        });
+      }
     }, DIAL_PAUSE_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      lookup.abort();
+    };
   }, [dialled, atRest, operators]);
 
   const status = state.status;
-  const ringing = state.status === 'ringing' ? state.operatorNumber : null;
+  const ringingNumber = state.status === 'ringing' ? state.operatorNumber : null;
+  const ringingCallee = state.status === 'ringing' ? state.callee : null;
 
   useEffect(() => {
     if (status !== 'off-hook') return;
@@ -106,9 +158,10 @@ export function useCall({
   }, [status, audio]);
 
   useEffect(() => {
-    if (ringing === null) return;
+    if (ringingNumber === null) return;
     audio.startRingTone();
-    const rings = operators[ringing]?.ringCount ?? 0;
+    const rings =
+      ringingCallee === 'listing' ? LISTING_RING_COUNT : (operators[ringingNumber]?.ringCount ?? 0);
     const timers = Array.from({ length: rings }, (_, i) =>
       setTimeout(() => dispatch({ type: 'RING_TICK' }), RING_BURST_MS + i * RING_CYCLE_MS),
     );
@@ -116,7 +169,7 @@ export function useCall({
       timers.forEach(clearTimeout);
       audio.stopRingTone();
     };
-  }, [ringing, operators, audio]);
+  }, [ringingNumber, ringingCallee, operators, audio]);
 
   useEffect(() => {
     if (status !== 'wrong-number') return;

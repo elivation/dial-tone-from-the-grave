@@ -1,6 +1,8 @@
 'use client';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { OPERATORS } from '@/lib/operators';
+import type { Callee } from '@/lib/callMachine';
+import { LISTING_VOICE } from '@/lib/listingGhost';
+import { OPERATORS, type VoiceConfig } from '@/lib/operators';
 import { getAudioEngine } from '@/lib/audio';
 import { pickVoice } from '@/lib/voice';
 import type { MuteControl } from '@/components/MuteToggle/MuteToggle';
@@ -13,6 +15,8 @@ export type TranscriptEntry = { speaker: 'operator' | 'caller'; text: string };
 
 export type OperatorPanelProps = {
   operatorNumber: string;
+  /** A listing ghost has its own voice and no operator entry. Defaults to an operator. */
+  callee?: Callee;
   onMessage: (text: string) => void;
   onHangUp: () => void;
   /** User turns sent so far in this call. */
@@ -32,9 +36,8 @@ const BUTTON =
   'pointer-events-auto rounded border border-amber-200/40 bg-black/70 px-4 py-1 font-serif text-sm tracking-widest text-amber-200/90 hover:bg-amber-200/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-200 disabled:opacity-50';
 
 /** Reads the text aloud. Returns false when there is no speech to wait for. */
-function speak(text: string, operatorNumber: string, onDone: () => void): boolean {
+function speak(text: string, config: VoiceConfig | undefined, onDone: () => void): boolean {
   const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis;
-  const config = OPERATORS[operatorNumber]?.voiceConfig;
   if (!synth || !config || typeof SpeechSynthesisUtterance === 'undefined') return false;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'en-ZA';
@@ -57,6 +60,7 @@ function speak(text: string, operatorNumber: string, onDone: () => void): boolea
 /** The call in progress: what the operator says, and a way to answer by voice or by typing. */
 export function OperatorPanel({
   operatorNumber,
+  callee = 'operator',
   onMessage,
   onHangUp,
   turnIndex,
@@ -67,7 +71,8 @@ export function OperatorPanel({
   onClosed,
   audio,
 }: OperatorPanelProps) {
-  const operator = OPERATORS[operatorNumber];
+  const operator = callee === 'operator' ? OPERATORS[operatorNumber] : undefined;
+  const voiceConfig = callee === 'listing' ? LISTING_VOICE : operator?.voiceConfig;
   const [text, setText] = useState('');
   const [Recogniser, setRecogniser] = useState<RecognitionConstructor | null>(null);
   const [listening, setListening] = useState(false);
@@ -76,10 +81,10 @@ export function OperatorPanel({
   const wasStreaming = useRef(streaming);
   const replyId = useRef(0);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const latest = useRef({ transcript, operatorNumber, audio, closing, onClosed });
+  const latest = useRef({ transcript, voiceConfig, audio, closing, onClosed });
 
   useEffect(() => {
-    latest.current = { transcript, operatorNumber, audio, closing, onClosed };
+    latest.current = { transcript, voiceConfig, audio, closing, onClosed };
   });
 
   // Detected after mount so the server and first client render agree.
@@ -92,7 +97,7 @@ export function OperatorPanel({
     const finished = wasStreaming.current && !streaming;
     wasStreaming.current = streaming;
     if (!finished) return;
-    const { transcript: entries, operatorNumber: number, audio: control } = latest.current;
+    const { transcript: entries, voiceConfig: voice, audio: control } = latest.current;
     // The goodbye is heard, or if nothing is spoken, read, before the line goes dead.
     // Cancelling an earlier utterance fires its end event, which must not start the countdown.
     const id = ++replyId.current;
@@ -103,7 +108,7 @@ export function OperatorPanel({
     const reply = entries[entries.length - 1];
     if (reply?.speaker !== 'operator' || !reply.text) return heard();
     if ((control ?? getAudioEngine()).isMuted()) return heard();
-    if (!speak(reply.text, number, heard)) heard();
+    if (!speak(reply.text, voice, heard)) heard();
   }, [streaming]);
 
   useEffect(
@@ -156,7 +161,9 @@ export function OperatorPanel({
       className="pointer-events-auto flex w-full max-w-md flex-col gap-2 rounded border border-amber-200/30 bg-black/75 p-3 font-serif text-amber-100"
     >
       <header className="flex items-baseline justify-between gap-2">
-        <h2 className="text-lg tracking-wide text-amber-200">{operator?.name ?? 'Operator'}</h2>
+        <h2 className="text-lg tracking-wide text-amber-200">
+          {callee === 'listing' ? 'A ghost on the line' : (operator?.name ?? 'Operator')}
+        </h2>
         <p className="text-sm text-amber-200/70">Turns left: {turnsLeft}</p>
       </header>
       <div

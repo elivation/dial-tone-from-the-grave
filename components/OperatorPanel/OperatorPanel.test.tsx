@@ -138,6 +138,20 @@ describe('OperatorPanel', () => {
     expect(utterance.rate).toBe(0.85);
   });
 
+  it('[Req 11.2] a listing call is headed as a ghost on the line and speaks in the listing voice', () => {
+    const { speak } = stubSpeech();
+    const { props, rerender } = setup({
+      operatorNumber: '61019',
+      callee: 'listing',
+      transcript: reply,
+      streaming: true,
+    });
+    expect(screen.getByRole('heading', { name: 'A ghost on the line' })).toBeInTheDocument();
+    rerender(<OperatorPanel {...props} transcript={reply} streaming={false} />);
+    const utterance = speak.mock.calls[0]![0] as { pitch: number; rate: number };
+    expect(utterance.pitch).toBe(0.9);
+    expect(utterance.rate).toBe(0.85);
+  });
   it('[Req 3.5] stays silent while muted, but still shows the text', () => {
     const { speak } = stubSpeech();
     const { props, rerender } = setup({

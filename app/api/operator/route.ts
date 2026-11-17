@@ -7,6 +7,8 @@ import {
   type BusinessResult,
   type ResidentResult,
 } from '@/lib/listingSearch';
+import { LISTING_DEFAULT_MAX_TURNS, buildListingPrompt } from '@/lib/listingGhost';
+import { lookupListing } from '@/lib/listingLookup';
 import { OPERATORS, type OperatorDefinition } from '@/lib/operators';
 import {
   BUSY_MESSAGE,
@@ -29,6 +31,8 @@ import { isSpookyQuery } from '@/lib/spooky';
 export const maxDuration = 60;
 
 const DEFAULT_MAX_TURNS = 6;
+/** A listing is reached by its five digit short number or its ten digit 011 number. */
+const LISTING_NUMBER = /^(\d{5}|\d{10})$/;
 const DEFAULT_IP_LIMIT = 20;
 const DEFAULT_GLOBAL_CAP = 500;
 /** One search then the spoken answer. A second search is allowed, a third never is. */
@@ -113,8 +117,11 @@ function compactForModel(listings: Listing[]): string {
   );
 }
 
+/** What one call needs from whoever answers it: their prompt and the tools they may use. */
+type Persona = { system: string; tools: OperatorDefinition['tools'] };
+
 async function runTool(
-  operator: OperatorDefinition,
+  persona: Persona,
   use: Anthropic.ToolUseBlock,
   send: Send,
 ): Promise<Anthropic.ToolResultBlockParam> {
@@ -124,7 +131,7 @@ async function runTool(
     content,
     is_error: true,
   });
-  const allowed = operator.tools.find((tool) => tool === use.name);
+  const allowed = persona.tools.find((tool) => tool === use.name);
   try {
     if (allowed === 'search_businesses') {
       const input = businessInput.safeParse(use.input);
@@ -167,20 +174,15 @@ function toAssistantParam(content: Anthropic.ContentBlock[]): Anthropic.ContentB
 }
 
 async function converse(
-  operator: OperatorDefinition,
+  persona: Persona,
   request: OperatorRequest,
-  maxTurns: number,
   apiKey: string,
   signal: AbortSignal,
   send: Send,
 ): Promise<void> {
   const client = new Anthropic({ apiKey });
-  const system = buildSystemPrompt(operator, {
-    maxTurns,
-    finalTurn: request.turnIndex === maxTurns - 1,
-    now: new Date(),
-  });
-  const tools = operator.tools.map((name) => TOOL_DEFINITIONS[name]);
+  const { system } = persona;
+  const tools = persona.tools.map((name) => TOOL_DEFINITIONS[name]);
   const messages: Anthropic.MessageParam[] = [
     ...request.history,
     { role: 'user', content: request.message },
@@ -208,7 +210,7 @@ async function converse(
 
     messages.push({ role: 'assistant', content: toAssistantParam(final.content) });
     const results: Anthropic.ToolResultBlockParam[] = [];
-    for (const use of uses) results.push(await runTool(operator, use, send));
+    for (const use of uses) results.push(await runTool(persona, use, send));
     messages.push({ role: 'user', content: results });
   }
   send({ type: 'done' });
@@ -233,14 +235,17 @@ export async function POST(req: Request): Promise<Response> {
   const request = parsed.data;
 
   const operator = Object.hasOwn(OPERATORS, request.number) ? OPERATORS[request.number] : undefined;
-  if (!operator) return json(400, { error: 'invalid_number' });
+  const isListing = !operator && LISTING_NUMBER.test(request.number);
+  if (!operator && !isListing) return json(400, { error: 'invalid_number' });
 
-  const isSpiritLine = operator.number === SPIRIT_LINE;
+  const isSpiritLine = operator?.number === SPIRIT_LINE;
   if (!isSpiritLine && (request.message.trim() === '' || !historyIsOrdered(request.history))) {
     return json(400, { error: 'invalid_body' });
   }
 
-  const maxTurns = envInt('MAX_TURNS_PER_CALL', DEFAULT_MAX_TURNS);
+  const maxTurns = isListing
+    ? envInt('MAX_TURNS_PER_LISTING_CALL', LISTING_DEFAULT_MAX_TURNS)
+    : envInt('MAX_TURNS_PER_CALL', DEFAULT_MAX_TURNS);
   if (!isSpiritLine && request.turnIndex >= maxTurns) {
     return sseResponse(async (send) => {
       send({ type: 'delta', text: TURN_CAP_GOODBYE });
@@ -257,7 +262,7 @@ export async function POST(req: Request): Promise<Response> {
     return busy();
   }
 
-  if (isSpiritLine) {
+  if (isSpiritLine && operator) {
     try {
       const results = await searchBusinesses({
         text: SPIRIT_EMBED_PHRASE,
@@ -274,6 +279,24 @@ export async function POST(req: Request): Promise<Response> {
     }
   }
 
+  // The prompt comes from the database row, never from anything the browser sent.
+  let persona: Persona;
+  const finalTurn = request.turnIndex === maxTurns - 1;
+  if (operator) {
+    persona = {
+      system: buildSystemPrompt(operator, { maxTurns, finalTurn, now: new Date() }),
+      tools: operator.tools,
+    };
+  } else {
+    try {
+      const listing = await lookupListing(request.number);
+      if (!listing) return json(400, { error: 'invalid_number' });
+      persona = { system: buildListingPrompt(listing, { maxTurns, finalTurn }), tools: [] };
+    } catch {
+      return json(500, { error: 'operator_down' });
+    }
+  }
+
   const globalCount = await bumpGlobalClaudeCounter();
   if (globalCount === null) return json(500, { error: 'operator_down' });
   if (
@@ -285,5 +308,5 @@ export async function POST(req: Request): Promise<Response> {
   const apiKey = process.env['ANTHROPIC_API_KEY'];
   if (!apiKey) return json(500, { error: 'operator_down' });
 
-  return sseResponse((send) => converse(operator, request, maxTurns, apiKey, req.signal, send));
+  return sseResponse((send) => converse(persona, request, apiKey, req.signal, send));
 }
