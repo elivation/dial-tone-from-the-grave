@@ -463,7 +463,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: Playwright or unit test asserting CSP header on `/`
 
-- [-] 31. Implement /api/health and Vercel cron
+- [x] 31. Implement /api/health and Vercel cron
 
   Create `app/api/health/route.ts`: runs `SELECT 1` via the server secret key client, returns `{ ok: true, ts: string }` or 503 on failure. Create `app/api/cron/keepalive/route.ts`: verifies `Authorization: Bearer {CRON_SECRET}` header, then calls the health endpoint and returns its response. Create `vercel.json` with daily cron at `"0 10 * * *"` on `/api/cron/keepalive`.
 
@@ -473,7 +473,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `app/api/health/route.test.ts` (2 unit tests)
 
-- [ ] 32. Offline and fallback handling
+- [-] 32. Offline and fallback handling
 
   In `app/page.tsx`, listen to `window.online`/`window.offline` events. When offline: full-screen in-character overlay "The exchange has gone dark. Check your connection." Disable dial. Clear when online. For Claude-down SSE error: show "The operator is unreachable. Please try again later." with hang-up button. For search 500: operator says "The directory is unavailable right now" in character. For speechSynthesis unavailable: text still displayed, voice silently skipped.
 
