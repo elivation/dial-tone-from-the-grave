@@ -443,7 +443,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `supabase/seed/joburg.test.ts`, `lib/voice.test.ts`
 
-- [-] 29. Rate limit property tests
+- [x] 29. Rate limit property tests
 
   Extract `checkRateLimit(count: number, limit: number): "allowed" | "denied"` as a pure function in `lib/rateLimits.ts`. Write fast-check P10 (c <= L returns allowed), P11 (c > L returns denied), P12 (string with length > MAX_INPUT_CHARS rejected by Zod operator schema).
 
@@ -453,7 +453,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/rateLimits.test.ts` (3 property tests)
 
-- [ ] 30. Add security headers via next.config
+- [-] 30. Add security headers via next.config
 
   In `next.config.ts`, add a `headers()` function applying CSP and other security headers to all routes: `default-src 'self'`, `script-src 'self'`, `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, `font-src 'self' https://fonts.gstatic.com`, `connect-src 'self' https://*.supabase.co`, `img-src 'self' data:`, `media-src 'none'`, `object-src 'none'`, `frame-ancestors 'none'`, plus `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`.
 
