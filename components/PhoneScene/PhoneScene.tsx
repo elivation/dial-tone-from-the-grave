@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { CallState } from '@/lib/callMachine';
 import type { BusinessResult, ResidentResult } from '@/lib/listingSearch';
 import type { Listing } from '@/lib/sse';
@@ -9,7 +9,7 @@ import { EmergencyNotice } from '@/components/EmergencyNotice';
 import { Handset } from '@/components/Handset';
 import { MuteToggle } from '@/components/MuteToggle';
 import { OperatorPanel } from '@/components/OperatorPanel';
-import { PhoneBookPage } from '@/components/PhoneBookPage';
+import { CloseBookButton, PhoneBookPage } from '@/components/PhoneBookPage';
 import type { BookSection } from '@/components/PhoneBookPage';
 import { PhoneCanvasLoader } from '@/components/PhoneCanvas/PhoneCanvasLoader';
 import { useCall } from './useCall';
@@ -54,6 +54,13 @@ export function PhoneScene() {
   const [seen, setSeen] = useState(chat.results);
   const [chosen, setChosen] = useState<BookSection | null>(null);
   const section = chosen ?? defaultSection;
+  const handsetButton = useRef<HTMLButtonElement>(null);
+  // The book's controls vanish with it, so focus goes to the handset rather than to the page.
+  const { closeBook } = chat;
+  const putBookAway = () => {
+    closeBook();
+    handsetButton.current?.focus();
+  };
   if (seen !== chat.results) {
     setSeen(chat.results);
     setChosen(null);
@@ -86,7 +93,7 @@ export function PhoneScene() {
         )}
         <CallStatus state={state} />
         <DialledDisplay digits={numberShown(state)} />
-        <Handset state={state} onPickUp={pickUp} onHangUp={hangUp} />
+        <Handset state={state} onPickUp={pickUp} onHangUp={hangUp} buttonRef={handsetButton} />
       </div>
       {chat.bookOpen && (
         <PhoneBookPage
@@ -94,10 +101,12 @@ export function PhoneScene() {
           residents={residents}
           activeSection={section}
           onSectionChange={setChosen}
+          onClose={putBookAway}
           spiritOnly={spiritOnly}
         />
       )}
-      <div className="absolute top-4 right-4 z-20">
+      <div className="absolute top-4 right-4 z-20 flex gap-2">
+        {chat.bookOpen && <CloseBookButton onClose={putBookAway} />}
         <MuteToggle />
       </div>
       {state.status === 'emergency-notice' && <EmergencyNotice onDismiss={dismiss} />}

@@ -333,6 +333,7 @@ app/page.tsx
       DialledDisplay              (shows digits dialled so far; aria-live)
       HandsetButtons              (pick up / hang up; always interactive)
       MuteToggle                  (mute button)
+      CloseBookButton             ("Close the book", beside MuteToggle, shown while the book is open)
       CallStatus                  (one line on what the line is doing; aria-live; "The phone is ringing" for incoming calls)
       EmergencyNotice             (plain white overlay, shown for emergency-notice state)
       OperatorPanel               (shown when connected)
@@ -387,6 +388,7 @@ type PhoneBookPageProps = {
   residents: ResidentResult[];
   activeSection: 'business' | 'white';
   onSectionChange: (s: 'business' | 'white') => void;
+  onClose: () => void; // Escape inside the book layer; the listing dialog keeps its own Escape
   spiritOnly: boolean;
 };
 ```
@@ -394,6 +396,8 @@ type PhoneBookPageProps = {
 ---
 
 ## Call Flow State Machine
+
+The book stays open after hang-up until the caller closes it. A visible "Close the book" button (mouse, touch and keyboard) and Escape from inside the book both call `closeBook`, and focus then moves to the handset button.
 
 ### Why useReducer, not XState
 

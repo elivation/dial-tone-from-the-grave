@@ -1,4 +1,5 @@
 'use client';
+import type { Ref } from 'react';
 import type { CallState } from '@/lib/callMachine';
 
 const BUTTON =
@@ -9,20 +10,23 @@ export function Handset({
   state,
   onPickUp,
   onHangUp,
+  buttonRef,
 }: {
   state: CallState;
   onPickUp: () => void;
   onHangUp: () => void;
+  /** Lets the page put focus here, for example after the phone book is closed. */
+  buttonRef?: Ref<HTMLButtonElement>;
 }) {
   if (state.status === 'idle') {
     return (
-      <button type="button" className={BUTTON} onClick={onPickUp}>
+      <button ref={buttonRef} type="button" className={BUTTON} onClick={onPickUp}>
         Pick up the handset
       </button>
     );
   }
   return (
-    <button type="button" className={BUTTON} onClick={onHangUp}>
+    <button ref={buttonRef} type="button" className={BUTTON} onClick={onHangUp}>
       Hang up
     </button>
   );

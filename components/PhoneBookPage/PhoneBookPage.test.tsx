@@ -35,17 +35,19 @@ type Props = Partial<Parameters<typeof PhoneBookPage>[0]>;
 
 function setup(props: Props = {}) {
   const onSectionChange = vi.fn();
+  const onClose = vi.fn();
   render(
     <PhoneBookPage
       businesses={[business]}
       residents={[resident]}
       activeSection="white"
       onSectionChange={onSectionChange}
+      onClose={onClose}
       spiritOnly={false}
       {...props}
     />,
   );
-  return { onSectionChange, user: userEvent.setup() };
+  return { onSectionChange, onClose, user: userEvent.setup() };
 }
 
 function mockReducedMotion(reduce: boolean) {
@@ -197,5 +199,26 @@ describe('PhoneBookPage', () => {
     setup({ spiritOnly: true, activeSection: 'white' });
     expect(screen.getByRole('list', { name: 'Business listings' })).toBeInTheDocument();
     expect(screen.queryByText('Nkosi')).not.toBeInTheDocument();
+  });
+  it('[Req 9.3] Escape on a focused tab closes the book', async () => {
+    const { onClose, user } = setup();
+    focusTab('White Pages');
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+  it('[Req 9.3] Escape inside the listing detail dialog closes only the dialog', async () => {
+    const { onClose, user } = setup({ activeSection: 'business' });
+    await user.click(screen.getByRole('button', { name: /Pipe Dreams Plumbing/ }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+  it('[Req 9.3] Escape in a field elsewhere on the page does not close the book', async () => {
+    const { onClose, user } = setup();
+    render(<input aria-label="elsewhere" />);
+    await user.click(screen.getByRole('textbox', { name: 'elsewhere' }));
+    await user.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
