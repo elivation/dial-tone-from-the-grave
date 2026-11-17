@@ -337,7 +337,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/OperatorPanel/OperatorPanel.test.tsx` (4 tests)
 
-- [-] 24. Wire streaming fetch in browser
+- [x] 24. Wire streaming fetch in browser
 
   In `app/page.tsx`, when state is `connected`, open a `fetch` to `/api/operator` and read SSE stream with `ReadableStream`. Handle event types: `delta` (append to transcript), `tool_result` (store results, open phone book), `done` (complete), `error` (in-character message, dispatch as needed). On 429 dispatch `RATE_LIMITED`. Abort fetch on HANG_UP.
 
@@ -347,7 +347,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `app/page.test.tsx` or dedicated hook test (4 tests)
 
-- [ ] 25. Build accessible HTML business section (HtmlOverlay layer of PhoneBook3D)
+- [-] 25. Build accessible HTML business section (HtmlOverlay layer of PhoneBook3D)
 
   Create `components/PhoneBookPage/BusinessSection.tsx`. Each listing prints its short dial number in exchange style with `formatDialNumber` ("HO 6-1001") next to its 011 number (Req 11.7). This is the visually-hidden accessible counterpart to PhoneBook3D's business page. It renders in the `HtmlOverlay` div, invisible to sighted users (positioned off-screen or under the canvas via CSS, not `display:none`), but readable by screen readers and keyboard users. Renders the same data as the 3D page: bold name, suburb, phone, hours, description in a logical DOM order. `is_advert` rows get an `AdvertCard` with an accessible label. `ListingDetail` as a `<dialog>` that opens on Enter/Space or click on a row, containing full listing details. All text meets WCAG AA contrast (minimum 4.5:1) for users on devices without WebGL.
 
