@@ -1,6 +1,6 @@
 import { SPIRIT_EMBED_PHRASE } from '@/lib/embed';
 import { searchBusinesses, searchResidents } from '@/lib/listingSearch';
-import { bumpIpCounter, envInt } from '@/lib/rateLimit';
+import { bumpIpCounter, checkRateLimit, envInt } from '@/lib/rateLimits';
 import { searchRequestSchema } from '@/lib/schemas';
 import { isSpookyQuery } from '@/lib/spooky';
 
@@ -24,7 +24,7 @@ export async function POST(req: Request): Promise<Response> {
   try {
     const count = await bumpIpCounter(req, 'search_count');
     if (count === null) return reply(500, { error: 'search_failed' });
-    if (count > envInt('SEARCH_LIMIT_PER_IP_PER_HOUR', DEFAULT_LIMIT)) {
+    if (checkRateLimit(count, envInt('SEARCH_LIMIT_PER_IP_PER_HOUR', DEFAULT_LIMIT)) === 'denied') {
       return reply(429, {
         error: 'rate_limited',
         message: 'All lines are busy. Try again later.',

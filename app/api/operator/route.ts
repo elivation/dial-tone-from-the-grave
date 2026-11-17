@@ -16,15 +16,19 @@ import {
   TURN_CAP_GOODBYE,
   buildSystemPrompt,
 } from '@/lib/operatorPrompt';
-import { bumpGlobalClaudeCounter, bumpIpCounter, envInt } from '@/lib/rateLimit';
-import { MAX_QUERY_CHARS, operatorRequestSchema, type OperatorRequest } from '@/lib/schemas';
+import { bumpGlobalClaudeCounter, bumpIpCounter, checkRateLimit, envInt } from '@/lib/rateLimits';
+import {
+  createOperatorRequestSchema,
+  MAX_INPUT_CHARS,
+  MAX_QUERY_CHARS,
+  type OperatorRequest,
+} from '@/lib/schemas';
 import { isSpookyQuery } from '@/lib/spooky';
 
 // Vercel Pro allows long streams. Cache Components rejects `runtime` but this option is accepted.
 export const maxDuration = 60;
 
 const DEFAULT_MAX_TURNS = 6;
-const DEFAULT_MAX_INPUT_CHARS = 300;
 const DEFAULT_IP_LIMIT = 20;
 const DEFAULT_GLOBAL_CAP = 500;
 /** One search then the spoken answer. A second search is allowed, a third never is. */
@@ -215,16 +219,20 @@ export async function POST(req: Request): Promise<Response> {
   } catch {
     return json(400, { error: 'invalid_body' });
   }
-  const parsed = operatorRequestSchema.safeParse(raw);
-  if (!parsed.success) return json(400, { error: 'invalid_body' });
+  const parsed = createOperatorRequestSchema(envInt('MAX_INPUT_CHARS', MAX_INPUT_CHARS)).safeParse(
+    raw,
+  );
+  if (!parsed.success) {
+    const tooLong = parsed.error.issues.some(
+      (issue) => issue.code === 'too_big' && issue.path.join('.') === 'message',
+    );
+    return json(400, { error: tooLong ? 'input_too_long' : 'invalid_body' });
+  }
   const request = parsed.data;
 
   const operator = Object.hasOwn(OPERATORS, request.number) ? OPERATORS[request.number] : undefined;
   if (!operator) return json(400, { error: 'invalid_number' });
 
-  if (request.message.length > envInt('MAX_INPUT_CHARS', DEFAULT_MAX_INPUT_CHARS)) {
-    return json(400, { error: 'input_too_long' });
-  }
   const isSpiritLine = operator.number === SPIRIT_LINE;
   if (!isSpiritLine && (request.message.trim() === '' || !historyIsOrdered(request.history))) {
     return json(400, { error: 'invalid_body' });
@@ -241,7 +249,11 @@ export async function POST(req: Request): Promise<Response> {
   // Limits are checked before anything that costs money.
   const ipCount = await bumpIpCounter(req, 'operator_count');
   if (ipCount === null) return json(500, { error: 'operator_down' });
-  if (ipCount > envInt('OPERATOR_LIMIT_PER_IP_PER_HOUR', DEFAULT_IP_LIMIT)) return busy();
+  if (
+    checkRateLimit(ipCount, envInt('OPERATOR_LIMIT_PER_IP_PER_HOUR', DEFAULT_IP_LIMIT)) === 'denied'
+  ) {
+    return busy();
+  }
 
   if (isSpiritLine) {
     try {
@@ -262,7 +274,11 @@ export async function POST(req: Request): Promise<Response> {
 
   const globalCount = await bumpGlobalClaudeCounter();
   if (globalCount === null) return json(500, { error: 'operator_down' });
-  if (globalCount > envInt('CLAUDE_DAILY_GLOBAL_CAP', DEFAULT_GLOBAL_CAP)) return busy();
+  if (
+    checkRateLimit(globalCount, envInt('CLAUDE_DAILY_GLOBAL_CAP', DEFAULT_GLOBAL_CAP)) === 'denied'
+  ) {
+    return busy();
+  }
 
   const apiKey = process.env['ANTHROPIC_API_KEY'];
   if (!apiKey) return json(500, { error: 'operator_down' });

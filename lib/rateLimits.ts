@@ -4,6 +4,11 @@ import { supabaseServer } from '@/lib/supabase-server';
 
 const HOUR_MS = 3_600_000;
 
+/** A count after increment is allowed up to and including the limit. */
+export function checkRateLimit(count: number, limit: number): 'allowed' | 'denied' {
+  return count > limit ? 'denied' : 'allowed';
+}
+
 type CounterField = 'operator_count' | 'search_count' | 'claude_count';
 
 /** Reads a positive integer from the environment, or the fallback when unset or invalid. */
