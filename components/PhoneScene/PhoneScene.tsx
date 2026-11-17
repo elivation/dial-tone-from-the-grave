@@ -1,11 +1,16 @@
 'use client';
+import { useState } from 'react';
 import type { CallState } from '@/lib/callMachine';
+import type { BusinessResult, ResidentResult } from '@/lib/listingSearch';
+import type { Listing } from '@/lib/sse';
 import { CallStatus } from '@/components/CallStatus';
 import { DialledDisplay } from '@/components/DialledDisplay/DialledDisplay';
 import { EmergencyNotice } from '@/components/EmergencyNotice';
 import { Handset } from '@/components/Handset';
 import { MuteToggle } from '@/components/MuteToggle';
 import { OperatorPanel } from '@/components/OperatorPanel';
+import { PhoneBookPage } from '@/components/PhoneBookPage';
+import type { BookSection } from '@/components/PhoneBookPage';
 import { PhoneCanvasLoader } from '@/components/PhoneCanvas/PhoneCanvasLoader';
 import { useCall } from './useCall';
 import { useOperatorChat } from './useOperatorChat';
@@ -21,11 +26,21 @@ function numberShown(state: CallState): string {
   return '';
 }
 
+const isResident = (listing: Listing): listing is ResidentResult => 'surname' in listing;
+
+/** A search returns one kind of listing. Residents open the white pages, anything else the business pages. */
+function splitResults(results: readonly Listing[]) {
+  const residents = results.filter(isResident);
+  const businesses = results.filter((listing): listing is BusinessResult => !isResident(listing));
+  // Only the 1313 line sends nothing but ghosts, so that is the cue for the spirit-only book.
+  const spiritOnly = businesses.length > 0 && businesses.every((business) => business.is_spirit);
+  return { residents, businesses, spiritOnly };
+}
+
 /** The haunted desk, the number being dialled on it, and the handset that starts and ends the call. */
 export function PhoneScene() {
   const { state, controller, pickUp, hangUp, dismiss, send } = useCall();
   const connected = state.status === 'connected' ? state : null;
-  // The phone book (later task) renders from chat.results when chat.bookOpen is true.
   const chat = useOperatorChat({
     operatorNumber: connected?.operatorNumber ?? null,
     turnIndex: connected?.turnIndex ?? 0,
@@ -33,6 +48,16 @@ export function PhoneScene() {
     onTurnSent: () => send({ type: 'TURN_SENT' }),
     onRateLimited: () => send({ type: 'RATE_LIMITED' }),
   });
+  const { residents, businesses, spiritOnly } = splitResults(chat.results);
+  const defaultSection: BookSection = residents.length > 0 ? 'white' : 'business';
+  // A new search starts on the section that holds its results. The tabs then override it.
+  const [seen, setSeen] = useState(chat.results);
+  const [chosen, setChosen] = useState<BookSection | null>(null);
+  if (seen !== chat.results) {
+    setSeen(chat.results);
+    setChosen(null);
+  }
+
   return (
     <div className="relative h-full w-full">
       <PhoneCanvasLoader
@@ -61,6 +86,15 @@ export function PhoneScene() {
         <DialledDisplay digits={numberShown(state)} />
         <Handset state={state} onPickUp={pickUp} onHangUp={hangUp} />
       </div>
+      {chat.bookOpen && (
+        <PhoneBookPage
+          businesses={businesses}
+          residents={residents}
+          activeSection={chosen ?? defaultSection}
+          onSectionChange={setChosen}
+          spiritOnly={spiritOnly}
+        />
+      )}
       <div className="absolute top-4 right-4 z-20">
         <MuteToggle />
       </div>

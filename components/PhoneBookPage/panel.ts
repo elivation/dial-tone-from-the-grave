@@ -5,3 +5,10 @@ export const PANEL =
   'focus-within:pointer-events-auto focus-within:top-2 focus-within:left-2 focus-within:z-30 ' +
   'focus-within:max-h-[70vh] focus-within:overflow-y-auto focus-within:rounded ' +
   'focus-within:border-2 focus-within:border-stone-900 focus-within:bg-amber-50';
+
+// The tab bar follows the same rule as the panels: hidden until a tab has focus, then on screen.
+export const TABS_BAR =
+  'absolute -left-[10000px] top-0 flex font-serif ' +
+  'focus-within:pointer-events-auto focus-within:top-2 focus-within:left-2 focus-within:z-40 ' +
+  'focus-within:rounded focus-within:border-2 focus-within:border-stone-900 ' +
+  'focus-within:bg-amber-50';
