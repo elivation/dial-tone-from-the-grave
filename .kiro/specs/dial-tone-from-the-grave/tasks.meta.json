@@ -107,6 +107,18 @@
         "executionId": "e9874ac3-6f99-4b8e-b49d-790a1e018324",
         "chatSessionId": "sess_a0560e59-3d22-4fdd-8cc2-7e6fd989ff09",
         "timestamp": 1794916105951
+      },
+      {
+        "executionId": "e9874ac3-6f99-4b8e-b49d-790a1e018324",
+        "chatSessionId": "sess_a0560e59-3d22-4fdd-8cc2-7e6fd989ff09",
+        "timestamp": 1794916441871
+      }
+    ],
+    "44. Build PhoneBook3D (3D open book, ported from book-test.html)": [
+      {
+        "executionId": "e9874ac3-6f99-4b8e-b49d-790a1e018324",
+        "chatSessionId": "sess_a0560e59-3d22-4fdd-8cc2-7e6fd989ff09",
+        "timestamp": 1794916464548
       }
     ]
   }

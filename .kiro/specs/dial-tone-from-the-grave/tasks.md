@@ -367,7 +367,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/PhoneBookPage/WhiteSection.test.tsx` (3 residents rendered; surname uppercase; phone present)
 
-- [-] 27. Build PhoneBookPage container with section tabs (HtmlOverlay)
+- [x] 27. Build PhoneBookPage container with section tabs (HtmlOverlay)
 
   Create `components/PhoneBookPage/PhoneBookPage.tsx`. Container for the accessible HTML book layer in the `HtmlOverlay`. Renders `SectionTabs` with "White Pages" and "Business" tabs. Tab switch fires `onSectionChange`, which updates `activeSection` on both `PhoneBook3D` (3D page mode) and the accessible HTML sections. Tabs use `role="tab"`, `role="tabpanel"`, arrow key navigation, Enter/Space selects. With `prefers-reduced-motion`: section transitions are instant. When `spiritOnly` is true: no tabs, header reads "The Dead Pages: Spirit Listings".
 
@@ -377,7 +377,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/PhoneBookPage/PhoneBookPage.test.tsx` (tab labels visible; tab click calls onSectionChange; spiritOnly hides tabs; keyboard navigation)
 
-- [ ] 44. Build PhoneBook3D (3D open book, ported from book-test.html)
+- [-] 44. Build PhoneBook3D (3D open book, ported from book-test.html)
 
   Create `components/PhoneCanvas/PhoneBook3D.tsx`. An open book positioned to the right of the phone on the desk. Visible only when `results` prop is non-empty.
 
