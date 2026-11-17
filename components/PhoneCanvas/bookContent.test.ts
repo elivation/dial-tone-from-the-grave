@@ -165,3 +165,23 @@ describe('the empty book', () => {
     expect(composeBook([business(1)], 'business').empty).toBe(false);
   });
 });
+describe('the white pages fill both pages', () => {
+  it('[Req 6.1] fills all three columns of the left and right pages with entries', () => {
+    const book = composeBook([resident(1), resident(2)], 'white');
+    for (const page of [book.left, book.right]) {
+      const columns = new Set(page.entries.map((p) => p.x));
+      expect(columns.size).toBe(3);
+      for (const x of columns) {
+        expect(page.entries.filter((p) => p.x === x).length).toBeGreaterThanOrEqual(20);
+      }
+    }
+  });
+  it('[Req 6.1] every filler entry is a SURNAME Initial with an address and a number', () => {
+    const fillers = allEntries(composeBook([], 'white'));
+    for (const { entry } of fillers) {
+      expect(entry.name).toMatch(/^[A-Z' &-]+ [A-Za-z]+/);
+      expect(entry.address).not.toBe('');
+      expect(entry.exchange).not.toBe('');
+    }
+  });
+});

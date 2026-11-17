@@ -176,11 +176,31 @@ function buildPool(): Filler[] {
 
 const POOL = buildPool();
 
+/**
+ * The white pages are denser than the business pages, 46 px an entry against 49 and no adverts, so
+ * the pool of neighbours is not enough to fill both. Every family gets more relatives.
+ */
+function extraRelatives(): Filler[] {
+  const rnd = seededRandom(SEED + 2);
+  const surnames = new Set(POOL.filter((f) => f.person).map((f) => f.name.split(' ')[0] ?? ''));
+  return [...surnames]
+    .filter((surname) => surname.length > 3)
+    .flatMap((surname) =>
+      Array.from({ length: 3 }, () => ({
+        name: `${surname} ${FIRST[Math.floor(rnd() * FIRST.length)]}`,
+        address: `${1 + Math.floor(rnd() * 98)} ${STREET[Math.floor(rnd() * STREET.length)]}`,
+        digits: `${2 + Math.floor(rnd() * 8)}${String(Math.floor(rnd() * 10000)).padStart(4, '0')}`,
+        person: true,
+      })),
+    );
+}
+const WHITE_POOL = [...POOL.filter((f) => f.person), ...extraRelatives()].sort((a, b) =>
+  a.name.localeCompare(b.name),
+);
 function fillerEntries(white: boolean): BookEntry[] {
   const rnd = seededRandom(SEED + 1);
-  return POOL.filter((f) => !white || f.person).map((f) => toEntry(f, rnd, white));
+  return (white ? WHITE_POOL : POOL).map((f) => toEntry(f, rnd, white));
 }
-
 const isResident = (listing: Listing): listing is ResidentResult => 'surname' in listing;
 
 function realEntry(listing: Listing): BookEntry {
