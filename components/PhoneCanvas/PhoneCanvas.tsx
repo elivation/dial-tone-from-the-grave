@@ -11,6 +11,7 @@ import { DimRoomEnvironment } from './DimRoomEnvironment';
 import { DustMotes } from './DustMotes';
 import { Effects } from './Effects';
 import { Lights } from './Lights';
+import { PhoneBook3D, type BookView } from './PhoneBook3D';
 import { PhoneModel } from './PhoneModel';
 import { Spider } from './Spider';
 
@@ -30,13 +31,16 @@ function ReadySignal({ onReady }: { onReady: () => void }) {
   return null;
 }
 
-/** The haunted desk: phone, candle, spider and dust, lit by one flame. */
+/** The haunted desk: phone, candle, spider, phone book and dust, lit by one flame. */
 export default function PhoneCanvas({
   onReady,
   controller,
+  book,
 }: {
   onReady: () => void;
   controller: DialController;
+  /** The open phone book. Left out until there is something to show. */
+  book?: BookView | undefined;
 }) {
   return (
     <Canvas
@@ -58,6 +62,7 @@ export default function PhoneCanvas({
           <DialWheel controller={controller} />
         </PhoneModel>
         <Spider />
+        {book && <PhoneBook3D results={book.results} activeSection={book.activeSection} />}
         <DustMotes />
         <ReadySignal onReady={onReady} />
       </Suspense>

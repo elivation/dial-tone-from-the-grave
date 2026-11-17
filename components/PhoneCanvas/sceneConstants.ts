@@ -64,5 +64,11 @@ export const GOO_SHAPE = {
   specks: 200,
 } as const;
 
+/** The phone book on the desk: where it lies, how far it is turned, and how much smaller than the 0.21 m pages of the reference. */
+export const BOOK_POSITION = [0.09, 0, 0.17] as const;
+export const BOOK_ROTATION_Y = -0.08;
+export const BOOK_SCALE = 0.38;
+/** How long the book takes to slide onto the desk, in seconds. Skipped with reduced motion. */
+export const BOOK_APPEAR_SECONDS = 0.6;
 /** How strong the dust is on the phone body, 0 to 1. A faint film, never patches. */
 export const DUST_AMOUNT = 0.12;

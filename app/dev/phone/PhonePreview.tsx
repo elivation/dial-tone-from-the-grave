@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
+import type { BookSection } from '@/components/PhoneBookPage/sections';
+import { FIXTURE_BUSINESSES, FIXTURE_RESIDENTS } from '@/components/PhoneCanvas/__fixtures__/book';
 import { PhoneCanvasLoader } from '@/components/PhoneCanvas/PhoneCanvasLoader';
 import { useDialController, type DialController } from '@/components/RotaryDial/useDialController';
 import { replayPlan } from './replay';
@@ -24,9 +26,18 @@ const POINTER = 1;
 /**
  * Dev preview of the phone. With `dial`, it drags each digit round on the real dial controller,
  * as a finger would, and marks the page `data-replay="done"` when the dial is back at rest.
- * Without it, the wheel is held still at `wheel` degrees.
+ * Without it, the wheel is held still at `wheel` degrees. With `book`, the phone book lies open on the desk
+ * showing invented results for that section.
  */
-export function PhonePreview({ wheel, dial }: { wheel: number; dial: string }) {
+export function PhonePreview({
+  wheel,
+  dial,
+  book,
+}: {
+  wheel: number;
+  dial: string;
+  book: BookSection | null;
+}) {
   const [ready, setReady] = useState(false);
   const [done, setDone] = useState(dial === '');
   const live = useDialController({ disabled: dial === '', onDigit: () => {} });
@@ -62,7 +73,17 @@ export function PhonePreview({ wheel, dial }: { wheel: number; dial: string }) {
 
   return (
     <main className="h-screen w-screen bg-black" data-replay={done ? 'done' : 'running'}>
-      <PhoneCanvasLoader controller={dial === '' ? heldAt(wheel) : live} />
+      <PhoneCanvasLoader
+        controller={dial === '' ? heldAt(wheel) : live}
+        book={
+          book
+            ? {
+                results: book === 'white' ? FIXTURE_RESIDENTS : FIXTURE_BUSINESSES,
+                activeSection: book,
+              }
+            : undefined
+        }
+      />
     </main>
   );
 }

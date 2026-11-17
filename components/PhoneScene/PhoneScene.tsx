@@ -53,6 +53,7 @@ export function PhoneScene() {
   // A new search starts on the section that holds its results. The tabs then override it.
   const [seen, setSeen] = useState(chat.results);
   const [chosen, setChosen] = useState<BookSection | null>(null);
+  const section = chosen ?? defaultSection;
   if (seen !== chat.results) {
     setSeen(chat.results);
     setChosen(null);
@@ -62,6 +63,7 @@ export function PhoneScene() {
     <div className="relative h-full w-full">
       <PhoneCanvasLoader
         controller={controller}
+        book={chat.bookOpen ? { results: chat.results, activeSection: section } : undefined}
         fallback={
           <p className="flex h-full items-center justify-center px-6 text-center font-serif text-amber-200/80">
             This switchboard needs WebGL to show the phone.
@@ -90,7 +92,7 @@ export function PhoneScene() {
         <PhoneBookPage
           businesses={businesses}
           residents={residents}
-          activeSection={chosen ?? defaultSection}
+          activeSection={section}
           onSectionChange={setChosen}
           spiritOnly={spiritOnly}
         />
