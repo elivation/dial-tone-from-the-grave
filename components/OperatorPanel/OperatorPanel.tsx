@@ -44,8 +44,13 @@ function speak(text: string, operatorNumber: string, onDone: () => void): boolea
   if (voice) utterance.voice = voice;
   utterance.onend = onDone;
   utterance.onerror = onDone;
-  synth.cancel();
-  synth.speak(utterance);
+  try {
+    synth.cancel();
+    synth.speak(utterance);
+  } catch {
+    // Some browsers throw when no voice engine is installed. The text is already on screen.
+    return false;
+  }
   return true;
 }
 

@@ -1,12 +1,14 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CallState } from '@/lib/callMachine';
 import type { BusinessResult, ResidentResult } from '@/lib/listingSearch';
 import type { Listing } from '@/lib/sse';
+import { useOnline } from '@/lib/useOnline';
 import { CallStatus } from '@/components/CallStatus';
 import { DialledDisplay } from '@/components/DialledDisplay/DialledDisplay';
 import { EmergencyNotice } from '@/components/EmergencyNotice';
 import { Handset } from '@/components/Handset';
+import { OfflineNotice } from '@/components/OfflineNotice';
 import { MuteToggle } from '@/components/MuteToggle';
 import { OperatorPanel } from '@/components/OperatorPanel';
 import { CloseBookButton, PhoneBookPage } from '@/components/PhoneBookPage';
@@ -40,7 +42,8 @@ function splitResults(results: readonly Listing[]) {
 
 /** The haunted desk, the number being dialled on it, and the handset that starts and ends the call. */
 export function PhoneScene() {
-  const { state, controller, pickUp, hangUp, dismiss, send } = useCall();
+  const online = useOnline();
+  const { state, controller, pickUp, hangUp, dismiss, send } = useCall({ offline: !online });
   const connected = state.status === 'connected' ? state : null;
   const chat = useOperatorChat({
     operatorNumber: connected?.operatorNumber ?? null,
@@ -62,6 +65,10 @@ export function PhoneScene() {
     closeBook();
     handsetButton.current?.focus();
   };
+  // The stream cannot survive losing the network, so the line goes dead with it.
+  useEffect(() => {
+    if (!online) hangUp();
+  }, [online, hangUp]);
   if (seen !== chat.results) {
     setSeen(chat.results);
     setChosen(null);
@@ -69,49 +76,53 @@ export function PhoneScene() {
 
   return (
     <div className="relative h-full w-full">
-      <PhoneCanvasLoader
-        controller={controller}
-        book={chat.bookOpen ? { results: chat.results, activeSection: section } : undefined}
-        fallback={
-          <p className="flex h-full items-center justify-center px-6 text-center font-serif text-amber-200/80">
-            This switchboard needs WebGL to show the phone.
-          </p>
-        }
-      />
-      <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex flex-col items-center gap-3 text-center">
-        {connected && (
-          <OperatorPanel
-            operatorNumber={connected.operatorNumber}
-            onMessage={chat.send}
-            onHangUp={hangUp}
-            turnIndex={connected.turnIndex}
-            maxTurns={MAX_TURNS}
-            transcript={chat.transcript}
-            streaming={chat.streaming}
-            closing={chat.closing}
-            onClosed={() => send({ type: 'TURN_CAP_REACHED' })}
+      {/* inert keeps pointer, touch and tab focus out of the scene while the overlay is up */}
+      <div className="contents" inert={!online}>
+        <PhoneCanvasLoader
+          controller={controller}
+          book={chat.bookOpen ? { results: chat.results, activeSection: section } : undefined}
+          fallback={
+            <p className="flex h-full items-center justify-center px-6 text-center font-serif text-amber-200/80">
+              This switchboard needs WebGL to show the phone.
+            </p>
+          }
+        />
+        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex flex-col items-center gap-3 text-center">
+          {connected && (
+            <OperatorPanel
+              operatorNumber={connected.operatorNumber}
+              onMessage={chat.send}
+              onHangUp={hangUp}
+              turnIndex={connected.turnIndex}
+              maxTurns={MAX_TURNS}
+              transcript={chat.transcript}
+              streaming={chat.streaming}
+              closing={chat.closing}
+              onClosed={() => send({ type: 'TURN_CAP_REACHED' })}
+            />
+          )}
+          <CallStatus state={state} />
+          <DialledDisplay digits={numberShown(state)} />
+          <Handset state={state} onPickUp={pickUp} onHangUp={hangUp} buttonRef={handsetButton} />
+        </div>
+        {chat.bookOpen && (
+          <PhoneBookPage
+            businesses={businesses}
+            residents={residents}
+            activeSection={section}
+            onSectionChange={setChosen}
+            onClose={putBookAway}
+            spiritOnly={spiritOnly}
           />
         )}
-        <CallStatus state={state} />
-        <DialledDisplay digits={numberShown(state)} />
-        <Handset state={state} onPickUp={pickUp} onHangUp={hangUp} buttonRef={handsetButton} />
+        <div className="absolute top-4 right-4 z-20 flex gap-2">
+          {chat.bookOpen && <CloseBookButton onClose={putBookAway} />}
+          <MuteToggle />
+        </div>
+        <StaticOverlay visible={state.status === 'wrong-number'} />
+        {state.status === 'emergency-notice' && <EmergencyNotice onDismiss={dismiss} />}
       </div>
-      {chat.bookOpen && (
-        <PhoneBookPage
-          businesses={businesses}
-          residents={residents}
-          activeSection={section}
-          onSectionChange={setChosen}
-          onClose={putBookAway}
-          spiritOnly={spiritOnly}
-        />
-      )}
-      <div className="absolute top-4 right-4 z-20 flex gap-2">
-        {chat.bookOpen && <CloseBookButton onClose={putBookAway} />}
-        <MuteToggle />
-      </div>
-      <StaticOverlay visible={state.status === 'wrong-number'} />
-      {state.status === 'emergency-notice' && <EmergencyNotice onDismiss={dismiss} />}
+      {!online && <OfflineNotice />}
     </div>
   );
 }

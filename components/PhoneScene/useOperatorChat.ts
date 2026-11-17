@@ -7,7 +7,7 @@ import { createSseParser, type Listing } from '@/lib/sse';
 /** The spirit line speaks first and answers without Claude, so the page opens the request itself. */
 const SPIRIT_LINE = '1313';
 
-export const LINE_DEAD_MESSAGE = 'The line has gone dead. Please try again in a moment.';
+export const OPERATOR_DOWN_MESSAGE = 'The operator is unreachable. Please try again later.';
 export const TOO_LONG_MESSAGE = "I couldn't quite catch that. Say it shorter.";
 
 type HistoryTurn = { role: 'user' | 'assistant'; content: string };
@@ -107,11 +107,11 @@ export type OperatorChat = {
 };
 
 async function failureMessage(response: Response): Promise<string> {
-  if (response.status !== 400) return LINE_DEAD_MESSAGE;
+  if (response.status !== 400) return OPERATOR_DOWN_MESSAGE;
   const body: unknown = await response.json().catch(() => null);
   const code =
     typeof body === 'object' && body !== null ? (body as { error?: unknown }).error : null;
-  return code === 'input_too_long' ? TOO_LONG_MESSAGE : LINE_DEAD_MESSAGE;
+  return code === 'input_too_long' ? TOO_LONG_MESSAGE : OPERATOR_DOWN_MESSAGE;
 }
 
 /**
@@ -187,7 +187,8 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
               } else {
                 dispatch({
                   type: 'fail',
-                  message: event.code === 'input_too_long' ? TOO_LONG_MESSAGE : LINE_DEAD_MESSAGE,
+                  message:
+                    event.code === 'input_too_long' ? TOO_LONG_MESSAGE : OPERATOR_DOWN_MESSAGE,
                 });
               }
               return;
@@ -198,7 +199,7 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
         await reader.cancel().catch(() => undefined);
       }
     } catch {
-      if (!signal.aborted) dispatch({ type: 'fail', message: LINE_DEAD_MESSAGE });
+      if (!signal.aborted) dispatch({ type: 'fail', message: OPERATOR_DOWN_MESSAGE });
       return;
     }
 
@@ -213,7 +214,7 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
     dispatch(
       completed
         ? { type: 'finish', closing: lastTurn }
-        : { type: 'fail', message: LINE_DEAD_MESSAGE },
+        : { type: 'fail', message: OPERATOR_DOWN_MESSAGE },
     );
   }, []);
 

@@ -36,8 +36,8 @@ const makeAudio = () => ({
 
 let audio: ReturnType<typeof makeAudio>;
 
-function setup() {
-  return renderHook(() => useCall({ operators, audio: audio as CallAudio }));
+function setup(offline = false) {
+  return renderHook(() => useCall({ operators, audio: audio as CallAudio, offline }));
 }
 type Hook = ReturnType<typeof setup>;
 
@@ -295,5 +295,16 @@ describe('useCall', () => {
     hook.unmount();
     expect(() => wait(10_000)).not.toThrow();
     expect(audio.startRingTone).not.toHaveBeenCalled();
+  });
+});
+
+describe('useCall offline', () => {
+  it('[Req 9.8] locks the dial while offline, so keys and drags dial nothing', () => {
+    const hook = setup(true);
+    pickUp(hook);
+    expect(hook.result.current.controller.disabled).toBe(true);
+    act(() => void hook.result.current.controller.press('5'));
+    wait(150 + PULSES['5'] * 100);
+    expect(hook.result.current.state.status).toBe('off-hook');
   });
 });

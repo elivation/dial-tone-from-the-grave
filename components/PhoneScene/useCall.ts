@@ -53,14 +53,17 @@ export type UseCall = {
 export function useCall({
   operators = OPERATORS,
   audio: audioOverride,
+  offline = false,
 }: {
   operators?: Record<string, OperatorDefinition>;
   audio?: CallAudio;
+  /** While true the dial is locked, whatever the call is doing. */
+  offline?: boolean;
 } = {}): UseCall {
   const [state, dispatch] = useReducer(callReducer, initialCallState);
   const [audio] = useState<CallAudio>(() => audioOverride ?? getAudioEngine());
 
-  const dialable = state.status === 'off-hook' || state.status === 'dialling';
+  const dialable = !offline && (state.status === 'off-hook' || state.status === 'dialling');
   const controller = useDialController({
     disabled: !dialable,
     onDigit: (digit) => dispatch({ type: 'DIGIT_DIALLED', digit }),

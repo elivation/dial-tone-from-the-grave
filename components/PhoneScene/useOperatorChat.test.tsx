@@ -1,7 +1,11 @@
 import { StrictMode, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { LINE_DEAD_MESSAGE, useOperatorChat, type OperatorChatOptions } from './useOperatorChat';
+import {
+  OPERATOR_DOWN_MESSAGE,
+  useOperatorChat,
+  type OperatorChatOptions,
+} from './useOperatorChat';
 
 const frame = (event: unknown) => `data: ${JSON.stringify(event)}\n\n`;
 
@@ -129,8 +133,26 @@ describe('useOperatorChat', () => {
     await waitFor(() => expect(result.current.streaming).toBe(false));
     expect(result.current.transcript.at(-1)).toEqual({
       speaker: 'operator',
-      text: LINE_DEAD_MESSAGE,
+      text: 'The operator is unreachable. Please try again later.',
     });
+    expect(OPERATOR_DOWN_MESSAGE).toBe('The operator is unreachable. Please try again later.');
+  });
+
+  it('[Req 9.6] a 503 or a dropped connection gives the same unreachable message', async () => {
+    for (const failure of [
+      () => Promise.resolve(new Response('{}', { status: 503 })),
+      () => Promise.reject(new TypeError('Failed to fetch')),
+    ]) {
+      fetchMock.mockImplementationOnce(failure);
+      const { result, unmount } = setup();
+      act(() => result.current.send('hello'));
+      await waitFor(() => expect(result.current.streaming).toBe(false));
+      expect(result.current.transcript.at(-1)).toEqual({
+        speaker: 'operator',
+        text: OPERATOR_DOWN_MESSAGE,
+      });
+      unmount();
+    }
   });
 
   it('[Req 3.3] the spirit line opens its own request once, even in strict mode', async () => {

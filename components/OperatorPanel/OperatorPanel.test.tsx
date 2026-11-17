@@ -156,6 +156,22 @@ describe('OperatorPanel', () => {
     expect(screen.getByRole('log')).toHaveTextContent('Dead Pages');
   });
 
+  it('[Req 9.7] a speech engine that throws is skipped silently, and the text and goodbye still happen', () => {
+    vi.useFakeTimers();
+    stubSpeech().speak.mockImplementation(() => {
+      throw new Error('synthesis-failed');
+    });
+    const onClosed = vi.fn();
+    const closing = { transcript: reply, streaming: true, closing: true, onClosed };
+    const { props, rerender } = setup(closing);
+    expect(() =>
+      rerender(<OperatorPanel {...props} transcript={reply} streaming={false} />),
+    ).not.toThrow();
+    expect(screen.getByRole('log')).toHaveTextContent('Dead Pages');
+    act(() => void vi.advanceTimersByTime(GOODBYE_DELAY_MS));
+    expect(onClosed).toHaveBeenCalledTimes(1);
+  });
+
   describe('closing the call after the goodbye', () => {
     const closing = { transcript: reply, streaming: true, closing: true };
 

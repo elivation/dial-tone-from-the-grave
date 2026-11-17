@@ -1,5 +1,5 @@
-import { beforeEach, describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CallState } from '@/lib/callMachine';
 import type { OperatorChat } from './useOperatorChat';
@@ -9,7 +9,13 @@ import { PhoneScene } from './PhoneScene';
 const call = vi.hoisted(() => ({ current: null as unknown }));
 const chat = vi.hoisted(() => ({ current: null as unknown }));
 
-vi.mock('./useCall', () => ({ useCall: () => call.current }));
+const useCallSpy = vi.hoisted(() => vi.fn());
+vi.mock('./useCall', () => ({
+  useCall: (options: unknown) => {
+    useCallSpy(options);
+    return call.current;
+  },
+}));
 vi.mock('./useOperatorChat', () => ({ useOperatorChat: () => chat.current }));
 // There is no WebGL in jsdom. The stub shows whether the scene was handed a book.
 vi.mock('@/components/PhoneCanvas/PhoneCanvasLoader', () => ({
@@ -57,7 +63,12 @@ function setChat(overrides: Partial<OperatorChat> = {}) {
 }
 
 beforeEach(() => {
+  useCallSpy.mockClear();
   setCall({ status: 'idle' });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe('PhoneScene phone book', () => {
@@ -121,5 +132,52 @@ describe('PhoneScene static', () => {
       expect(overlay(container)).toBeNull();
       unmount();
     }
+  });
+});
+
+describe('PhoneScene offline', () => {
+  const goOffline = () => {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    window.dispatchEvent(new Event('offline'));
+  };
+  const goOnline = () => {
+    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(true);
+    window.dispatchEvent(new Event('online'));
+  };
+
+  it('[Req 9.8] shows no overlay and leaves the dial alone while online', () => {
+    setChat();
+    render(<PhoneScene />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(useCallSpy).toHaveBeenLastCalledWith({ offline: false });
+  });
+
+  it('[Req 9.8] covers the scene with the in-character message and disables the dial when offline', () => {
+    setChat();
+    const { container } = render(<PhoneScene />);
+    act(goOffline);
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'The exchange has gone dark. Check your connection.',
+    );
+    expect(useCallSpy).toHaveBeenLastCalledWith({ offline: true });
+    expect(container.querySelector('[inert]')).not.toBeNull();
+  });
+
+  it('[Req 9.8] clears the overlay when the connection returns', () => {
+    setChat();
+    const { container } = render(<PhoneScene />);
+    act(goOffline);
+    act(goOnline);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(container.querySelector('[inert]')).toBeNull();
+    expect(useCallSpy).toHaveBeenLastCalledWith({ offline: false });
+  });
+
+  it('[Req 9.8] hangs up a call in progress when the line goes dark', () => {
+    setCall({ status: 'connected', operatorNumber: '1023', turnIndex: 0 });
+    setChat();
+    render(<PhoneScene />);
+    act(goOffline);
+    expect((call.current as UseCall).hangUp).toHaveBeenCalledTimes(1);
   });
 });
