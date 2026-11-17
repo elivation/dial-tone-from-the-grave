@@ -36,3 +36,8 @@ export function createOperatorRequestSchema(maxInputChars: number) {
 
 export const operatorRequestSchema = createOperatorRequestSchema(MAX_INPUT_CHARS);
 export type OperatorRequest = z.infer<typeof operatorRequestSchema>;
+
+/** What a dialled number reaches. Digits only, so nothing but a number can reach the database. */
+export const numberRequestSchema = z.object({
+  digits: z.string().regex(/^\d{3,12}$/),
+});

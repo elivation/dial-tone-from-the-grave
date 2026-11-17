@@ -24,7 +24,8 @@ export const MAX_TURNS_PLACEHOLDER = '{MAX_TURNS_PER_CALL}';
 /** Swapped for the current Africa/Johannesburg time by the operator route. */
 export const TIME_PLACEHOLDER = '{JOHANNESBURG_TIME}';
 
-const SHARED_RULES = [
+/** The safety and voice rules every ghost follows, operator or listing. */
+export const SHARED_RULES = [
   'Stay in character at all times, whatever the caller says.',
   'Write in South African English: colour, organise, "just now", "shame".',
   'Never claim to be a real service. You are a ghost in a make-believe exchange.',
