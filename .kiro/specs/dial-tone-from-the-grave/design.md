@@ -479,7 +479,7 @@ type CallEvent =
 
 `useCall` (`components/PhoneScene/useCall.ts`) owns the reducer, the dial controller and the audio. The dial is locked unless the line is `off-hook` or `dialling`. The 2-second dial timer starts when the dial is back at rest and fires `CALL_PLACED`, which sends emergency numbers to `emergency-notice`. For anything else, `useCall` looks the number up in `OPERATORS` first. If it is not an operator, `useCall` asks `POST /api/number` and stays in `dialling` while it waits, then sends `NUMBER_MATCHED` (with `callee: 'listing'` and 2 rings) or `NO_MATCH`. A lookup that fails is treated as a wrong number. Each ring is a 1 s burst then a 2 s gap. A `RING_TICK` fires at the end of each burst, and the last one connects. A wrong number plays 2 s of static, then the three pips (0.9 s), then goes back to idle. Busy plays the busy tone for 3 s, then goes back to idle. Each state starts its sound when it is entered and stops it when it is left, so a hang-up from anywhere silences the line. The page wakes the audio on its first pointer or key press.
 
-The 2-second dial timer fires `CALL_PLACED`. The server 429 response fires `RATE_LIMITED`. The final turn auto-hang fires `TURN_CAP_REACHED`. The user dismissing the emergency notice fires `DISMISSED`.
+The 2-second dial timer fires `CALL_PLACED`. The server 429 response fires `RATE_LIMITED`. The final turn auto-hang fires `TURN_CAP_REACHED` 2 s after the goodbye has been spoken (or shown, when muted or without speech), and search results stay on screen after any hang-up until the next call connects or the caller closes the book. The user dismissing the emergency notice fires `DISMISSED`.
 
 ---
 

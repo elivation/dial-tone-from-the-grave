@@ -29,9 +29,9 @@ export function PhoneScene() {
   const chat = useOperatorChat({
     operatorNumber: connected?.operatorNumber ?? null,
     turnIndex: connected?.turnIndex ?? 0,
+    maxTurns: MAX_TURNS,
     onTurnSent: () => send({ type: 'TURN_SENT' }),
     onRateLimited: () => send({ type: 'RATE_LIMITED' }),
-    onTurnCapReached: () => send({ type: 'TURN_CAP_REACHED' }),
   });
   return (
     <div className="relative h-full w-full">
@@ -53,6 +53,8 @@ export function PhoneScene() {
             maxTurns={MAX_TURNS}
             transcript={chat.transcript}
             streaming={chat.streaming}
+            closing={chat.closing}
+            onClosed={() => send({ type: 'TURN_CAP_REACHED' })}
           />
         )}
         <CallStatus state={state} />

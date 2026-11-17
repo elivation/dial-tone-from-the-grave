@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { OperatorPanel, type OperatorPanelProps, type TranscriptEntry } from './OperatorPanel';
+import {
+  GOODBYE_DELAY_MS,
+  OperatorPanel,
+  type OperatorPanelProps,
+  type TranscriptEntry,
+} from './OperatorPanel';
 
 const reply: TranscriptEntry[] = [
   { speaker: 'operator', text: 'Dead Pages, who are you looking for?' },
@@ -36,12 +41,15 @@ function stubSpeech() {
       pitch = 1;
       rate = 1;
       voice: unknown = null;
+      onend: (() => void) | null = null;
+      onerror: (() => void) | null = null;
     },
   );
   return { speak, voices };
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
 });
 
@@ -146,5 +154,87 @@ describe('OperatorPanel', () => {
     const { props, rerender } = setup({ transcript: reply, streaming: true });
     rerender(<OperatorPanel {...props} transcript={reply} streaming={false} />);
     expect(screen.getByRole('log')).toHaveTextContent('Dead Pages');
+  });
+
+  describe('closing the call after the goodbye', () => {
+    const closing = { transcript: reply, streaming: true, closing: true };
+
+    it('[Req 3.8] hangs up GOODBYE_DELAY_MS after speech ends, not before', () => {
+      vi.useFakeTimers();
+      const { speak } = stubSpeech();
+      const onClosed = vi.fn();
+      const { props, rerender } = setup({ ...closing, onClosed });
+      rerender(<OperatorPanel {...props} {...closing} streaming={false} onClosed={onClosed} />);
+      act(() => vi.advanceTimersByTime(GOODBYE_DELAY_MS * 5));
+      expect(onClosed).not.toHaveBeenCalled();
+      const utterance = speak.mock.calls[0]![0] as { onend: () => void };
+      act(() => utterance.onend());
+      act(() => vi.advanceTimersByTime(GOODBYE_DELAY_MS - 1));
+      expect(onClosed).not.toHaveBeenCalled();
+      act(() => vi.advanceTimersByTime(1));
+      expect(onClosed).toHaveBeenCalledTimes(1);
+    });
+
+    it('[Req 3.8] starts the delay when the text finishes if the line is muted', () => {
+      vi.useFakeTimers();
+      stubSpeech();
+      const onClosed = vi.fn();
+      const audio = { isMuted: () => true, setMuted: vi.fn() };
+      const { props, rerender } = setup({ ...closing, onClosed, audio });
+      rerender(
+        <OperatorPanel
+          {...props}
+          {...closing}
+          streaming={false}
+          onClosed={onClosed}
+          audio={audio}
+        />,
+      );
+      act(() => vi.advanceTimersByTime(GOODBYE_DELAY_MS));
+      expect(onClosed).toHaveBeenCalledTimes(1);
+    });
+
+    it('[Req 3.8] does not hang up while the call is not closing', () => {
+      vi.useFakeTimers();
+      const onClosed = vi.fn();
+      const { props, rerender } = setup({ transcript: reply, streaming: true, onClosed });
+      rerender(
+        <OperatorPanel {...props} transcript={reply} streaming={false} onClosed={onClosed} />,
+      );
+      act(() => vi.advanceTimersByTime(GOODBYE_DELAY_MS * 5));
+      expect(onClosed).not.toHaveBeenCalled();
+    });
+
+    it('[Req 3.8] a speech end that arrives after the caller hung up does not hang up again', () => {
+      vi.useFakeTimers();
+      const { speak } = stubSpeech();
+      const onClosed = vi.fn();
+      const { props, rerender, unmount } = setup({ ...closing, onClosed });
+      rerender(<OperatorPanel {...props} {...closing} streaming={false} onClosed={onClosed} />);
+      const utterance = speak.mock.calls[0]![0] as { onend: () => void };
+      unmount();
+      act(() => utterance.onend());
+      act(() => vi.advanceTimersByTime(GOODBYE_DELAY_MS * 2));
+      expect(onClosed).not.toHaveBeenCalled();
+    });
+
+    it('[Req 3.8] cancels the pending hang-up when the caller hangs up first', () => {
+      vi.useFakeTimers();
+      const onClosed = vi.fn();
+      const audio = { isMuted: () => true, setMuted: vi.fn() };
+      const { props, rerender, unmount } = setup({ ...closing, onClosed, audio });
+      rerender(
+        <OperatorPanel
+          {...props}
+          {...closing}
+          streaming={false}
+          onClosed={onClosed}
+          audio={audio}
+        />,
+      );
+      unmount();
+      act(() => vi.advanceTimersByTime(GOODBYE_DELAY_MS * 2));
+      expect(onClosed).not.toHaveBeenCalled();
+    });
   });
 });

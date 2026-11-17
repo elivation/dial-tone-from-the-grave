@@ -6,6 +6,9 @@ import { pickVoice } from '@/lib/voice';
 import type { MuteControl } from '@/components/MuteToggle/MuteToggle';
 import { findRecognition, type Recognition, type RecognitionConstructor } from './speech';
 
+/** How long the line stays up after the goodbye has been heard. */
+export const GOODBYE_DELAY_MS = 2000;
+
 export type TranscriptEntry = { speaker: 'operator' | 'caller'; text: string };
 
 export type OperatorPanelProps = {
@@ -18,24 +21,32 @@ export type OperatorPanelProps = {
   transcript: readonly TranscriptEntry[];
   /** True while the operator reply is still arriving. The reply is read aloud when this turns false. */
   streaming: boolean;
+  /** The reply on screen is the operator's last word. */
+  closing?: boolean;
+  /** Called GOODBYE_DELAY_MS after a closing reply has been spoken, or shown if there is no speech. */
+  onClosed?: () => void;
   audio?: MuteControl;
 };
 
 const BUTTON =
   'pointer-events-auto rounded border border-amber-200/40 bg-black/70 px-4 py-1 font-serif text-sm tracking-widest text-amber-200/90 hover:bg-amber-200/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-200 disabled:opacity-50';
 
-function speak(text: string, operatorNumber: string) {
+/** Reads the text aloud. Returns false when there is no speech to wait for. */
+function speak(text: string, operatorNumber: string, onDone: () => void): boolean {
   const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis;
   const config = OPERATORS[operatorNumber]?.voiceConfig;
-  if (!synth || !config || typeof SpeechSynthesisUtterance === 'undefined') return;
+  if (!synth || !config || typeof SpeechSynthesisUtterance === 'undefined') return false;
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = 'en-ZA';
   utterance.pitch = config.pitch;
   utterance.rate = config.rate;
   const voice = pickVoice(synth.getVoices(), config.voiceHint);
   if (voice) utterance.voice = voice;
+  utterance.onend = onDone;
+  utterance.onerror = onDone;
   synth.cancel();
   synth.speak(utterance);
+  return true;
 }
 
 /** The call in progress: what the operator says, and a way to answer by voice or by typing. */
@@ -47,6 +58,8 @@ export function OperatorPanel({
   maxTurns,
   transcript,
   streaming,
+  closing = false,
+  onClosed,
   audio,
 }: OperatorPanelProps) {
   const operator = OPERATORS[operatorNumber];
@@ -56,10 +69,12 @@ export function OperatorPanel({
   const [voiceFailed, setVoiceFailed] = useState(false);
   const recognition = useRef<Recognition | null>(null);
   const wasStreaming = useRef(streaming);
-  const latest = useRef({ transcript, operatorNumber, audio });
+  const replyId = useRef(0);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const latest = useRef({ transcript, operatorNumber, audio, closing, onClosed });
 
   useEffect(() => {
-    latest.current = { transcript, operatorNumber, audio };
+    latest.current = { transcript, operatorNumber, audio, closing, onClosed };
   });
 
   // Detected after mount so the server and first client render agree.
@@ -73,14 +88,23 @@ export function OperatorPanel({
     wasStreaming.current = streaming;
     if (!finished) return;
     const { transcript: entries, operatorNumber: number, audio: control } = latest.current;
+    // The goodbye is heard, or if nothing is spoken, read, before the line goes dead.
+    // Cancelling an earlier utterance fires its end event, which must not start the countdown.
+    const id = ++replyId.current;
+    const heard = () => {
+      if (id !== replyId.current || !latest.current.closing) return;
+      closeTimer.current = setTimeout(() => latest.current.onClosed?.(), GOODBYE_DELAY_MS);
+    };
     const reply = entries[entries.length - 1];
-    if (reply?.speaker !== 'operator' || !reply.text) return;
-    if ((control ?? getAudioEngine()).isMuted()) return;
-    speak(reply.text, number);
+    if (reply?.speaker !== 'operator' || !reply.text) return heard();
+    if ((control ?? getAudioEngine()).isMuted()) return heard();
+    if (!speak(reply.text, number, heard)) heard();
   }, [streaming]);
 
   useEffect(
     () => () => {
+      replyId.current++;
+      clearTimeout(closeTimer.current);
       recognition.current?.stop();
       if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
     },

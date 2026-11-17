@@ -17,19 +17,28 @@ type ChatState = {
   streaming: boolean;
   results: Listing[];
   bookOpen: boolean;
+  /** The reply on screen is the operator's last word, so the call should now end. */
+  closing: boolean;
 };
 
 type ChatAction =
-  | { type: 'reset' }
+  | { type: 'connect' }
+  | { type: 'hangUp' }
   | { type: 'start' }
   | { type: 'sent'; text: string }
   | { type: 'delta'; text: string }
   | { type: 'fail'; message: string }
-  | { type: 'finish' }
+  | { type: 'finish'; closing?: boolean }
   | { type: 'results'; results: Listing[] }
   | { type: 'closeBook' };
 
-const initialChat: ChatState = { entries: [], streaming: false, results: [], bookOpen: false };
+const initialChat: ChatState = {
+  entries: [],
+  streaming: false,
+  results: [],
+  bookOpen: false,
+  closing: false,
+};
 
 const OPEN_REPLY: TranscriptEntry = { speaker: 'operator', text: '' };
 
@@ -41,8 +50,11 @@ function appendToReply(entries: TranscriptEntry[], text: string): TranscriptEntr
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
-    case 'reset':
+    case 'connect':
       return initialChat;
+    // The book outlives the call. The next connect or closeBook() takes it away.
+    case 'hangUp':
+      return { ...initialChat, results: state.results, bookOpen: state.bookOpen };
     case 'start':
       return { ...state, entries: [...state.entries, OPEN_REPLY], streaming: true };
     case 'sent':
@@ -63,7 +75,7 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       };
     }
     case 'finish':
-      return { ...state, streaming: false };
+      return { ...state, streaming: false, closing: action.closing ?? false };
     case 'results':
       return { ...state, results: action.results, bookOpen: true };
     case 'closeBook':
@@ -76,9 +88,10 @@ export type OperatorChatOptions = {
   operatorNumber: string | null;
   /** User turns already sent in this call. */
   turnIndex: number;
+  /** The server's turn cap. The user turn at index `maxTurns - 1` gets the goodbye. */
+  maxTurns: number;
   onTurnSent: () => void;
   onRateLimited: () => void;
-  onTurnCapReached: () => void;
 };
 
 export type OperatorChat = {
@@ -87,6 +100,8 @@ export type OperatorChat = {
   results: readonly Listing[];
   /** True once a search has come back. The phone book renders from this and `results`. */
   bookOpen: boolean;
+  /** True once the operator's last words are on screen. The call ends after they are heard. */
+  closing: boolean;
   send: (text: string) => void;
   closeBook: () => void;
 };
@@ -121,6 +136,8 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
     const { signal } = controller;
     dispatch(message === '' ? { type: 'start' } : { type: 'sent', text: message });
 
+    const sentTurn = latest.current.turnIndex;
+    const lastTurn = number === SPIRIT_LINE || sentTurn >= latest.current.maxTurns - 1;
     let reply = '';
     let completed = false;
     try {
@@ -163,8 +180,7 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
               completed = true;
             } else if (event.type === 'error') {
               if (event.code === 'turn_cap') {
-                dispatch({ type: 'finish' });
-                latest.current.onTurnCapReached();
+                dispatch({ type: 'finish', closing: true });
               } else if (event.code === 'rate_limited') {
                 dispatch({ type: 'finish' });
                 latest.current.onRateLimited();
@@ -194,11 +210,16 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
         { role: 'assistant', content: reply },
       ];
     }
-    dispatch(completed ? { type: 'finish' } : { type: 'fail', message: LINE_DEAD_MESSAGE });
+    dispatch(
+      completed
+        ? { type: 'finish', closing: lastTurn }
+        : { type: 'fail', message: LINE_DEAD_MESSAGE },
+    );
   }, []);
 
   useEffect(() => {
     if (operatorNumber === null) return;
+    dispatch({ type: 'connect' });
     // Deferred so React strict mode, which mounts, cleans up and mounts again, sends one request.
     const timer =
       operatorNumber === SPIRIT_LINE
@@ -209,7 +230,7 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
       controllerRef.current?.abort();
       controllerRef.current = null;
       history.current = [];
-      dispatch({ type: 'reset' });
+      dispatch({ type: 'hangUp' });
     };
   }, [operatorNumber, run]);
 
@@ -239,6 +260,7 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
     streaming: state.streaming,
     results: state.results,
     bookOpen: state.bookOpen,
+    closing: state.closing,
     send,
     closeBook,
   };

@@ -22,8 +22,13 @@ function setup(
   number: string | null = '1023',
   wrapper?: (props: { children: ReactNode }) => ReactNode,
 ) {
-  const callbacks = { onTurnSent: vi.fn(), onRateLimited: vi.fn(), onTurnCapReached: vi.fn() };
-  const initialProps: OperatorChatOptions = { operatorNumber: number, turnIndex: 0, ...callbacks };
+  const callbacks = { onTurnSent: vi.fn(), onRateLimited: vi.fn() };
+  const initialProps: OperatorChatOptions = {
+    operatorNumber: number,
+    turnIndex: 0,
+    maxTurns: 6,
+    ...callbacks,
+  };
   const hook = renderHook((props: OperatorChatOptions) => useOperatorChat(props), {
     initialProps,
     wrapper,
@@ -145,5 +150,88 @@ describe('useOperatorChat', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.current.transcript).toEqual([{ speaker: 'operator', text: 'Who calls?' }]);
     expect(callbacks.onTurnSent).not.toHaveBeenCalled();
+  });
+
+  it('[Req 4.5] results and the open book survive hang-up, and the next call clears them', async () => {
+    const results = [{ id: 'a', name: 'Pipe Dreams Plumbing' }];
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(
+        sseResponse([frame({ type: 'tool_result', results }), frame({ type: 'done' })]),
+      ),
+    );
+    const { result, rerender, initialProps } = setup();
+    act(() => result.current.send('plumber'));
+    await waitFor(() => expect(result.current.bookOpen).toBe(true));
+    rerender({ ...initialProps, operatorNumber: null });
+    expect(result.current.transcript).toEqual([]);
+    expect(result.current.bookOpen).toBe(true);
+    expect(result.current.results).toEqual(results);
+    rerender({ ...initialProps, operatorNumber: '1023' });
+    expect(result.current.bookOpen).toBe(false);
+    expect(result.current.results).toEqual([]);
+  });
+
+  it('[Req 4.5] closeBook shuts the book but keeps the results', async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([
+        frame({ type: 'tool_result', results: [{ id: 'a' }] }),
+        frame({ type: 'done' }),
+      ]),
+    );
+    const { result } = setup();
+    act(() => result.current.send('plumber'));
+    await waitFor(() => expect(result.current.bookOpen).toBe(true));
+    act(() => result.current.closeBook());
+    expect(result.current.bookOpen).toBe(false);
+    expect(result.current.results).toHaveLength(1);
+  });
+
+  it('[Req 3.8] a reply before the last turn does not set closing', async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([frame({ type: 'delta', text: 'Goodnight.' }), frame({ type: 'done' })]),
+    );
+    const { result } = setup('1023');
+    expect(result.current.closing).toBe(false);
+    act(() => result.current.send('first question'));
+    await waitFor(() => expect(result.current.streaming).toBe(false));
+    expect(result.current.closing).toBe(false);
+  });
+
+  it('[Req 3.8] a done on the last allowed turn sets closing', async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([frame({ type: 'delta', text: 'Goodnight.' }), frame({ type: 'done' })]),
+    );
+    const { result, rerender, initialProps } = setup('1023');
+    rerender({ ...initialProps, turnIndex: 5 });
+    act(() => result.current.send('last question'));
+    await waitFor(() => expect(result.current.closing).toBe(true));
+    expect(result.current.streaming).toBe(false);
+    expect(result.current.transcript.at(-1)).toEqual({ speaker: 'operator', text: 'Goodnight.' });
+  });
+
+  it('[Req 3.8] a turn_cap error keeps the goodbye on screen and sets closing', async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([
+        frame({ type: 'delta', text: 'The line is fading.' }),
+        frame({ type: 'error', code: 'turn_cap' }),
+      ]),
+    );
+    const { result } = setup('1023');
+    act(() => result.current.send('one more'));
+    await waitFor(() => expect(result.current.closing).toBe(true));
+    expect(result.current.transcript.at(-1)?.text).toBe('The line is fading.');
+  });
+
+  it('[Req 3.8] the spirit line closes after its page opens', async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([
+        frame({ type: 'delta', text: 'Who calls?' }),
+        frame({ type: 'tool_result', results: [] }),
+        frame({ type: 'done' }),
+      ]),
+    );
+    const { result } = setup('1313');
+    await waitFor(() => expect(result.current.closing).toBe(true));
+    expect(result.current.bookOpen).toBe(true);
   });
 });
