@@ -287,7 +287,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: row count verification
 
-- [ ] 19. Implement /api/search route
+- [x] 19. Implement /api/search route
 
   Create `app/api/search/route.ts`. Zod validation: `{ type, query (max 300), spooky?, spiritOnly? }`. Hash IP, check/increment `search_count` via `increment_rate_limit`. Return 429 with in-character JSON if limit exceeded. Call embed Edge Function. Call `search_businesses` or `search_residents` RPC. Return typed JSON.
 
@@ -297,7 +297,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `app/api/search/route.test.ts` (5 unit tests)
 
-- [ ] 20. Implement lib/spooky.ts and test isSpookyQuery
+- [x] 20. Implement lib/spooky.ts and test isSpookyQuery
 
   Create `lib/spooky.ts` exporting `SPOOKY_KEYWORDS: string[]` and `isSpookyQuery(query: string): boolean`. Write fast-check P7 (true iff query contains a keyword substring, case-insensitive). Write unit tests: spooky query returns true; non-spooky returns false; case-insensitive match.
 
@@ -307,7 +307,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/spooky.test.ts` (1 property test + 3 unit tests)
 
-- [ ] 21. Define all operators in lib/operators.ts
+- [x] 21. Define all operators in lib/operators.ts
 
   Define `OperatorDefinition` type. Export `OPERATORS: Record<string, OperatorDefinition>` for 1023, 1026, 666, 1313 with full system prompts per design. Export `EMERGENCY_NUMBERS: Set<string>` ("10111", "10177", "107", "112", "911", "999"). Each system prompt includes: stay in character, no real service claim, no medical/legal/financial advice, refuse unsafe content in character, South African English, and an invented backstory tied to Johannesburg and its old exchange (design, Johannesburg flavour).
 
@@ -317,7 +317,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/operators.test.ts` (no operator on emergency number; all ring counts valid)
 
-- [ ] 22. Implement /api/operator route (streaming SSE)
+- [-] 22. Implement /api/operator route (streaming SSE)
 
   Create `app/api/operator/route.ts`. Zod validation. Reject: unknown number (400), input > MAX_INPUT_CHARS (400), turnIndex >= MAX_TURNS_PER_CALL (send goodbye SSE). Check IP and global rate limits. For 1313: return hardcoded greeting + tool_result with spirit listings, no Claude call. For others: build Claude request using `process.env.ANTHROPIC_MODEL ?? "claude-haiku-5-5"`, stream reply, intercept tool_use blocks, run matching RPC, inject tool_result, continue stream. Inject Johannesburg time into 1026 prompt. Append goodbye instruction on final turn.
 
