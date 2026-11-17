@@ -327,7 +327,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `app/api/operator/route.test.ts` (6 unit tests)
 
-- [-] 23. Build OperatorPanel component
+- [x] 23. Build OperatorPanel component
 
   Create `components/OperatorPanel/OperatorPanel.tsx`. Props: `operatorNumber`, `onMessage`, `onHangUp`, `turnIndex`, `maxTurns`. Display: operator name, transcript scroll, input area. Input area: show SpeechRecognition button if available; always show typed text input. Feature-detect `window.SpeechRecognition` on mount. After reply streams, call `speechSynthesis.speak()` with the voice from `pickVoice`: an `en-ZA` voice when the browser has one, otherwise the operator's voice hint. Respect mute state.
 
@@ -337,7 +337,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/OperatorPanel/OperatorPanel.test.tsx` (4 tests)
 
-- [ ] 24. Wire streaming fetch in browser
+- [-] 24. Wire streaming fetch in browser
 
   In `app/page.tsx`, when state is `connected`, open a `fetch` to `/api/operator` and read SSE stream with `ReadableStream`. Handle event types: `delta` (append to transcript), `tool_result` (store results, open phone book), `done` (complete), `error` (in-character message, dispatch as needed). On 429 dispatch `RATE_LIMITED`. Abort fetch on HANG_UP.
 
