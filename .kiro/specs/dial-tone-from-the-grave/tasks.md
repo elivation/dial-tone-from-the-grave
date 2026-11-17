@@ -453,7 +453,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/rateLimits.test.ts` (3 property tests)
 
-- [-] 30. Add security headers via next.config
+- [x] 30. Add security headers via next.config
 
   In `next.config.ts`, add a `headers()` function applying CSP and other security headers to all routes: `default-src 'self'`, `script-src 'self'`, `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`, `font-src 'self' https://fonts.gstatic.com`, `connect-src 'self' https://*.supabase.co`, `img-src 'self' data:`, `media-src 'none'`, `object-src 'none'`, `frame-ancestors 'none'`, plus `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`.
 
@@ -463,7 +463,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: Playwright or unit test asserting CSP header on `/`
 
-- [ ] 31. Implement /api/health and Vercel cron
+- [-] 31. Implement /api/health and Vercel cron
 
   Create `app/api/health/route.ts`: runs `SELECT 1` via the server secret key client, returns `{ ok: true, ts: string }` or 503 on failure. Create `app/api/cron/keepalive/route.ts`: verifies `Authorization: Bearer {CRON_SECRET}` header, then calls the health endpoint and returns its response. Create `vercel.json` with daily cron at `"0 10 * * *"` on `/api/cron/keepalive`.
 
