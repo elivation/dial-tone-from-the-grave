@@ -357,7 +357,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/PhoneBookPage/BusinessSection.test.tsx` (3 results rendered; is_advert accessible label; dialog opens on activation)
 
-- [-] 26. Build accessible HTML white pages section (HtmlOverlay layer of PhoneBook3D)
+- [x] 26. Build accessible HTML white pages section (HtmlOverlay layer of PhoneBook3D)
 
   Create `components/PhoneBookPage/WhiteSection.tsx`. Each row prints the short dial number in exchange style next to the 011 number (Req 11.7). Accessible counterpart to PhoneBook3D's white-pages page. Visually hidden behind the canvas for sighted users, readable by screen readers and keyboard users. Each row: SURNAME Initial, street address, suburb, phone in a logical `<dl>` or grid. No adverts. All text meets WCAG AA contrast for non-WebGL users.
 
@@ -367,7 +367,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/PhoneBookPage/WhiteSection.test.tsx` (3 residents rendered; surname uppercase; phone present)
 
-- [ ] 27. Build PhoneBookPage container with section tabs (HtmlOverlay)
+- [-] 27. Build PhoneBookPage container with section tabs (HtmlOverlay)
 
   Create `components/PhoneBookPage/PhoneBookPage.tsx`. Container for the accessible HTML book layer in the `HtmlOverlay`. Renders `SectionTabs` with "White Pages" and "Business" tabs. Tab switch fires `onSectionChange`, which updates `activeSection` on both `PhoneBook3D` (3D page mode) and the accessible HTML sections. Tabs use `role="tab"`, `role="tabpanel"`, arrow key navigation, Enter/Space selects. With `prefers-reduced-motion`: section transitions are instant. When `spiritOnly` is true: no tabs, header reads "The Dead Pages: Spirit Listings".
 
