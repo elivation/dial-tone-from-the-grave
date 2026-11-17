@@ -94,7 +94,9 @@ function historyIsOrdered(history: OperatorRequest['history']): boolean {
 }
 
 function compactForModel(listings: Listing[]): string {
-  if (listings.length === 0) return 'No listings found.';
+  if (listings.length === 0) {
+    return 'No listings found. Tell the caller in character that nothing matched, and suggest a broader search, such as a nearby suburb or a different kind of service.';
+  }
   return JSON.stringify(
     listings.map((listing) => {
       if ('name' in listing) {

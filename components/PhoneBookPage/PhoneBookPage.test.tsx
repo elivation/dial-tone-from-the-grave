@@ -3,6 +3,7 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BusinessResult, ResidentResult } from '@/lib/listingSearch';
 import { PhoneBookPage } from './PhoneBookPage';
+import { NO_LISTINGS_MESSAGE } from './sections';
 
 const business: BusinessResult = {
   id: 'b1',
@@ -220,5 +221,9 @@ describe('PhoneBookPage', () => {
     await user.click(screen.getByRole('textbox', { name: 'elsewhere' }));
     await user.keyboard('{Escape}');
     expect(onClose).not.toHaveBeenCalled();
+  });
+  it('[Req 9.9] shows the no listings message in the open section when the search found nothing', () => {
+    setup({ businesses: [], residents: [], activeSection: 'business' });
+    expect(screen.getByRole('tabpanel')).toHaveTextContent(NO_LISTINGS_MESSAGE);
   });
 });

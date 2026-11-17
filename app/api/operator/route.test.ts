@@ -192,6 +192,30 @@ describe('[Req 3.4, 4.3, 4.7, 4.8] /api/operator streaming', () => {
   });
 });
 
+describe('[Req 9.9] a search with no results', () => {
+  it('[Req 9.9] tells the model nothing matched and asks for an in-character broader suggestion', async () => {
+    rpc.mockImplementation(async (name: string) =>
+      name === 'increment_rate_limit' ? { data: 1, error: null } : { data: [], error: null },
+    );
+    stream
+      .mockReturnValueOnce(
+        fakeStream([], {
+          stop_reason: 'tool_use',
+          content: [
+            { type: 'tool_use', id: 'tu_9', name: 'search_businesses', input: { query: 'dragon' } },
+          ],
+        }),
+      )
+      .mockReturnValueOnce(plainReply('Nothing under that.'));
+    const res = await post({ number: '1023', message: 'a dragon', history: [], turnIndex: 0 });
+    const events = await readEvents(res);
+    expect((events.find((e) => e.type === 'tool_result')?.['results'] as unknown[]).length).toBe(0);
+    const second = stream.mock.calls[1]?.[0] as { messages: Array<unknown> };
+    const toolReply = JSON.stringify(second.messages.at(-1));
+    expect(toolReply).toContain('No listings found');
+    expect(toolReply).toMatch(/broader|nearby|different/i);
+  });
+});
 describe('[Req 3.1, 3.2, 3.8, 3.9] operators and turns', () => {
   it('[Req 3.1] an unknown number is a 400 invalid_number', async () => {
     const res = await post({ number: '4242', message: 'hi', history: [], turnIndex: 0 });

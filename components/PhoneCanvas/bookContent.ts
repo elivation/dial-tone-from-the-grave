@@ -1,7 +1,7 @@
 import { formatDialNumber } from '@/lib/exchange';
 import type { BusinessResult, ResidentResult } from '@/lib/listingSearch';
 import type { Listing } from '@/lib/sse';
-import type { BookSection } from '@/components/PhoneBookPage/sections';
+import { NO_LISTINGS_MESSAGE, type BookSection } from '@/components/PhoneBookPage/sections';
 import { seededRandom } from './noise';
 
 /** Size in pixels of one page texture, portrait. */
@@ -44,6 +44,8 @@ export type BookLayout = {
   right: PageLayout;
   /** The undertaker's box, on the business pages only. */
   advert: boolean;
+  /** The search found nothing for this section, so the book says so instead of filling the pages. */
+  empty: boolean;
 };
 
 type Filler = { name: string; address: string; digits: string; person: boolean };
@@ -304,7 +306,30 @@ export function composeBook(results: readonly Listing[], section: BookSection): 
   return {
     mode: section,
     advert: !white,
+    empty: false,
     left: { entries: leftPage, headLeft: range(leftPage), headRight: 'THE DEAD PAGES' },
     right: { entries: rightPage, headLeft: PAGE_NUMBER[section], headRight: range(rightPage) },
   };
+}
+/** Where the empty page's message is printed, and what it says. */
+export const NO_LISTINGS_LINES = [
+  'No listings found',
+  NO_LISTINGS_MESSAGE.replace('No listings found ', ''),
+] as const;
+/** The book for a search that found nothing: running heads and the handwritten note, no entries. */
+export function composeEmptyBook(section: BookSection): BookLayout {
+  return {
+    mode: section,
+    advert: false,
+    empty: true,
+    left: { entries: [], headLeft: '', headRight: 'THE DEAD PAGES' },
+    right: { entries: [], headLeft: PAGE_NUMBER[section], headRight: '' },
+  };
+}
+/** The book to paint: the listings among their neighbours, or the empty page if this section has none. */
+export function bookFor(results: readonly Listing[], section: BookSection): BookLayout {
+  const white = section === 'white';
+  return results.some((listing) => isResident(listing) === white)
+    ? composeBook(results, section)
+    : composeEmptyBook(section);
 }

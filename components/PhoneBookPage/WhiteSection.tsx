@@ -1,5 +1,6 @@
 import { formatDialNumber } from '@/lib/exchange';
 import type { ResidentResult } from '@/lib/listingSearch';
+import { NoListings } from './NoListings';
 import { PANEL } from './panel';
 
 /**
@@ -13,6 +14,7 @@ import { PANEL } from './panel';
  * Sighted users still see SURNAME.
  */
 export function WhiteSection({ residents }: { residents: readonly ResidentResult[] }) {
+  if (residents.length === 0) return <NoListings />;
   return (
     <div className={PANEL}>
       <ul aria-label="Resident listings" className="divide-y divide-stone-400">

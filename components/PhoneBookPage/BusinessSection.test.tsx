@@ -3,6 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BusinessResult } from '@/lib/listingSearch';
 import { BusinessSection } from './BusinessSection';
+import { NO_LISTINGS_MESSAGE } from './sections';
 
 function listing(overrides: Partial<BusinessResult> = {}): BusinessResult {
   return {
@@ -115,5 +116,14 @@ describe('BusinessSection', () => {
   it('[Req 5.1] renders an empty list for no results', () => {
     render(<BusinessSection listings={[]} />);
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+  });
+  it('[Req 9.9] says no listings were found when there are no businesses', () => {
+    render(<BusinessSection listings={[]} />);
+    expect(screen.getByText(NO_LISTINGS_MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+  it('[Req 9.9] does not say it when there are businesses', () => {
+    render(<BusinessSection listings={[listing()]} />);
+    expect(screen.queryByText(NO_LISTINGS_MESSAGE)).not.toBeInTheDocument();
   });
 });

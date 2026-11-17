@@ -9,6 +9,8 @@ import {
   PAGE_H,
   PAGE_W,
   composeBook,
+  composeEmptyBook,
+  bookFor,
 } from './bookContent';
 
 const business = (n: number, overrides: Partial<BusinessResult> = {}): BusinessResult => ({
@@ -144,5 +146,22 @@ describe('composeBook', () => {
       ),
       { numRuns: 30 },
     );
+  });
+});
+describe('the empty book', () => {
+  it('[Req 9.9] has no entries and no advert on either page, in both sections', () => {
+    for (const mode of ['business', 'white'] as const) {
+      const book = composeEmptyBook(mode);
+      expect(book.empty).toBe(true);
+      expect(allEntries(book)).toHaveLength(0);
+      expect(book.advert).toBe(false);
+    }
+  });
+  it('[Req 9.9] is used when the open section has nothing to show, and not otherwise', () => {
+    expect(bookFor([], 'business').empty).toBe(true);
+    expect(bookFor([], 'white').empty).toBe(true);
+    expect(bookFor([resident(1)], 'business').empty).toBe(true);
+    expect(bookFor([business(1)], 'business').empty).toBe(false);
+    expect(composeBook([business(1)], 'business').empty).toBe(false);
   });
 });

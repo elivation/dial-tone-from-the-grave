@@ -4,6 +4,7 @@ import type { BusinessResult } from '@/lib/listingSearch';
 import { AdvertCard, ROW_BUTTON } from './AdvertCard';
 import { ListingDetail } from './ListingDetail';
 import { ListingFacts } from './ListingFacts';
+import { NoListings } from './NoListings';
 import { PANEL } from './panel';
 
 /**
@@ -23,6 +24,7 @@ export function BusinessSection({ listings }: { listings: readonly BusinessResul
     opener.current?.focus();
   };
 
+  if (listings.length === 0) return <NoListings />;
   return (
     <div className={PANEL}>
       <ul aria-label="Business listings" className="divide-y divide-stone-400">

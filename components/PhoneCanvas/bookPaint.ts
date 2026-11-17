@@ -2,6 +2,7 @@ import {
   ADVERT,
   ADVERT_DIAL_NUMBER,
   ADVERT_LINES,
+  NO_LISTINGS_LINES,
   PAGE_H,
   PAGE_W,
   type BookLayout,
@@ -210,6 +211,20 @@ function advert(g: CanvasRenderingContext2D) {
   g.textAlign = 'left';
 }
 
+/** The empty page: a plain printed notice, so a search that found nothing never shows a blank page. */
+function noListings(g: CanvasRenderingContext2D) {
+  const cx = PAGE_W / 2;
+  const y = PAGE_H * 0.4;
+  g.fillStyle = INK;
+  g.textAlign = 'center';
+  g.fillRect(100, y - 90, PAGE_W - 200, 3);
+  g.font = `bold 66px ${SERIF}`;
+  g.fillText(NO_LISTINGS_LINES[0], cx, y, PAGE_W - 200);
+  g.font = `italic 44px ${SERIF}`;
+  g.fillText(NO_LISTINGS_LINES[1], cx, y + 66, PAGE_W - 200);
+  g.fillRect(100, y + 110, PAGE_W - 200, 3);
+  g.textAlign = 'left';
+}
 function handwrittenNote(g: CanvasRenderingContext2D) {
   g.save();
   g.translate(PAGE_W - 520, PAGE_H - 110);
@@ -230,6 +245,7 @@ function printLayer(g: CanvasRenderingContext2D, layout: BookLayout, side: Side,
     else businessEntry(g, placed, rnd);
   }
   if (side === 'L' && layout.advert) advert(g);
+  if (side === 'L' && layout.empty) noListings(g);
   if (side === 'R') handwrittenNote(g);
 }
 

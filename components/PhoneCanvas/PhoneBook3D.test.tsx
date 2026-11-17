@@ -138,10 +138,10 @@ describe('PhoneBook3D', () => {
     expect(meshes.every((m) => m.castShadow)).toBe(true);
   });
 
-  it('[Req 5.1] does not render when the results array is empty', async () => {
+  it('[Req 9.9] opens the book, with its empty page painted, when the search found nothing', async () => {
     await show(<PhoneBook3D results={[]} activeSection="business" />);
-    expect(scene().getObjectByName('phone-book')).toBeUndefined();
-    expect(createPageTextures).not.toHaveBeenCalled();
+    expect(scene().getObjectByName('phone-book')).toBeDefined();
+    expect(vi.mocked(createPageTextures).mock.calls.at(-1)?.[0]).toEqual([]);
   });
 
   it('[Req 6.1] switches layout when activeSection changes, and frees the old pages', async () => {
@@ -162,7 +162,8 @@ describe('PhoneBook3D', () => {
 
   it('[Req 5.3] frees the textures when the book goes away', async () => {
     await show(<PhoneBook3D results={[listing]} activeSection="business" />);
-    await update(<PhoneBook3D results={[]} activeSection="business" />);
+    // The parent takes the book away by no longer mounting it (closeBook), not by emptying it.
+    await update(<></>);
     expect(textureSets.every((s) => s.dispose.mock.calls.length > 0)).toBe(true);
   });
 });

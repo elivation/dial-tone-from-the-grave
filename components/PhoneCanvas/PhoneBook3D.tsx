@@ -117,8 +117,10 @@ const blockMaterial = new THREE.MeshStandardMaterial({
   side: THREE.DoubleSide,
 });
 
-/** The open phone book, lying on the desk to the right of the phone. Nothing shows until there are results. */
+/**
+ * The open phone book, lying on the desk to the right of the phone. The parent mounts it once a
+ * search has come back, and a search that found nothing gets a book with an empty page (Req 9.9).
+ */
 export function PhoneBook3D({ results, activeSection }: Props) {
-  if (results.length === 0) return null;
   return <Book results={results} activeSection={activeSection} />;
 }

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { Listing } from '@/lib/sse';
 import type { BookSection } from '@/components/PhoneBookPage/sections';
-import { composeBook } from './bookContent';
+import { bookFor } from './bookContent';
 import {
   defaultCanvasFactory,
   paintCover,
@@ -36,7 +36,7 @@ export function createPageTextures(
   section: BookSection,
   create: CanvasFactory = defaultCanvasFactory,
 ): PageTextures {
-  const layout = composeBook(results, section);
+  const layout = bookFor(results, section);
   const left = toTexture(paintPage(create, layout, 'L'));
   const right = toTexture(paintPage(create, layout, 'R'));
   return {

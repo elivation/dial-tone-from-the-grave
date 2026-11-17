@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { composeBook, PAGE_H, PAGE_W } from './bookContent';
+import { composeBook, composeEmptyBook, PAGE_H, PAGE_W, type BookLayout } from './bookContent';
 import { paintPage, type CanvasFactory } from './bookPaint';
 import type { BusinessResult } from '@/lib/listingSearch';
 
@@ -34,11 +34,15 @@ function fakeContext(log: Log): CanvasRenderingContext2D {
   }) as unknown as CanvasRenderingContext2D;
 }
 
-function run(section: 'business' | 'white', side: 'L' | 'R', results: BusinessResult[] = []) {
+function run(
+  section: 'business' | 'white',
+  side: 'L' | 'R',
+  results: BusinessResult[] = [],
+  book: BookLayout = composeBook(results, section),
+) {
   const log: Log = { texts: [], calls: [] };
   const create: CanvasFactory = (width, height) =>
     ({ width, height, getContext: () => fakeContext(log) }) as unknown as HTMLCanvasElement;
-  const book = composeBook(results, section);
   const canvas = paintPage(create, book, side);
   return { log, canvas };
 }
@@ -97,5 +101,21 @@ describe('paintPage', () => {
   it('[Req 5.1] draws the print layer twice, once blurred and once sharp', () => {
     const filters = run('business', 'L').log.calls.filter((c) => c.startsWith('drawImage'));
     expect(filters.length).toBe(2);
+  });
+});
+describe('paintPage with no listings', () => {
+  it('[Req 9.9] prints the no listings message on the left page, not a blank page', () => {
+    const { log } = run('business', 'L', [], composeEmptyBook('business'));
+    expect(log.texts.join(' ')).toContain('No listings found');
+    expect(log.texts.join(' ')).toContain('in this exchange.');
+  });
+  it('[Req 9.9] leaves out the Ashgrove advert and keeps the handwritten note', () => {
+    expect(
+      run('business', 'L', [], composeEmptyBook('business')).log.texts.join(' '),
+    ).not.toContain('ASHGROVE');
+    expect(run('white', 'R', [], composeEmptyBook('white')).log.texts).toContain('rings at 3am');
+  });
+  it('[Req 9.9] prints no message on a page of listings', () => {
+    expect(run('business', 'L', [listing]).log.texts.join(' ')).not.toContain('No listings found');
   });
 });

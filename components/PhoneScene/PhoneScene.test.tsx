@@ -90,4 +90,11 @@ describe('PhoneScene phone book', () => {
     await user.click(screen.getByRole('button', { name: 'Close the book' }));
     expect(screen.getByRole('button', { name: 'Pick up the handset' })).toHaveFocus();
   });
+
+  it('[Req 9.9] a search with no results still opens the book, and says so', () => {
+    setChat({ bookOpen: true, results: [] });
+    render(<PhoneScene />);
+    expect(screen.getByTestId('scene')).toHaveAttribute('data-book', 'open:0');
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('No listings found in this exchange.');
+  });
 });

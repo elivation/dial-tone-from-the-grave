@@ -326,7 +326,7 @@ app/page.tsx
             GooPools              (children of DialWheel; turn with it). Leak stains are children of the static phone body
           CentreCard              (canvas texture: handwritten "1023")
           HairstySpider           (animated near the cord)
-        PhoneBook3D               (open book mesh; page textures from canvas; shown on results)
+        PhoneBook3D               (open book mesh; page textures from canvas; shown once a search has come back, with an empty page when it found nothing)
         PostProcessing            (bloom on flame, film grain, vignette via @react-three/postprocessing)
     HtmlOverlay                   (absolute fill, pointer-events: none by default)
       DialAccessible              (2D RotaryDial SVG, visible only with prefers-reduced-motion or no WebGL)

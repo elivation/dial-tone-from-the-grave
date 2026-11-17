@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import type { ResidentResult } from '@/lib/listingSearch';
+import { NO_LISTINGS_MESSAGE } from './sections';
 import { WhiteSection } from './WhiteSection';
 
 function resident(overrides: Partial<ResidentResult> = {}): ResidentResult {
@@ -89,5 +90,14 @@ describe('WhiteSection', () => {
   it('[Req 6.1] renders an empty list for no residents', () => {
     render(<WhiteSection residents={[]} />);
     expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+  });
+  it('[Req 9.9] says no listings were found when there are no residents', () => {
+    render(<WhiteSection residents={[]} />);
+    expect(screen.getByText(NO_LISTINGS_MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+  it('[Req 9.9] does not say it when there are residents', () => {
+    render(<WhiteSection residents={three} />);
+    expect(screen.queryByText(NO_LISTINGS_MESSAGE)).not.toBeInTheDocument();
   });
 });
