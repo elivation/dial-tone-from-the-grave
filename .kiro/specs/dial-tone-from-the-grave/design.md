@@ -350,7 +350,7 @@ app/page.tsx
           WhiteSection
             ResidentRow
           SectionTabs
-      StaticOverlay               (CSS crackle/flicker on wrong-number and connect)
+      StaticOverlay               (CSS noise over the screen while the line is in `wrong-number`; two alternations a second, a 200 ms fade with reduced motion; not on connect)
       LoadingVeil                 (candlelit full-screen state while 3D assets load)
 ```
 

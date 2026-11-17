@@ -11,6 +11,7 @@ import { MuteToggle } from '@/components/MuteToggle';
 import { OperatorPanel } from '@/components/OperatorPanel';
 import { CloseBookButton, PhoneBookPage } from '@/components/PhoneBookPage';
 import type { BookSection } from '@/components/PhoneBookPage';
+import { StaticOverlay } from '@/components/Static';
 import { PhoneCanvasLoader } from '@/components/PhoneCanvas/PhoneCanvasLoader';
 import { useCall } from './useCall';
 import { useOperatorChat } from './useOperatorChat';
@@ -109,6 +110,7 @@ export function PhoneScene() {
         {chat.bookOpen && <CloseBookButton onClose={putBookAway} />}
         <MuteToggle />
       </div>
+      <StaticOverlay visible={state.status === 'wrong-number'} />
       {state.status === 'emergency-notice' && <EmergencyNotice onDismiss={dismiss} />}
     </div>
   );

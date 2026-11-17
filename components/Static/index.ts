@@ -1,0 +1,1 @@
+export { StaticOverlay } from './StaticOverlay';

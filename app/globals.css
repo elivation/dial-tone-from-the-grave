@@ -40,3 +40,31 @@ body {
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
 }
+/* Static for a wrong number. The noise is the same kind as the film grain, but louder. */
+.static-overlay {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: screen;
+}
+/* Two alternations a second, under the three a second limit of WCAG 2.3.1. */
+.static-overlay-animated {
+  animation: static-flicker 0.5s steps(1, end) infinite;
+}
+@keyframes static-flicker {
+  0% {
+    opacity: 0.1;
+    background-position: 0 0;
+  }
+  50% {
+    opacity: 0.22;
+    background-position: 70px 40px;
+  }
+}
+.static-overlay-fade {
+  opacity: 0.14;
+  animation: static-fade-in 200ms ease-out;
+}
+@keyframes static-fade-in {
+  from {
+    opacity: 0;
+  }
+}

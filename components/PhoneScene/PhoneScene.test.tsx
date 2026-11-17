@@ -98,3 +98,28 @@ describe('PhoneScene phone book', () => {
     expect(screen.getByRole('tabpanel')).toHaveTextContent('No listings found in this exchange.');
   });
 });
+
+describe('PhoneScene static', () => {
+  const overlay = (container: HTMLElement) => container.querySelector('.static-overlay');
+
+  it('[Req 2.6] shows the static over the scene on a wrong number', () => {
+    setCall({ status: 'wrong-number' });
+    setChat();
+    const { container } = render(<PhoneScene />);
+    expect(overlay(container)).not.toBeNull();
+  });
+
+  it('[Req 2.8] shows no static on the emergency notice, or when the line is quiet', () => {
+    setChat();
+    for (const state of [
+      { status: 'emergency-notice' },
+      { status: 'idle' },
+      { status: 'busy' },
+    ] satisfies CallState[]) {
+      setCall(state);
+      const { container, unmount } = render(<PhoneScene />);
+      expect(overlay(container)).toBeNull();
+      unmount();
+    }
+  });
+});
