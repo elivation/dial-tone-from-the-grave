@@ -72,3 +72,7 @@ export const BOOK_SCALE = 0.38;
 export const BOOK_APPEAR_SECONDS = 0.6;
 /** How strong the dust is on the phone body, 0 to 1. A faint film, never patches. */
 export const DUST_AMOUNT = 0.12;
+/** Vertical field of view of the desk camera, in degrees. */
+export const CAMERA_FOV = 32;
+/** Fog density at the home camera distance. The camera thins it when it backs away. */
+export const FOG_DENSITY = 1.4;

@@ -397,6 +397,8 @@ type PhoneBookPageProps = {
 
 ## Call Flow State Machine
 
+With the book open the camera glides back (instantly with reduced motion) to the distance at which the book and the whole phone fit with a margin, for any window shape (`frameCamera`). Fog thins in proportion so the far view is not swallowed by it. On a portrait phone the book is small, so its text is read through the HTML twin.
+
 The book stays open after hang-up until the caller closes it. A visible "Close the book" button (mouse, touch and keyboard) and Escape from inside the book both call `closeBook`, and focus then moves to the handset button.
 
 ### Why useReducer, not XState
