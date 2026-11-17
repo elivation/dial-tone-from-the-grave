@@ -19,11 +19,9 @@ test.beforeEach(async ({ page }) => {
   // The first frames compile the scene and block the main thread for up to 650 ms at a time. A key
   // pressed then makes the dial run back late, so the next key arrives while it is still moving and
   // is ignored, as a real dial would. Wait for the veil to lift and the scene to settle first.
-  await page.waitForFunction(
-    () => document.querySelector('[aria-hidden="true"].opacity-0') !== null,
-    undefined,
-    { timeout: 60_000 },
-  );
+  await expect(page.locator('[aria-hidden="true"].opacity-0').first()).toBeAttached({
+    timeout: 60_000,
+  });
   await page.waitForTimeout(1500);
   await page.getByRole('button', { name: 'Pick up the handset' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Dial a number.' })).toBeVisible();

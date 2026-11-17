@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import type { BusinessResult, ResidentResult } from '@/lib/listingSearch';
 
+// Zod probes for eval with new Function(), which the page's CSP blocks and reports. Turning the
+// compiled parser off skips the probe and costs nothing at this event size.
+z.config({ jitless: true });
+
 export type Listing = BusinessResult | ResidentResult;
 
 /** The events `/api/operator` streams. Anything else on the wire is dropped. */

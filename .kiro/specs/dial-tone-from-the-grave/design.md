@@ -962,17 +962,26 @@ Set via `next.config.ts` headers for all routes:
 
 ```
 default-src 'self';
-script-src 'self';
-style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-font-src 'self' https://fonts.gstatic.com;
-connect-src 'self' https://*.supabase.co;
-img-src 'self' data:;
+script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval';
+style-src 'self' 'unsafe-inline';
+font-src 'self';
+connect-src 'self' blob:;
+img-src 'self' data: blob:;
 media-src 'none';
 object-src 'none';
+base-uri 'self';
+form-action 'self';
 frame-ancestors 'none';
 ```
 
-`'unsafe-inline'` for styles is required for Tailwind. No `'unsafe-eval'`. No external script sources.
+Sent with `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin`. No `Permissions-Policy`, so the microphone stays available to speech recognition. `'unsafe-eval'` is added to `script-src` in development only.
+
+Differences from the first draft, and why:
+
+- `script-src` has `'unsafe-inline'`. Next writes inline bootstrap and RSC payload scripts into every page. `experimental.sri` does not cover them (the browser blocked all eight), and a nonce needs per-request rendering, which `cacheComponents` and `partialPrefetching` rule out. Scripts are still limited to our own origin.
+- `'wasm-unsafe-eval'` is for the meshopt decoder that unpacks the phone model. `blob:` in `img-src` and `connect-src` is for the textures three.js decodes from that model.
+- The Google Fonts and `*.supabase.co` origins are gone. No font is loaded from outside, and the browser never calls Supabase.
+- Zod runs with `jitless` on the client, because its `new Function` probe would otherwise be reported as a violation.
 
 ### Input validation (Zod)
 

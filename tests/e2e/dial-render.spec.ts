@@ -21,13 +21,9 @@ test('[render] the slime shows in every finger hole, as blobs, and stays off the
   page.on('pageerror', (e) => problems.push(e.message));
 
   await page.goto('/');
-  await page.waitForFunction(
-    () => document.querySelector('[aria-hidden="true"].opacity-0') !== null,
-    undefined,
-    {
-      timeout: 60_000,
-    },
-  );
+  await expect(page.locator('[aria-hidden="true"].opacity-0').first()).toBeAttached({
+    timeout: 60_000,
+  });
   await page.waitForTimeout(1500);
 
   const close = PNG.sync.read(await page.screenshot({ clip: DIAL }));
