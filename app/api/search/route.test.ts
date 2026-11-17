@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const rpc = vi.fn();
 const embedText = vi.fn();
 
+vi.mock('server-only', () => ({}));
 vi.mock('@/lib/supabase-server', () => ({ supabaseServer: { rpc } }));
 vi.mock('@/lib/embed', () => ({
   embedText,
