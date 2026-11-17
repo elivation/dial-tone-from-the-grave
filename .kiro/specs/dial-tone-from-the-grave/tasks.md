@@ -393,7 +393,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/PhoneCanvas/PhoneBook3D.test.tsx` (renders without throwing when WebGL mocked; does not render when results array is empty; switches layout on activeSection prop change)
 
-- [-] 28. Build StaticOverlay component
+- [x] 28. Build StaticOverlay component
 
   Create `components/Static/StaticOverlay.tsx`. Full-viewport CSS animation simulating TV static (alternating opacity on a noise-pattern SVG). Triggered when `visible` prop is true. With prefers-reduced-motion: 200 ms opacity fade only.
 
@@ -443,7 +443,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `supabase/seed/joburg.test.ts`, `lib/voice.test.ts`
 
-- [ ] 29. Rate limit property tests
+- [-] 29. Rate limit property tests
 
   Extract `checkRateLimit(count: number, limit: number): "allowed" | "denied"` as a pure function in `lib/rateLimits.ts`. Write fast-check P10 (c <= L returns allowed), P11 (c > L returns denied), P12 (string with length > MAX_INPUT_CHARS rejected by Zod operator schema).
 
