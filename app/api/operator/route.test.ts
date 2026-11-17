@@ -192,6 +192,33 @@ describe('[Req 3.4, 4.3, 4.7, 4.8] /api/operator streaming', () => {
   });
 });
 
+describe('[Req 9.8] a failing search', () => {
+  it('[Req 9.8] tells the model the directory is unavailable right now, and still streams the answer', async () => {
+    rpc.mockImplementation(async (name: string) =>
+      name === 'increment_rate_limit'
+        ? { data: 1, error: null }
+        : { data: null, error: { message: 'boom' } },
+    );
+    stream
+      .mockReturnValueOnce(
+        fakeStream([], {
+          stop_reason: 'tool_use',
+          content: [
+            { type: 'tool_use', id: 'tu_5', name: 'search_businesses', input: { query: 'geyser' } },
+          ],
+        }),
+      )
+      .mockReturnValueOnce(plainReply('The directory is unavailable right now.'));
+    const res = await post({ number: '1023', message: 'a plumber', history: [], turnIndex: 0 });
+    const events = await readEvents(res);
+    expect(events.map((e) => e.type)).toEqual(['tool_start', 'delta', 'done']);
+    const second = stream.mock.calls[1]?.[0] as { messages: Array<unknown> };
+    const toolReply = JSON.stringify(second.messages.at(-1));
+    expect(toolReply).toContain('The directory is unavailable right now');
+    expect(toolReply).toContain('"is_error":true');
+  });
+});
+
 describe('[Req 9.9] a search with no results', () => {
   it('[Req 9.9] tells the model nothing matched and asks for an in-character broader suggestion', async () => {
     rpc.mockImplementation(async (name: string) =>

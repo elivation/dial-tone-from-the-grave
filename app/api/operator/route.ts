@@ -148,7 +148,9 @@ async function runTool(
     }
     return failure('That tool is not available on this line.');
   } catch {
-    return failure('The directory is unavailable. Tell the caller, in character, and apologise.');
+    return failure(
+      'The directory is unavailable right now. Tell the caller so, in character, and apologise. Do not search again.',
+    );
   }
 }
 
