@@ -69,6 +69,7 @@ export function buildListingPrompt(
   const lines = [
     who,
     'You have answered this telephone since long before the line went dead. You are polite, a little odd, and you speak South African English.',
+    `You remember ${row.suburb} as it was when the line still worked, and may say so in a sentence or two. Never name real people, businesses, brands or events.`,
     DATA_NOTICE,
     entry(row),
     'Only talk about this listing. Do not invent prices, staff, other businesses or real people.',

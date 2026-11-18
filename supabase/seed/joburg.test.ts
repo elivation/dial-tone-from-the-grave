@@ -1,6 +1,7 @@
 // @vitest-environment node
 /** [Req 14.1, 14.2] The seed data feels like Johannesburg: suburbs from across the city, and its trades. */
 import { describe, it, expect } from 'vitest';
+import { findBrandNames } from '@/lib/brandNames';
 import { BUSINESSES } from './businesses';
 import { RESIDENTS } from './residents';
 import { REGIONS, SUBURBS, regionOf } from './suburbs';
@@ -12,6 +13,14 @@ describe('Johannesburg flavour', () => {
     expect(new Set(everyone.map((l) => l.suburb)).size).toBeGreaterThanOrEqual(12);
   });
 
+  it('[Req 14.1] has at least 12 suburbs in the east, north, west and Soweto alone', () => {
+    const named = new Set(
+      everyone
+        .filter((l) => ['east', 'north', 'west', 'soweto'].includes(regionOf(l.suburb) ?? ''))
+        .map((l) => l.suburb),
+    );
+    expect(named.size).toBeGreaterThanOrEqual(12);
+  });
   it('[Req 14.1] reaches the east, the north, the west and Soweto, with several listings in each', () => {
     for (const region of ['east', 'north', 'west', 'soweto'] as const) {
       const here = everyone.filter((l) => regionOf(l.suburb) === region);
@@ -72,6 +81,15 @@ describe('Johannesburg flavour', () => {
       for (const price of text.match(/\bR ?\d[\d,.]*/g) ?? []) {
         expect(price.trim().replace(/[.,]$/, ''), b.name).toMatch(/^R\d+$/);
       }
+    }
+  });
+  it('[Req 14.4] names no real directory, telecom or phone company anywhere in the seeds', () => {
+    for (const b of BUSINESSES) {
+      const text = [b.name, b.category, b.suburb, b.address, b.hours, b.description].join(' ');
+      expect(findBrandNames(text), b.name).toEqual([]);
+    }
+    for (const r of RESIDENTS) {
+      expect(findBrandNames(Object.values(r).join(' ')), r.surname).toEqual([]);
     }
   });
 });

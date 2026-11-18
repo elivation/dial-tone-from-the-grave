@@ -5,6 +5,7 @@ import {
   buildListingPrompt,
   type ListingRow,
 } from './listingGhost';
+import { findBrandNames } from './brandNames';
 
 const business: ListingRow = {
   kind: 'business',
@@ -92,5 +93,13 @@ describe('lib/listingGhost', () => {
   it('[Req 11.3] the listing greeting and voice are fixed and in character', () => {
     expect(LISTING_GREETING.length).toBeGreaterThan(0);
     expect(LISTING_VOICE.rate).toBeGreaterThan(0);
+  });
+  it('[Req 14.4] a listing ghost remembers its suburb as it was, with nothing real named', () => {
+    for (const row of [business, resident]) {
+      const prompt = buildListingPrompt(row, options);
+      expect(prompt).toContain(`remember ${row.suburb} as it was`);
+      expect(prompt).toMatch(/real people, businesses, brands or events/);
+      expect(findBrandNames(prompt)).toEqual([]);
+    }
   });
 });
