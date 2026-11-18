@@ -8,6 +8,8 @@ import type { UseCall } from './useCall';
 import type { BusinessResult } from '@/lib/listingSearch';
 import type { BookView } from '@/components/PhoneCanvas/PhoneBook3D';
 import type { OperatorChatOptions } from './useOperatorChat';
+import { addPage, emptySession } from '@/lib/bookSession';
+import type { Listing } from '@/lib/sse';
 import { PhoneScene } from './PhoneScene';
 
 const call = vi.hoisted(() => ({ current: null as unknown }));
@@ -20,6 +22,7 @@ vi.mock('./useCall', () => ({
     return call.current;
   },
 }));
+const openBookSpy = vi.hoisted(() => ({ current: vi.fn() }));
 const chatOptions = vi.hoisted(() => ({ current: null as unknown }));
 vi.mock('./useOperatorChat', () => ({
   useOperatorChat: (options: unknown) => {
@@ -70,6 +73,8 @@ function setCall(state: CallState) {
 
 function setChat(overrides: Partial<OperatorChat> = {}) {
   const closeBook = vi.fn();
+  const openBook = vi.fn();
+  openBookSpy.current = openBook;
   chat.current = {
     transcript: [],
     streaming: false,
@@ -78,6 +83,7 @@ function setChat(overrides: Partial<OperatorChat> = {}) {
     closing: false,
     send: vi.fn(),
     closeBook,
+    openBook,
     ...overrides,
   } satisfies OperatorChat;
   return closeBook;
@@ -132,6 +138,55 @@ describe('PhoneScene phone book', () => {
   });
 });
 
+const storeBook = () =>
+  sessionStorage.setItem(
+    'dtftg_book',
+    JSON.stringify(
+      addPage(emptySession, { query: 'plumber', results: [business(1)] as readonly Listing[] }),
+    ),
+  );
+describe('PhoneScene open the book', () => {
+  it('[Req 13.2] offers no Open the book button while the session has no pages', () => {
+    setChat();
+    render(<PhoneScene />);
+    expect(screen.queryByRole('button', { name: 'Open the book' })).not.toBeInTheDocument();
+  });
+  it('[Req 13.2] offers Open the book when the book is closed and the session has pages, after a reload', async () => {
+    storeBook();
+    setChat({ bookOpen: false });
+    render(<PhoneScene />);
+    expect(await screen.findByRole('button', { name: 'Open the book' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Close the book' })).not.toBeInTheDocument();
+  });
+  it('[Req 13.2] shows Close the book, not Open the book, while the book is open', async () => {
+    storeBook();
+    setChat({ bookOpen: true });
+    render(<PhoneScene />);
+    expect(await screen.findByRole('button', { name: 'Close the book' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Open the book' })).not.toBeInTheDocument();
+  });
+  it('[Req 13.2] Open the book opens the book and moves focus to Close the book', async () => {
+    storeBook();
+    setChat({ bookOpen: false });
+    const user = userEvent.setup();
+    const { rerender } = render(<PhoneScene />);
+    await user.click(await screen.findByRole('button', { name: 'Open the book' }));
+    expect(openBookSpy.current).toHaveBeenCalledTimes(1);
+    setChat({ bookOpen: true });
+    rerender(<PhoneScene />);
+    expect(screen.getByRole('button', { name: 'Close the book' })).toHaveFocus();
+  });
+  it('[Req 13.2] closing a book that has pages moves focus to Open the book', async () => {
+    storeBook();
+    setChat({ bookOpen: true });
+    const user = userEvent.setup();
+    const { rerender } = render(<PhoneScene />);
+    await user.click(await screen.findByRole('button', { name: 'Close the book' }));
+    setChat({ bookOpen: false });
+    rerender(<PhoneScene />);
+    expect(screen.getByRole('button', { name: 'Open the book' })).toHaveFocus();
+  });
+});
 const business = (n: number): BusinessResult => ({
   id: `b${n}`,
   name: `Business ${n}`,

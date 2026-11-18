@@ -245,6 +245,14 @@ describe('useOperatorChat', () => {
     expect(result.current.results).toHaveLength(1);
   });
 
+  it('[Req 13.2] openBook opens the book again without a search', () => {
+    const { result } = setup();
+    expect(result.current.bookOpen).toBe(false);
+    act(() => result.current.openBook());
+    expect(result.current.bookOpen).toBe(true);
+    act(() => result.current.closeBook());
+    expect(result.current.bookOpen).toBe(false);
+  });
   it('[Req 3.8] a reply before the last turn does not set closing', async () => {
     fetchMock.mockResolvedValue(
       sseResponse([frame({ type: 'delta', text: 'Goodnight.' }), frame({ type: 'done' })]),

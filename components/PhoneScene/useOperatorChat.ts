@@ -31,6 +31,7 @@ type ChatAction =
   | { type: 'fail'; message: string }
   | { type: 'finish'; closing?: boolean }
   | { type: 'results'; results: Listing[] }
+  | { type: 'openBook' }
   | { type: 'closeBook' };
 
 const initialChat: ChatState = {
@@ -78,6 +79,8 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, streaming: false, closing: action.closing ?? false };
     case 'results':
       return { ...state, results: action.results, bookOpen: true };
+    case 'openBook':
+      return { ...state, bookOpen: true };
     case 'closeBook':
       return { ...state, bookOpen: false };
   }
@@ -107,6 +110,8 @@ export type OperatorChat = {
   /** True once the operator's last words are on screen. The call ends after they are heard. */
   closing: boolean;
   send: (text: string) => void;
+  /** Opens the book again with the pages it already has. */
+  openBook: () => void;
   closeBook: () => void;
 };
 
@@ -252,6 +257,7 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
     [run],
   );
 
+  const openBook = useCallback(() => dispatch({ type: 'openBook' }), []);
   const closeBook = useCallback(() => dispatch({ type: 'closeBook' }), []);
 
   const { callee } = options;
@@ -274,6 +280,7 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
     bookOpen: state.bookOpen,
     closing: state.closing,
     send,
+    openBook,
     closeBook,
   };
 }

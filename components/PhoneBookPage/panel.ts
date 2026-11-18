@@ -12,3 +12,7 @@ export const TABS_BAR =
   'focus-within:pointer-events-auto focus-within:top-2 focus-within:left-2 focus-within:z-40 ' +
   'focus-within:rounded focus-within:border-2 focus-within:border-stone-900 ' +
   'focus-within:bg-amber-50';
+
+// The small buttons in the top right corner, beside Mute. They are on screen for everyone.
+export const CONTROL_BUTTON =
+  'pointer-events-auto rounded border border-amber-200/40 bg-black/70 px-4 py-1 font-serif text-sm tracking-widest text-amber-200/90 hover:bg-amber-200/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-200';

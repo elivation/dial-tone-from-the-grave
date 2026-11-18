@@ -14,7 +14,7 @@ import { IncomingMessage } from '@/components/IncomingMessage';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import { MuteToggle } from '@/components/MuteToggle';
 import { OperatorPanel } from '@/components/OperatorPanel';
-import { CloseBookButton, PhoneBookPage } from '@/components/PhoneBookPage';
+import { CloseBookButton, OpenBookButton, PhoneBookPage } from '@/components/PhoneBookPage';
 import { OpenedListing } from '@/components/PhoneBookPage/OpenedListing';
 import type { BookSection } from '@/components/PhoneBookPage';
 import { StaticOverlay } from '@/components/Static';
@@ -94,11 +94,28 @@ export function PhoneScene() {
   const [chosen, setChosen] = useState<BookSection | null>(null);
   const section = chosen ?? defaultSection;
   const handsetButton = useRef<HTMLButtonElement>(null);
-  // The book's controls vanish with it, so focus goes to the handset rather than to the page.
-  const { closeBook } = chat;
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const openButton = useRef<HTMLButtonElement>(null);
+  // Each of the two buttons replaces the other, so focus is moved once the swap has rendered.
+  const pendingFocus = useRef<'close' | 'open' | null>(null);
+  const { closeBook, openBook, bookOpen } = chat;
+  useEffect(() => {
+    if (pendingFocus.current === 'close' && bookOpen) closeButton.current?.focus();
+    else if (pendingFocus.current === 'open' && !bookOpen) openButton.current?.focus();
+    else return;
+    pendingFocus.current = null;
+  }, [bookOpen]);
   const putBookAway = () => {
     closeBook();
-    handsetButton.current?.focus();
+    // With pages to come back to, focus lands on Open the book. Otherwise the book's controls
+    // are simply gone, so it goes to the handset rather than to the page.
+    if (session.count > 0) pendingFocus.current = 'open';
+    else handsetButton.current?.focus();
+  };
+  const reopenBook = () => {
+    pendingFocus.current = 'close';
+    setEmptyShown(false);
+    openBook();
   };
   // The stream cannot survive losing the network, so the line goes dead with it.
   useEffect(() => {
@@ -182,7 +199,10 @@ export function PhoneScene() {
           <OpenedListing listing={opened} onClose={() => setOpened(null)} onDial={dialNumber} />
         )}
         <div className="absolute top-4 right-4 z-20 flex gap-2">
-          {chat.bookOpen && <CloseBookButton onClose={putBookAway} />}
+          {chat.bookOpen && <CloseBookButton onClose={putBookAway} buttonRef={closeButton} />}
+          {!chat.bookOpen && session.count > 0 && (
+            <OpenBookButton onOpen={reopenBook} buttonRef={openButton} />
+          )}
           <MuteToggle />
         </div>
         <StaticOverlay visible={state.status === 'wrong-number'} />
