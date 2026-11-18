@@ -423,7 +423,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/callMachine.test.ts`, `components/PhoneScene/useIncomingCall.test.tsx`, `lib/incoming.test.ts`
 
-- [-] 47. The book keeps your session
+- [x] 47. The book keeps your session
 
   Write `lib/bookSession.ts` (pure reducer: `addPage`, `markCalled`, `BOOK_MAX_PAGES` cap, oldest dropped) and a `useBookSession` hook that saves to `sessionStorage` key `dtftg_book`. Add pages from search results; mark listings called from task 45's Dial path and from dialled listing numbers. In `PhoneBook3D`, flip between pages, draw a pencil ring round called listings on the page canvas and fold the corner of dog-eared pages. Add `PageStack` to the HTML mirror with Previous and Next buttons, arrow keys, and "called" labels.
 
@@ -433,7 +433,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/bookSession.test.ts`, `components/PhoneBookPage/PageStack.test.tsx`, `components/PhoneCanvas/PhoneBook3D.test.tsx`
 
-- [ ] 48. Johannesburg flavour check
+- [-] 48. Johannesburg flavour check
 
   Add `supabase/seed/joburg.test.ts`: the seeds cover at least 12 suburbs across the east, north, west and Soweto, include every trade in Req 14.2, show prices only in rand, and pass the brand-name scan. Add `lib/voice.ts` `pickVoice` (prefer `en-ZA`, then the voice hint, then the default) with tests. Review the operator and listing-ghost backstories against Req 14.4.
 
