@@ -22,6 +22,9 @@ const VIEWPORTS = [
   [844, 390],
 ] as const;
 
+const LANDSCAPE = VIEWPORTS.filter(([w, h]) => w >= h);
+const PORTRAIT = VIEWPORTS.filter(([w, h]) => w < h);
+const distanceOf = (f: ReturnType<typeof frameCamera>) => f.position.distanceTo(f.target);
 describe('frameCamera', () => {
   it.each(VIEWPORTS)('[Req 5.3] the whole book is on screen at %i by %i', (w, h) => {
     for (const corner of bookCorners()) {
@@ -31,7 +34,7 @@ describe('frameCamera', () => {
     }
   });
 
-  it.each(VIEWPORTS)('[Req 5.3] the phone stays whole beside the open book at %i by %i', (w, h) => {
+  it.each(LANDSCAPE)('[Req 5.3] the phone stays whole beside the open book at %i by %i', (w, h) => {
     for (const corner of PHONE_CORNERS) {
       const p = project(corner, w / h, true);
       expect(Math.abs(p.x)).toBeLessThanOrEqual(1);
@@ -39,7 +42,36 @@ describe('frameCamera', () => {
     }
   });
 
-  it('[Req 5.3] for any window shape the open book fits, and the camera never moves closer than for the phone alone', () => {
+  it.each(PORTRAIT)(
+    '[Req 13.2] the open book fills the width of a portrait screen, %i by %i',
+    (w, h) => {
+      const xs = bookCorners().map((corner) => Math.abs(project(corner, w / h, true).x));
+      expect(Math.max(...xs)).toBeGreaterThan(0.85);
+      expect(Math.max(...xs)).toBeLessThanOrEqual(1);
+    },
+  );
+  it.each(PORTRAIT)(
+    '[Req 13.2] in portrait the camera comes in closer than for the phone alone, %i by %i',
+    (w, h) => {
+      const aspect = w / h;
+      expect(distanceOf(frameCamera(aspect, CAMERA_FOV, true))).toBeLessThan(
+        distanceOf(frameCamera(aspect, CAMERA_FOV, false)) * 0.8,
+      );
+    },
+  );
+  it('[Req 13.2] for any portrait shape the book fills the width and the phone may be cropped', () => {
+    fc.assert(
+      fc.property(fc.double({ min: 0.35, max: 0.99, noNaN: true }), (aspect) => {
+        const projected = bookCorners().map((corner) => project(corner, aspect, true));
+        expect(Math.max(...projected.map((p) => Math.abs(p.x)))).toBeGreaterThan(0.85);
+        for (const p of projected) {
+          expect(Math.abs(p.x)).toBeLessThanOrEqual(1);
+          expect(Math.abs(p.y)).toBeLessThanOrEqual(1);
+        }
+      }),
+    );
+  });
+  it('[Req 5.3] for any window shape the open book fits, and in landscape the camera never moves closer than for the phone alone', () => {
     fc.assert(
       fc.property(fc.double({ min: 0.4, max: 3, noNaN: true }), (aspect) => {
         for (const corner of bookCorners()) {
@@ -47,11 +79,10 @@ describe('frameCamera', () => {
           expect(Math.abs(p.x)).toBeLessThanOrEqual(1);
           expect(Math.abs(p.y)).toBeLessThanOrEqual(1);
         }
+        if (aspect < 1) return;
         const closed = frameCamera(aspect, CAMERA_FOV, false);
         const open = frameCamera(aspect, CAMERA_FOV, true);
-        expect(open.position.distanceTo(open.target)).toBeGreaterThanOrEqual(
-          closed.position.distanceTo(closed.target) - 1e-9,
-        );
+        expect(distanceOf(open)).toBeGreaterThanOrEqual(distanceOf(closed) - 1e-9);
       }),
     );
   });
@@ -64,7 +95,7 @@ describe('frameCamera', () => {
 
   it('[Req 5.3] the fog thins as the camera backs away, so a far view is not swallowed by it', () => {
     const near = frameCamera(1.6, CAMERA_FOV, false);
-    const far = frameCamera(0.46, CAMERA_FOV, true);
+    const far = frameCamera(1.0, CAMERA_FOV, true);
     const distance = (f: ReturnType<typeof frameCamera>) => f.position.distanceTo(f.target);
     expect(distance(far)).toBeGreaterThan(distance(near));
     expect(fogDensityFor(distance(far))).toBeLessThan(fogDensityFor(distance(near)));

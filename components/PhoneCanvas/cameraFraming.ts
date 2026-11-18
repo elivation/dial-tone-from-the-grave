@@ -10,6 +10,10 @@ const HOME = new THREE.Vector3(-0.06, 0.2, 0.5);
 const MIN_VISIBLE_WIDTH = 0.3;
 /** With the book open the camera looks at the middle of the phone and book together. */
 const BOOK_TARGET = new THREE.Vector3(0.03, 0.025, 0.07);
+/** On a portrait screen the camera looks at the middle of the book alone. */
+const BOOK_ONLY_TARGET = new THREE.Vector3(BOOK_POSITION[0], 0.03, BOOK_POSITION[2]);
+/** The nearest the camera may come to the book, in metres. */
+const CLOSEST = 0.1;
 /** How much of the screen the book and phone may fill, so nothing sits right on the edge. */
 const FILL = 0.94;
 
@@ -44,8 +48,10 @@ function fits(points: readonly THREE.Vector3[], camera: THREE.PerspectiveCamera)
 
 /**
  * Where the camera goes. It always looks along the same line at the desk. On narrow screens it
- * backs away to keep the phone whole. With the book open it also backs away, as far as it takes
- * for the book and the phone to fit with a margin, so the book is never cut off.
+ * backs away to keep the phone whole. With the book open on a landscape screen it also backs
+ * away, as far as it takes for the book and the phone to fit with a margin. On a portrait screen
+ * the phone is given up instead: the camera comes in until the book alone fills the width, so the
+ * book is as big as the screen allows and the phone may be cropped.
  */
 export function frameCamera(aspect: number, fov: number, bookOpen: boolean): CameraFraming {
   const halfHeight = Math.tan(THREE.MathUtils.degToRad(fov / 2));
@@ -55,14 +61,22 @@ export function frameCamera(aspect: number, fov: number, bookOpen: boolean): Cam
   if (!bookOpen) return { position: TARGET.clone().add(closed), target: TARGET.clone() };
 
   const camera = new THREE.PerspectiveCamera(fov, aspect, 0.005, 10);
-  const points = [...bookCorners(), ...PHONE_CORNERS];
+  const portrait = aspect < 1;
+  const points = portrait ? bookCorners() : [...bookCorners(), ...PHONE_CORNERS];
+  const target = portrait ? BOOK_ONLY_TARGET : BOOK_TARGET;
   const direction = offset.clone().normalize();
-  for (let distance = closed.length(); distance < 5; distance *= 1.02) {
-    camera.position.copy(BOOK_TARGET).addScaledVector(direction, distance);
-    camera.lookAt(BOOK_TARGET);
+  // Landscape only ever backs away from the phone-only view. Portrait starts close and backs away
+  // until the book just fits, so it stops at the closest view that shows all of it.
+  for (
+    let distance = portrait ? CLOSEST : closed.length();
+    distance < 5;
+    distance *= portrait ? 1.005 : 1.02
+  ) {
+    camera.position.copy(target).addScaledVector(direction, distance);
+    camera.lookAt(target);
     if (fits(points, camera)) break;
   }
-  return { position: camera.position.clone(), target: BOOK_TARGET.clone() };
+  return { position: camera.position.clone(), target: target.clone() };
 }
 
 /**
