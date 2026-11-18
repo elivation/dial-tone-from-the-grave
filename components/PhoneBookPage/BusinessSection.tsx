@@ -11,7 +11,13 @@ import { PANEL } from './panel';
  * The accessible twin of the 3D business page: the same listings as a plain list. Activating a
  * row opens its full details, and closing them puts focus back on that row.
  */
-export function BusinessSection({ listings }: { listings: readonly BusinessResult[] }) {
+export function BusinessSection({
+  listings,
+  onDial,
+}: {
+  listings: readonly BusinessResult[];
+  onDial?: ((digits: string) => void) | undefined;
+}) {
   const [open, setOpen] = useState<BusinessResult | null>(null);
   const opener = useRef<HTMLButtonElement | null>(null);
 
@@ -44,7 +50,7 @@ export function BusinessSection({ listings }: { listings: readonly BusinessResul
           </li>
         ))}
       </ul>
-      {open && <ListingDetail listing={open} onClose={close} />}
+      {open && <ListingDetail listing={open} onClose={close} onDial={onDial} />}
     </div>
   );
 }

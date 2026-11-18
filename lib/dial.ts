@@ -42,7 +42,7 @@ export const PULSES: Record<Digit, number> = {
   '0': 10,
 };
 
-function isDigit(value: string): value is Digit {
+export function isDigit(value: string): value is Digit {
   return (DIGITS as readonly string[]).includes(value);
 }
 

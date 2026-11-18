@@ -17,6 +17,8 @@ type Props = {
   onClose: () => void;
   /** The 1313 path: one business section of ghost listings, nothing to flip between. */
   spiritOnly: boolean;
+  /** Dials a listing's short number on the phone. Without it the book only reads. */
+  onDial?: ((digits: string) => void) | undefined;
 };
 
 /** The accessible HTML layer of the phone book: section tabs over the white and business lists. */
@@ -27,6 +29,7 @@ export function PhoneBookPage({
   onSectionChange,
   onClose,
   spiritOnly,
+  onDial,
 }: Props) {
   const base = useId();
   const tabId = (section: BookSection) => `${base}-tab-${section}`;
@@ -41,7 +44,7 @@ export function PhoneBookPage({
         <h2 id={`${base}-heading`} className="sr-only">
           The Dead Pages: Spirit Listings
         </h2>
-        <BusinessSection listings={businesses} />
+        <BusinessSection listings={businesses} onDial={onDial} />
       </section>
     );
   }
@@ -59,9 +62,9 @@ export function PhoneBookPage({
       />
       <div role="tabpanel" id={panelId(activeSection)} aria-labelledby={tabId(activeSection)}>
         {activeSection === 'white' ? (
-          <WhiteSection residents={residents} />
+          <WhiteSection residents={residents} onDial={onDial} />
         ) : (
-          <BusinessSection listings={businesses} />
+          <BusinessSection listings={businesses} onDial={onDial} />
         )}
       </div>
     </section>

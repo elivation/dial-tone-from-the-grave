@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { BusinessResult } from '@/lib/listingSearch';
@@ -125,5 +125,25 @@ describe('BusinessSection', () => {
   it('[Req 9.9] does not say it when there are businesses', () => {
     render(<BusinessSection listings={[listing()]} />);
     expect(screen.queryByText(NO_LISTINGS_MESSAGE)).not.toBeInTheDocument();
+  });
+  it('[Req 11.7] the detail dialog has a Dial button that dials the short number and closes the dialog', async () => {
+    const onDial = vi.fn();
+    const user = userEvent.setup();
+    render(<BusinessSection listings={three} onDial={onDial} />);
+    await user.click(screen.getByRole('button', { name: /Pipe Dreams Plumbing/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Pipe Dreams Plumbing' });
+    const dial = within(dialog).getByRole('button', {
+      name: 'Dial Pipe Dreams Plumbing, HO 6-1001',
+    });
+    await user.click(dial);
+    expect(onDial).toHaveBeenCalledExactlyOnceWith('61001');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+  it('[Req 11.7] the Dial button is not inside the row button, which would nest buttons', async () => {
+    render(<BusinessSection listings={three} onDial={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: /^Dial / })).not.toBeInTheDocument();
+    for (const row of screen.getAllByRole('button')) {
+      expect(row.querySelector('button')).toBeNull();
+    }
   });
 });

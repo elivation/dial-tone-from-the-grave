@@ -1,14 +1,18 @@
 import { useEffect, useId, useRef } from 'react';
 import { formatDialNumber } from '@/lib/exchange';
 import type { BusinessResult } from '@/lib/listingSearch';
+import { DialButton } from './DialButton';
 
 /** The full entry for one listing, in a modal dialog. The browser handles Escape and the focus trap. */
 export function ListingDetail({
   listing,
   onClose,
+  onDial,
 }: {
   listing: BusinessResult;
   onClose: () => void;
+  /** Dials the listing's short number. The dialog closes first so the phone is in view. */
+  onDial?: ((digits: string) => void) | undefined;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -41,14 +45,26 @@ export function ListingDetail({
         />
         <Row term="About" detail={listing.description} />
       </dl>
-      <button
-        ref={closeRef}
-        type="button"
-        onClick={() => dialogRef.current?.close()}
-        className="mt-4 rounded border border-stone-900 px-4 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900"
-      >
-        Close
-      </button>
+      <div className="mt-4 flex gap-2">
+        {onDial && (
+          <DialButton
+            dialNumber={listing.dial_number}
+            name={listing.name}
+            onDial={(digits) => {
+              dialogRef.current?.close();
+              onDial(digits);
+            }}
+          />
+        )}
+        <button
+          ref={closeRef}
+          type="button"
+          onClick={() => dialogRef.current?.close()}
+          className="rounded border border-stone-900 px-4 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900"
+        >
+          Close
+        </button>
+      </div>
     </dialog>
   );
 }

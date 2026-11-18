@@ -17,6 +17,7 @@ import type { BookSection } from '@/components/PhoneBookPage';
 import { StaticOverlay } from '@/components/Static';
 import { PhoneCanvasLoader } from '@/components/PhoneCanvas/PhoneCanvasLoader';
 import { useCall } from './useCall';
+import { useDialNumber } from './useDialNumber';
 import { useOperatorChat } from './useOperatorChat';
 
 const MAX_SHOWN = 14;
@@ -44,7 +45,9 @@ function splitResults(results: readonly Listing[]) {
 /** The haunted desk, the number being dialled on it, and the handset that starts and ends the call. */
 export function PhoneScene() {
   const online = useOnline();
-  const { state, controller, pickUp, hangUp, dismiss, send } = useCall({ offline: !online });
+  const call = useCall({ offline: !online });
+  const { state, controller, pickUp, hangUp, dismiss, send } = call;
+  const dialNumber = useDialNumber({ call, offline: !online });
   const connected = state.status === 'connected' ? state : null;
   const callee = connected?.callee ?? 'operator';
   const maxTurns = callee === 'listing' ? LISTING_DEFAULT_MAX_TURNS : MAX_TURNS;
@@ -118,6 +121,7 @@ export function PhoneScene() {
             onSectionChange={setChosen}
             onClose={putBookAway}
             spiritOnly={spiritOnly}
+            onDial={dialNumber}
           />
         )}
         <div className="absolute top-4 right-4 z-20 flex gap-2">

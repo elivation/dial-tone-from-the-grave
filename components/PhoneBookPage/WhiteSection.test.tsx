@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ResidentResult } from '@/lib/listingSearch';
 import { NO_LISTINGS_MESSAGE } from './sections';
 import { WhiteSection } from './WhiteSection';
@@ -99,5 +100,18 @@ describe('WhiteSection', () => {
   it('[Req 9.9] does not say it when there are residents', () => {
     render(<WhiteSection residents={three} />);
     expect(screen.queryByText(NO_LISTINGS_MESSAGE)).not.toBeInTheDocument();
+  });
+  it('[Req 11.7] each row has its own Dial button that sends that row short number', async () => {
+    const onDial = vi.fn();
+    render(<WhiteSection residents={three} onDial={onDial} />);
+    const buttons = screen.getAllByRole('button');
+    expect(buttons).toHaveLength(3);
+    expect(buttons[1]).toHaveAccessibleName('Dial Botha A J, MO 7-2002');
+    await userEvent.click(buttons[1]!);
+    expect(onDial).toHaveBeenCalledExactlyOnceWith('72002');
+  });
+  it('[Req 11.7] without an onDial there are no buttons, so read-only callers are unchanged', () => {
+    render(<WhiteSection residents={three} />);
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });
