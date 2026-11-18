@@ -7,7 +7,8 @@ import type { UseCall } from './useCall';
  * Dials a number for the caller, digit by digit, through the same dial controller as a hand on the
  * dial. It picks up if the phone is on the hook, waits for the dial to come back to rest before
  * each digit, and leaves the 2 second pause to `useCall`. A call or a half dialled number in
- * progress is hung up first, so the digits are never added to someone else's.
+ * progress is hung up first, so the digits are never added to someone else's. `pending` says
+ * whether digits are still waiting to be dialled.
  */
 export function useDialNumber({ call, offline }: { call: UseCall; offline: boolean }) {
   const { state, controller, pickUp, hangUp } = call;
@@ -42,7 +43,7 @@ export function useDialNumber({ call, offline }: { call: UseCall; offline: boole
     if (press(next)) queue.current = queue.current.slice(1);
   }, [requests, offline, status, phase, disabled, press, pickUp, hangUp]);
 
-  return useCallback(
+  const dial = useCallback(
     (digits: string) => {
       if (offline || !/^\d+$/.test(digits)) return;
       queue.current = digits;
@@ -51,4 +52,7 @@ export function useDialNumber({ call, offline }: { call: UseCall; offline: boole
     },
     [offline, status],
   );
+  // The phone must not ring by itself while digits are still waiting to go in.
+  const pending = useCallback(() => queue.current !== '', []);
+  return { dial, pending };
 }

@@ -10,6 +10,8 @@ const TEXT: Record<CallState['status'], string> = {
   // The emergency notice covers the screen and speaks for itself.
   'emergency-notice': '',
   busy: 'All lines are busy. Please try again later.',
+  'ringing-in': 'The phone is ringing.',
+  'incoming-message': 'Someone is on the line.',
 };
 
 /** One line saying what the line is doing. A polite live region, so screen readers hear each change. */

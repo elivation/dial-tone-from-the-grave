@@ -13,7 +13,10 @@ export type CallState =
   | { status: 'connected'; operatorNumber: string; callee: Callee; turnIndex: number }
   | { status: 'wrong-number' }
   | { status: 'emergency-notice' }
-  | { status: 'busy' };
+  | { status: 'busy' }
+  /** The phone is ringing by itself. The message is chosen when it starts, so the reducer stays pure. */
+  | { status: 'ringing-in'; messageIndex: number }
+  | { status: 'incoming-message'; messageIndex: number };
 
 export type CallEvent =
   | { type: 'PICK_UP' }
@@ -28,7 +31,10 @@ export type CallEvent =
   | { type: 'TURN_CAP_REACHED' }
   | { type: 'RATE_LIMITED' }
   | { type: 'SEQUENCE_COMPLETE' }
-  | { type: 'DISMISSED' };
+  | { type: 'DISMISSED' }
+  | { type: 'INCOMING_RING'; messageIndex: number }
+  | { type: 'RING_TIMEOUT' }
+  | { type: 'MESSAGE_DONE' };
 
 export const initialCallState: CallState = { status: 'idle' };
 
@@ -40,6 +46,8 @@ const IDLE: CallState = { status: 'idle' };
  * here so no path can send them to an operator. Events that do not fit the current state
  * return the same state object.
  *
+ * INCOMING_RING only works from idle, so the phone never rings by itself during a call.
+ *
  * HANG_UP goes straight to idle. Stopping the sound is a side effect of leaving a state, not a state.
  */
 export function callReducer(state: CallState, event: CallEvent): CallState {
@@ -47,7 +55,14 @@ export function callReducer(state: CallState, event: CallEvent): CallState {
 
   switch (state.status) {
     case 'idle':
-      return event.type === 'PICK_UP' ? { status: 'off-hook' } : state;
+      switch (event.type) {
+        case 'PICK_UP':
+          return { status: 'off-hook' };
+        case 'INCOMING_RING':
+          return { status: 'ringing-in', messageIndex: event.messageIndex };
+        default:
+          return state;
+      }
 
     case 'off-hook':
       return event.type === 'DIGIT_DIALLED' ? { status: 'dialling', digits: event.digit } : state;
@@ -102,5 +117,16 @@ export function callReducer(state: CallState, event: CallEvent): CallState {
 
     case 'emergency-notice':
       return event.type === 'DISMISSED' ? IDLE : state;
+    case 'ringing-in':
+      switch (event.type) {
+        case 'PICK_UP':
+          return { status: 'incoming-message', messageIndex: state.messageIndex };
+        case 'RING_TIMEOUT':
+          return IDLE;
+        default:
+          return state;
+      }
+    case 'incoming-message':
+      return event.type === 'MESSAGE_DONE' ? IDLE : state;
   }
 }

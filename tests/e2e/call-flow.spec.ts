@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './quietPhone';
 
 /**
  * Presses the number keys one at a time. The dial ignores a key while it is still moving, so each

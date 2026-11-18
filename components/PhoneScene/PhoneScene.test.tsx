@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CallState } from '@/lib/callMachine';
+import { INCOMING_MESSAGES } from '@/lib/incoming';
 import type { OperatorChat } from './useOperatorChat';
 import type { UseCall } from './useCall';
 import { PhoneScene } from './PhoneScene';
@@ -110,6 +111,29 @@ describe('PhoneScene phone book', () => {
   });
 });
 
+describe('PhoneScene incoming call', () => {
+  it('[Req 12.5] says the phone is ringing and lets the caller pick up', async () => {
+    setCall({ status: 'ringing-in', messageIndex: 0 });
+    setChat();
+    render(<PhoneScene />);
+    expect(screen.getByText('The phone is ringing.')).toHaveAttribute('role', 'status');
+    await userEvent.click(screen.getByRole('button', { name: 'Pick up the handset' }));
+    expect((call.current as UseCall).pickUp).toHaveBeenCalledTimes(1);
+  });
+  it('[Req 12.2] shows the message once the call is answered', () => {
+    setCall({ status: 'incoming-message', messageIndex: 0 });
+    setChat();
+    render(<PhoneScene />);
+    expect(screen.getByRole('log', { name: 'Message from the line' })).toHaveTextContent(
+      INCOMING_MESSAGES[0] ?? '',
+    );
+  });
+  it('[Req 12.2] shows no message panel at any other time', () => {
+    setChat();
+    render(<PhoneScene />);
+    expect(screen.queryByRole('log', { name: 'Message from the line' })).not.toBeInTheDocument();
+  });
+});
 describe('PhoneScene static', () => {
   const overlay = (container: HTMLElement) => container.querySelector('.static-overlay');
 

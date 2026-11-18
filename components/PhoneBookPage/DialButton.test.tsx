@@ -26,7 +26,7 @@ let audio: ReturnType<typeof makeAudio>;
 /** The real call and dial controller, with the Dial button wired up the way the page wires it. */
 function Harness({ offline = false, number = '61019' }: { offline?: boolean; number?: string }) {
   const call = useCall({ audio: audio as CallAudio, offline });
-  const dial = useDialNumber({ call, offline });
+  const { dial } = useDialNumber({ call, offline });
   const { state, controller } = call;
   const digits = state.status === 'dialling' ? state.digits : '';
   return (

@@ -190,6 +190,12 @@ const anyState: fc.Arbitrary<CallState> = fc.oneof(
   fc.constant<CallState>({ status: 'wrong-number' }),
   fc.constant<CallState>({ status: 'emergency-notice' }),
   fc.constant<CallState>({ status: 'busy' }),
+  fc
+    .integer({ min: 0, max: 11 })
+    .map((messageIndex): CallState => ({ status: 'ringing-in', messageIndex })),
+  fc
+    .integer({ min: 0, max: 11 })
+    .map((messageIndex): CallState => ({ status: 'incoming-message', messageIndex })),
 );
 
 const anyEvent: fc.Arbitrary<CallEvent> = fc.oneof(
@@ -205,7 +211,12 @@ const anyEvent: fc.Arbitrary<CallEvent> = fc.oneof(
     { type: 'RATE_LIMITED' },
     { type: 'SEQUENCE_COMPLETE' },
     { type: 'DISMISSED' },
+    { type: 'RING_TIMEOUT' },
+    { type: 'MESSAGE_DONE' },
   ),
+  fc
+    .integer({ min: 0, max: 11 })
+    .map((messageIndex): CallEvent => ({ type: 'INCOMING_RING', messageIndex })),
   digit.map((d): CallEvent => ({ type: 'DIGIT_DIALLED', digit: d })),
   fc.record({
     type: fc.constant('NUMBER_MATCHED' as const),
@@ -224,8 +235,45 @@ const STATUSES = [
   'wrong-number',
   'emergency-notice',
   'busy',
+  'ringing-in',
+  'incoming-message',
 ];
 
+describe('callReducer incoming calls', () => {
+  const ringingIn: CallState = { status: 'ringing-in', messageIndex: 4 };
+  it('[Req 12.1] an incoming ring on an idle phone makes it ring in', () => {
+    expect(callReducer({ status: 'idle' }, { type: 'INCOMING_RING', messageIndex: 4 })).toEqual(
+      ringingIn,
+    );
+  });
+  it('[Req 12.2] picking up while it rings in plays the chosen message', () => {
+    expect(callReducer(ringingIn, { type: 'PICK_UP' })).toEqual({
+      status: 'incoming-message',
+      messageIndex: 4,
+    });
+  });
+  it('[Req 12.3] nobody answering returns the phone to idle', () => {
+    expect(callReducer(ringingIn, { type: 'RING_TIMEOUT' })).toEqual({ status: 'idle' });
+  });
+  it('[Req 12.2] the message finishing hangs up by itself', () => {
+    expect(
+      callReducer({ status: 'incoming-message', messageIndex: 4 }, { type: 'MESSAGE_DONE' }),
+    ).toEqual({ status: 'idle' });
+  });
+  it('[Req 12.2] hanging up during the message goes idle', () => {
+    expect(
+      callReducer({ status: 'incoming-message', messageIndex: 4 }, { type: 'HANG_UP' }),
+    ).toEqual({ status: 'idle' });
+  });
+  it('[Req 12.1] hanging up while it rings goes idle', () => {
+    expect(callReducer(ringingIn, { type: 'HANG_UP' })).toEqual({ status: 'idle' });
+  });
+  it('[Req 12.3] a timeout or a finished message means nothing outside its own state', () => {
+    expect(callReducer({ status: 'idle' }, { type: 'RING_TIMEOUT' })).toEqual({ status: 'idle' });
+    expect(callReducer(connected, { type: 'RING_TIMEOUT' })).toBe(connected);
+    expect(callReducer(ringingIn, { type: 'MESSAGE_DONE' })).toBe(ringingIn);
+  });
+});
 describe('callReducer properties', () => {
   it('[P5] never returns undefined or an unknown state, for any state and event', () => {
     fc.assert(
@@ -236,6 +284,16 @@ describe('callReducer properties', () => {
     );
   });
 
+  it('[P16] the phone never rings by itself unless it is idle', () => {
+    fc.assert(
+      fc.property(
+        anyState.filter((state) => state.status !== 'idle'),
+        fc.integer({ min: 0, max: 11 }),
+        (state, messageIndex) =>
+          callReducer(state, { type: 'INCOMING_RING', messageIndex }) === state,
+      ),
+    );
+  });
   it('[P6] the exact emergency number goes to emergency-notice, extra digits do not', () => {
     fc.assert(
       fc.property(fc.constantFrom(...EMERGENCY_NUMBERS), digit, (number, extra) => {

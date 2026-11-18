@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './quietPhone';
 import { PNG } from 'pngjs';
 import { greenInside, greenShapes } from '../../scripts/greenShapes';
 

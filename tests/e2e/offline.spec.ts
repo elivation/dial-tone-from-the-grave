@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './quietPhone';
 
 test('[Req 9.8] going offline shows the in-character message and coming back clears it', async ({
   page,

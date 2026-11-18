@@ -9,6 +9,7 @@ import { CallStatus } from '@/components/CallStatus';
 import { DialledDisplay } from '@/components/DialledDisplay/DialledDisplay';
 import { EmergencyNotice } from '@/components/EmergencyNotice';
 import { Handset } from '@/components/Handset';
+import { IncomingMessage } from '@/components/IncomingMessage';
 import { OfflineNotice } from '@/components/OfflineNotice';
 import { MuteToggle } from '@/components/MuteToggle';
 import { OperatorPanel } from '@/components/OperatorPanel';
@@ -18,6 +19,7 @@ import { StaticOverlay } from '@/components/Static';
 import { PhoneCanvasLoader } from '@/components/PhoneCanvas/PhoneCanvasLoader';
 import { useCall } from './useCall';
 import { useDialNumber } from './useDialNumber';
+import { useIncomingCall } from './useIncomingCall';
 import { useOperatorChat } from './useOperatorChat';
 
 const MAX_SHOWN = 14;
@@ -47,7 +49,8 @@ export function PhoneScene() {
   const online = useOnline();
   const call = useCall({ offline: !online });
   const { state, controller, pickUp, hangUp, dismiss, send } = call;
-  const dialNumber = useDialNumber({ call, offline: !online });
+  const { dial: dialNumber, pending: dialPending } = useDialNumber({ call, offline: !online });
+  useIncomingCall({ state, send, offline: !online, dialPending });
   const connected = state.status === 'connected' ? state : null;
   const callee = connected?.callee ?? 'operator';
   const maxTurns = callee === 'listing' ? LISTING_DEFAULT_MAX_TURNS : MAX_TURNS;
@@ -108,6 +111,9 @@ export function PhoneScene() {
               closing={chat.closing}
               onClosed={() => send({ type: 'TURN_CAP_REACHED' })}
             />
+          )}
+          {state.status === 'incoming-message' && (
+            <IncomingMessage messageIndex={state.messageIndex} />
           )}
           <CallStatus state={state} />
           <DialledDisplay digits={numberShown(state)} />

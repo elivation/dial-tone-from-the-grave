@@ -27,6 +27,11 @@ describe('CallStatus', () => {
     ).toHaveAttribute('aria-live', 'polite');
   });
 
+  it('[Req 12.5] says the phone is ringing when it rings by itself', () => {
+    expect(show({ status: 'ringing-in', messageIndex: 0 })).toHaveTextContent(
+      'The phone is ringing',
+    );
+  });
   it('says something for every state, except the emergency notice which speaks for itself', () => {
     const states: CallState[] = [
       { status: 'idle' },
@@ -36,6 +41,8 @@ describe('CallStatus', () => {
       { status: 'connected', operatorNumber: '1023', callee: 'operator', turnIndex: 0 },
       { status: 'wrong-number' },
       { status: 'busy' },
+      { status: 'ringing-in', messageIndex: 0 },
+      { status: 'incoming-message', messageIndex: 0 },
     ];
     for (const state of states) {
       const { unmount } = render(<CallStatus state={state} />);

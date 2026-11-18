@@ -2,9 +2,9 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { Callee } from '@/lib/callMachine';
 import { LISTING_VOICE } from '@/lib/listingGhost';
-import { OPERATORS, type VoiceConfig } from '@/lib/operators';
+import { OPERATORS } from '@/lib/operators';
 import { getAudioEngine } from '@/lib/audio';
-import { pickVoice } from '@/lib/voice';
+import { speak } from '@/lib/speak';
 import type { MuteControl } from '@/components/MuteToggle/MuteToggle';
 import { findRecognition, type Recognition, type RecognitionConstructor } from './speech';
 
@@ -34,28 +34,6 @@ export type OperatorPanelProps = {
 
 const BUTTON =
   'pointer-events-auto rounded border border-amber-200/40 bg-black/70 px-4 py-1 font-serif text-sm tracking-widest text-amber-200/90 hover:bg-amber-200/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-200 disabled:opacity-50';
-
-/** Reads the text aloud. Returns false when there is no speech to wait for. */
-function speak(text: string, config: VoiceConfig | undefined, onDone: () => void): boolean {
-  const synth = typeof window === 'undefined' ? undefined : window.speechSynthesis;
-  if (!synth || !config || typeof SpeechSynthesisUtterance === 'undefined') return false;
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = 'en-ZA';
-  utterance.pitch = config.pitch;
-  utterance.rate = config.rate;
-  const voice = pickVoice(synth.getVoices(), config.voiceHint);
-  if (voice) utterance.voice = voice;
-  utterance.onend = onDone;
-  utterance.onerror = onDone;
-  try {
-    synth.cancel();
-    synth.speak(utterance);
-  } catch {
-    // Some browsers throw when no voice engine is installed. The text is already on screen.
-    return false;
-  }
-  return true;
-}
 
 /** The call in progress: what the operator says, and a way to answer by voice or by typing. */
 export function OperatorPanel({
