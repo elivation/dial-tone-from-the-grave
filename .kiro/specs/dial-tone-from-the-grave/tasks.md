@@ -403,7 +403,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `components/Static/StaticOverlay.test.tsx` (3 tests)
 
-- [-] 45. Dial a number from the book
+- [x] 45. Dial a number from the book
 
   Create `app/api/number/route.ts` (Zod `{ digits }`, search rate limit, `lookup_number` RPC, returns `{ kind }` only). In `useCall`, after the 2-second pause, look up numbers that are not operators or emergency numbers, staying in `dialling` while waiting: `listing` sends `NUMBER_MATCHED` with `callee: 'listing'` and 2 rings, anything else `NO_MATCH`. Extend `callReducer` with `callee` on `ringing` and `connected`. In `/api/operator`, accept listing numbers: look the row up server-side, build the prompt from `lib/listingGhost.ts`, apply `MAX_TURNS_PER_LISTING_CALL`. Add a Dial button to `ListingCard` and `ResidentRow` that picks up and presses each digit of the listing's short `dial_number` on the shared dial controller, waiting for rest between digits. Add the new env var to `.env.example`.
 
@@ -413,7 +413,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `app/api/number/route.test.ts`, `components/PhoneScene/useCall.test.tsx`, `app/api/operator/route.test.ts`, `lib/listingGhost.test.ts`, `components/PhoneBookPage/DialButton.test.tsx`
 
-- [ ] 46. The phone rings by itself
+- [-] 46. The phone rings by itself
 
   Extend `callReducer` with `ringing-in` and `incoming-message`, and `INCOMING_RING`, `RING_TIMEOUT` and `MESSAGE_DONE` (design, State shape). Write `lib/incoming.ts` (about 12 invented lines). Write `useIncomingCall`: starts after the first interaction, only while idle, random wait between the min and max, session cap in `sessionStorage`, off when `NEXT_PUBLIC_RING_IN_ENABLED` is `false`. Ring tone while `ringing-in`, a 20-second timeout, the message spoken and shown on pick-up, then auto hang-up. `CallStatus` shows "The phone is ringing". The handset shakes except with reduced motion. Add the env vars to `.env.example`.
 
