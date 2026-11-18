@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import type { BookSection } from '@/components/PhoneBookPage/sections';
 import { usePrefersReducedMotion } from '@/lib/useReducedMotion';
 import type { Listing } from '@/lib/sse';
+import { listingAt } from './bookHits';
 import { blockGeometry, buildCentipede, coverGeometry, coverX, pageGeometry } from './bookGeometry';
 import { createCoverTextures, createPageTextures } from './bookTextures';
 import { BOOK_APPEAR_SECONDS, BOOK_POSITION, BOOK_ROTATION_Y, BOOK_SCALE } from './sceneConstants';
@@ -14,8 +15,21 @@ import { BOOK_APPEAR_SECONDS, BOOK_POSITION, BOOK_ROTATION_Y, BOOK_SCALE } from 
 export type BookView = {
   results: readonly Listing[];
   activeSection: BookSection;
+  /** Listings the caller has dialled from this page. They are ringed in pencil. */
+  calledIds?: readonly string[] | undefined;
+  /** The corner of the page is folded down. */
+  dogEared?: boolean | undefined;
+  /** A listing on the page was clicked or tapped. */
+  onOpenListing?: ((id: string) => void) | undefined;
+  /** Bare paper was clicked: -1 on the left page turns back, 1 on the right page turns on. */
+  onFlip?: ((by: -1 | 1) => void) | undefined;
+  /** Which way the book can turn, so the cursor can say so. */
+  canFlip?: { previous: boolean; next: boolean } | undefined;
 };
 type Props = BookView;
+
+const NO_CALLS: readonly string[] = [];
+type Side = 'left' | 'right';
 
 /** How high above the desk the book starts before it is laid down, in metres of book space. */
 const DROP_HEIGHT = 0.08;
@@ -31,13 +45,27 @@ function useDisposed(...items: Array<{ dispose: () => void }>) {
   );
 }
 
-function Book({ results, activeSection }: Props) {
+function Book({
+  results,
+  activeSection,
+  calledIds = NO_CALLS,
+  dogEared = false,
+  onOpenListing,
+  onFlip,
+  canFlip,
+}: Props) {
   const reducedMotion = usePrefersReducedMotion();
+  const getState = useThree((s) => s.get);
   const lowered = useRef<THREE.Group>(null);
   const progress = useRef(reducedMotion ? 1 : 0);
 
-  // Painting is slow, so it happens once per set of results and section, never per frame.
-  const pages = useMemo(() => createPageTextures(results, activeSection), [results, activeSection]);
+  // Painting is slow, so it happens once per change to the page, its section or its marks, never
+  // per frame. Hovering only changes the cursor.
+  const marks = useMemo(() => ({ calledIds, dogEared }), [calledIds, dogEared]);
+  const pages = useMemo(
+    () => createPageTextures(results, activeSection, marks),
+    [results, activeSection, marks],
+  );
   const cloth = useMemo(() => createCoverTextures(), []);
   const geometry = useMemo(
     () => ({
@@ -65,6 +93,32 @@ function Book({ results, activeSection }: Props) {
   useDisposed(...Object.values(geometry));
   useDisposed(centipede);
 
+  const cursor = useRef('');
+  const setCursor = useCallback(
+    (value: string) => {
+      if (cursor.current === value) return;
+      cursor.current = value;
+      getState().gl.domElement.style.cursor = value;
+    },
+    [getState],
+  );
+  useEffect(() => () => setCursor(''), [setCursor]);
+
+  const listingUnder = (side: Side, event: ThreeEvent<MouseEvent | PointerEvent>) =>
+    event.uv ? listingAt(pages.hits[side], event.uv.x, event.uv.y) : null;
+  const flipCursor = (side: Side) => {
+    if (side === 'left') return canFlip?.previous ? 'w-resize' : '';
+    return canFlip?.next ? 'e-resize' : '';
+  };
+  const onMove = (side: Side) => (event: ThreeEvent<PointerEvent>) =>
+    setCursor(listingUnder(side, event) !== null ? 'pointer' : flipCursor(side));
+  const onClick = (side: Side) => (event: ThreeEvent<MouseEvent>) => {
+    if (!event.uv) return;
+    const id = listingUnder(side, event);
+    if (id !== null) onOpenListing?.(id);
+    else onFlip?.(side === 'left' ? -1 : 1);
+  };
+
   useFrame((_, delta) => {
     const group = lowered.current;
     if (!group || progress.current >= 1) return;
@@ -82,7 +136,15 @@ function Book({ results, activeSection }: Props) {
       <group ref={lowered} position-y={reducedMotion ? 0 : DROP_HEIGHT}>
         {(['left', 'right'] as const).map((side) => (
           <group key={side}>
-            <mesh geometry={geometry[side]} castShadow receiveShadow>
+            <mesh
+              name={`page-${side}`}
+              geometry={geometry[side]}
+              castShadow
+              receiveShadow
+              onClick={onClick(side)}
+              onPointerMove={onMove(side)}
+              onPointerOut={() => setCursor('')}
+            >
               <meshStandardMaterial map={pages[side]} roughness={0.92} side={THREE.DoubleSide} />
             </mesh>
             <mesh
@@ -121,6 +183,6 @@ const blockMaterial = new THREE.MeshStandardMaterial({
  * The open phone book, lying on the desk to the right of the phone. The parent mounts it once a
  * search has come back, and a search that found nothing gets a book with an empty page (Req 9.9).
  */
-export function PhoneBook3D({ results, activeSection }: Props) {
-  return <Book results={results} activeSection={activeSection} />;
+export function PhoneBook3D(props: Props) {
+  return <Book {...props} />;
 }

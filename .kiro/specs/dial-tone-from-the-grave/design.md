@@ -1222,6 +1222,8 @@ type BookPage = {
 
 `PhoneBook3D` shows the current page and can flip back and forward. On the page canvas, called listings get a hand-drawn pencil ring around them (a slightly uneven ellipse, drawn twice, soft graphite grey), and dog-eared pages get a folded corner on the mesh. The HTML mirror lists the same pages with Previous and Next buttons (arrow keys work too) and labels called listings "called".
 
+Mouse and touch users dial from the 3D book by clicking a listing on the page: `bookHits.ts` records each real listing's rectangle in page UV space when the page is laid out, a click on the page mesh maps its `uv` to a listing with `listingAt`, and that opens the listing's detail dialog with its Dial button (filler entries are not clickable, hovering a listing shows a pointer cursor, and a click on bare paper turns the page back on the left and on on the right).
+
 ### Johannesburg flavour
 
 - **Seeds:** listings are spread across the east (Edenvale, Bedfordview, Kempton Park, Germiston, Boksburg, Lombardy East), the north (Randburg, Northcliff, Fourways), the west (Roodepoort, Florida, Melville) and the south (Soweto, Rosettenville, Turffontein).

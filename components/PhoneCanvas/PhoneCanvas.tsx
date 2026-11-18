@@ -63,7 +63,7 @@ export default function PhoneCanvas({
           <DialWheel controller={controller} />
         </PhoneModel>
         <Spider />
-        {book && <PhoneBook3D results={book.results} activeSection={book.activeSection} />}
+        {book && <PhoneBook3D {...book} />}
         <DustMotes />
         <ReadySignal onReady={onReady} />
       </Suspense>

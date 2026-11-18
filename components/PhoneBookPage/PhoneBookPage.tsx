@@ -1,8 +1,10 @@
 'use client';
 import { useId, type KeyboardEvent } from 'react';
+import type { BookPage } from '@/lib/bookSession';
 import type { BusinessResult, ResidentResult } from '@/lib/listingSearch';
 import { closesBook } from './CloseBookButton';
 import { BusinessSection } from './BusinessSection';
+import { PageStack } from './PageStack';
 import { SectionTabs } from './SectionTabs';
 import type { BookSection } from './sections';
 import { WhiteSection } from './WhiteSection';
@@ -19,6 +21,10 @@ type Props = {
   spiritOnly: boolean;
   /** Dials a listing's short number on the phone. Without it the book only reads. */
   onDial?: ((digits: string) => void) | undefined;
+  /** Listings the caller has dialled from this page. They are labelled "called". */
+  calledIds?: readonly string[] | undefined;
+  /** Every page of the session book, for flipping. Left out, the book has one page. */
+  pageStack?: { pages: readonly BookPage[]; index: number; onFlip: (by: -1 | 1) => void };
 };
 
 /** The accessible HTML layer of the phone book: section tabs over the white and business lists. */
@@ -30,6 +36,8 @@ export function PhoneBookPage({
   onClose,
   spiritOnly,
   onDial,
+  calledIds,
+  pageStack,
 }: Props) {
   const base = useId();
   const tabId = (section: BookSection) => `${base}-tab-${section}`;
@@ -44,7 +52,8 @@ export function PhoneBookPage({
         <h2 id={`${base}-heading`} className="sr-only">
           The Dead Pages: Spirit Listings
         </h2>
-        <BusinessSection listings={businesses} onDial={onDial} />
+        {pageStack && <PageStack {...pageStack} />}
+        <BusinessSection listings={businesses} onDial={onDial} calledIds={calledIds} />
       </section>
     );
   }
@@ -54,6 +63,7 @@ export function PhoneBookPage({
       <h2 id={`${base}-heading`} className="sr-only">
         Phone book
       </h2>
+      {pageStack && <PageStack {...pageStack} />}
       <SectionTabs
         active={activeSection}
         onChange={onSectionChange}
@@ -62,9 +72,9 @@ export function PhoneBookPage({
       />
       <div role="tabpanel" id={panelId(activeSection)} aria-labelledby={tabId(activeSection)}>
         {activeSection === 'white' ? (
-          <WhiteSection residents={residents} onDial={onDial} />
+          <WhiteSection residents={residents} onDial={onDial} calledIds={calledIds} />
         ) : (
-          <BusinessSection listings={businesses} onDial={onDial} />
+          <BusinessSection listings={businesses} onDial={onDial} calledIds={calledIds} />
         )}
       </div>
     </section>

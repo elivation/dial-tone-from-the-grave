@@ -146,4 +146,12 @@ describe('BusinessSection', () => {
       expect(row.querySelector('button')).toBeNull();
     }
   });
+
+  it('[Req 13.5] labels a listing the caller has dialled as called, and no other', () => {
+    render(<BusinessSection listings={three} calledIds={['b2']} />);
+    const rows = screen.getAllByRole('listitem');
+    expect(rows[1]).toHaveTextContent('called');
+    expect(rows[0]).not.toHaveTextContent('called');
+    expect(rows[2]).not.toHaveTextContent('called');
+  });
 });

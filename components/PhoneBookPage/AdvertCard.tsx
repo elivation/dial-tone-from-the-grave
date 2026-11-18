@@ -9,8 +9,10 @@ export const ROW_BUTTON =
 export const AdvertCard = ({
   listing,
   onOpen,
+  called = false,
 }: {
   listing: BusinessResult;
+  called?: boolean;
   onOpen: (button: HTMLButtonElement) => void;
 }) => {
   const id = useId();
@@ -24,7 +26,7 @@ export const AdvertCard = ({
       <span id={`${id}-label`} className="block text-xs font-bold tracking-widest uppercase">
         Advert
       </span>
-      <ListingFacts listing={listing} nameId={`${id}-name`} />
+      <ListingFacts listing={listing} nameId={`${id}-name`} called={called} />
     </button>
   );
 };

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { useBookSession } from '@/lib/useBookSession';
 import type { CallState } from '@/lib/callMachine';
 import { LISTING_DEFAULT_MAX_TURNS } from '@/lib/listingGhost';
 import type { BusinessResult, ResidentResult } from '@/lib/listingSearch';
@@ -14,6 +15,7 @@ import { OfflineNotice } from '@/components/OfflineNotice';
 import { MuteToggle } from '@/components/MuteToggle';
 import { OperatorPanel } from '@/components/OperatorPanel';
 import { CloseBookButton, PhoneBookPage } from '@/components/PhoneBookPage';
+import { OpenedListing } from '@/components/PhoneBookPage/OpenedListing';
 import type { BookSection } from '@/components/PhoneBookPage';
 import { StaticOverlay } from '@/components/Static';
 import { PhoneCanvasLoader } from '@/components/PhoneCanvas/PhoneCanvasLoader';
@@ -32,6 +34,8 @@ function numberShown(state: CallState): string {
   if (state.status === 'ringing' || state.status === 'connected') return state.operatorNumber;
   return '';
 }
+
+const NO_RESULTS: readonly Listing[] = [];
 
 const isResident = (listing: Listing): listing is ResidentResult => 'surname' in listing;
 
@@ -54,6 +58,11 @@ export function PhoneScene() {
   const connected = state.status === 'connected' ? state : null;
   const callee = connected?.callee ?? 'operator';
   const maxTurns = callee === 'listing' ? LISTING_DEFAULT_MAX_TURNS : MAX_TURNS;
+  const session = useBookSession();
+  const { page, markDialled, addPage } = session;
+  // A search that found nothing adds no page, but the book still says so until the caller flips.
+  const [emptyShown, setEmptyShown] = useState(false);
+  const [opened, setOpened] = useState<Listing | null>(null);
   const chat = useOperatorChat({
     operatorNumber: connected?.operatorNumber ?? null,
     callee,
@@ -61,11 +70,27 @@ export function PhoneScene() {
     maxTurns,
     onTurnSent: () => send({ type: 'TURN_SENT' }),
     onRateLimited: () => send({ type: 'RATE_LIMITED' }),
+    onResults: (results, query) => {
+      setEmptyShown(results.length === 0);
+      addPage(query, results);
+    },
   });
-  const { residents, businesses, spiritOnly } = splitResults(chat.results);
+  // Dialling a listing, by the Dial button or by hand, circles it in the book.
+  const calling =
+    (state.status === 'ringing' || state.status === 'connected') && state.callee === 'listing'
+      ? state.operatorNumber
+      : null;
+  useEffect(() => {
+    if (calling !== null) markDialled(calling);
+  }, [calling, markDialled]);
+
+  const showEmpty = chat.bookOpen && (page === null || emptyShown);
+  const shown = showEmpty ? NO_RESULTS : (page?.results ?? NO_RESULTS);
+  const { residents, businesses, spiritOnly } = splitResults(shown);
   const defaultSection: BookSection = residents.length > 0 ? 'white' : 'business';
-  // A new search starts on the section that holds its results. The tabs then override it.
-  const [seen, setSeen] = useState(chat.results);
+  // A new page starts on the section that holds its results. The tabs then override it.
+  const pageKey = showEmpty ? 'empty' : (page?.id ?? 'none');
+  const [seen, setSeen] = useState(pageKey);
   const [chosen, setChosen] = useState<BookSection | null>(null);
   const section = chosen ?? defaultSection;
   const handsetButton = useRef<HTMLButtonElement>(null);
@@ -79,10 +104,16 @@ export function PhoneScene() {
   useEffect(() => {
     if (!online) hangUp();
   }, [online, hangUp]);
-  if (seen !== chat.results) {
-    setSeen(chat.results);
+  if (seen !== pageKey) {
+    setSeen(pageKey);
     setChosen(null);
   }
+  const flipBook = (by: -1 | 1) => {
+    if (emptyShown) setEmptyShown(false);
+    else session.flip(by);
+  };
+  const openListing = (id: string) => setOpened(shown.find((listing) => listing.id === id) ?? null);
+  const calledIds = showEmpty ? undefined : page?.calledIds;
 
   return (
     <div className="relative h-full w-full">
@@ -90,7 +121,22 @@ export function PhoneScene() {
       <div className="contents" inert={!online}>
         <PhoneCanvasLoader
           controller={controller}
-          book={chat.bookOpen ? { results: chat.results, activeSection: section } : undefined}
+          book={
+            chat.bookOpen
+              ? {
+                  results: shown,
+                  activeSection: section,
+                  calledIds,
+                  dogEared: !showEmpty && page?.dogEared === true,
+                  onOpenListing: openListing,
+                  onFlip: flipBook,
+                  canFlip: {
+                    previous: emptyShown || session.index > 0,
+                    next: emptyShown || session.index < session.count - 1,
+                  },
+                }
+              : undefined
+          }
           fallback={
             <p className="flex h-full items-center justify-center px-6 text-center font-serif text-amber-200/80">
               This switchboard needs WebGL to show the phone.
@@ -128,7 +174,12 @@ export function PhoneScene() {
             onClose={putBookAway}
             spiritOnly={spiritOnly}
             onDial={dialNumber}
+            calledIds={calledIds}
+            pageStack={{ pages: session.pages, index: session.index, onFlip: flipBook }}
           />
+        )}
+        {opened && (
+          <OpenedListing listing={opened} onClose={() => setOpened(null)} onDial={dialNumber} />
         )}
         <div className="absolute top-4 right-4 z-20 flex gap-2">
           {chat.bookOpen && <CloseBookButton onClose={putBookAway} />}

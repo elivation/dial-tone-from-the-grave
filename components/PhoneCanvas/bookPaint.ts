@@ -5,6 +5,7 @@ import {
   NO_LISTINGS_LINES,
   PAGE_H,
   PAGE_W,
+  cellOf,
   type BookLayout,
   type PageLayout,
   type PlacedEntry,
@@ -30,6 +31,10 @@ export function context2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
 
 type Side = 'L' | 'R';
 type Rnd = () => number;
+
+/** What the caller has done to this spread: listings dialled, and whether the corner is folded. */
+export type PageMarks = { calledIds: readonly string[]; dogEared: boolean };
+export const NO_MARKS: PageMarks = { calledIds: [], dogEared: false };
 
 const CONDENSED = '"Arial Narrow", "DejaVu Sans Condensed", sans-serif';
 const SERIF = '"DejaVu Serif", Georgia, serif';
@@ -291,17 +296,95 @@ function fingerprints(g: CanvasRenderingContext2D, side: Side, rnd: Rnd) {
   }
 }
 
+/** A number from text, so each ring is drawn the same way every time but no two look alike. */
+function seedFor(text: string): number {
+  let hash = 7;
+  for (const ch of text) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return hash;
+}
+
+/**
+ * A hand-drawn ring round a listing, in soft graphite: a slightly uneven ellipse that does not
+ * quite close, drawn twice. It has its own generator, so it never changes the rest of the page.
+ */
+function pencilRing(g: CanvasRenderingContext2D, placed: PlacedEntry, mode: BookSection) {
+  const rnd = seededRandom(seedFor(placed.entry.id ?? ''));
+  const cell = cellOf(placed, mode);
+  const cx = cell.x + cell.w / 2;
+  const cy = cell.y + cell.h / 2;
+  g.save();
+  g.lineCap = 'round';
+  g.lineJoin = 'round';
+  for (const [alpha, width] of [
+    [0.7, 2.6],
+    [0.5, 1.8],
+  ] as const) {
+    const wobble = rnd() * Math.PI * 2;
+    const start = rnd() * Math.PI * 2;
+    g.strokeStyle = `rgba(78,78,86,${alpha})`;
+    g.lineWidth = width;
+    g.beginPath();
+    for (let a = 0; a <= Math.PI * 2 + 0.35; a += 0.05) {
+      // The radius creeps outwards as the pencil goes round, so the ends miss each other.
+      const creep = 1 + (a / (Math.PI * 2)) * 0.06;
+      const uneven = 1 + Math.sin(a * 3 + wobble) * 0.03 + (rnd() - 0.5) * 0.015;
+      const rx = (cell.w / 2 + 8) * creep * uneven;
+      const ry = (cell.h / 2 + 3) * creep * uneven;
+      g.lineTo(cx + Math.cos(a + start) * rx, cy + Math.sin(a + start) * ry);
+    }
+    g.stroke();
+  }
+  g.restore();
+}
+
+/** The top outer corner folded down over the page, with the page block showing where it was. */
+function dogEar(g: CanvasRenderingContext2D, mode: BookSection) {
+  const s = 96;
+  const w = PAGE_W;
+  g.save();
+  g.fillStyle = '#6f5f42';
+  g.beginPath();
+  g.moveTo(w - s, 0);
+  g.lineTo(w, 0);
+  g.lineTo(w, s);
+  g.closePath();
+  g.fill();
+  // The back of the paper is a little lighter than the front, and its edge casts a thin shadow.
+  g.shadowColor = 'rgba(30,18,6,0.55)';
+  g.shadowBlur = 10;
+  g.shadowOffsetX = -2;
+  g.shadowOffsetY = 3;
+  g.fillStyle = PAPER[mode].fill;
+  g.beginPath();
+  g.moveTo(w - s, 0);
+  g.lineTo(w, s);
+  g.lineTo(w - s, s);
+  g.closePath();
+  g.fill();
+  g.shadowColor = 'transparent';
+  g.fillStyle = 'rgba(255,248,225,0.22)';
+  g.fill();
+  g.strokeStyle = 'rgba(70,45,20,0.55)';
+  g.lineWidth = 2;
+  g.beginPath();
+  g.moveTo(w - s, 0);
+  g.lineTo(w, s);
+  g.stroke();
+  g.restore();
+}
+
 const PAGE_SEED: Record<Side, number> = { L: 13, R: 29 };
 
 /**
  * Paints one page. The print goes on its own layer so it can be laid down twice: blurred first, as
- * ink bleeding into the fibres, then sharp. Rubbed patches, specks and fingerprints come after.
+ * ink bleeding into the fibres, then sharp. The pencil rings go on top of the print, and rubbed patches, specks and fingerprints wear them with the rest. The folded corner is last.
  * The generator is seeded, so every run makes the same page.
  */
 export function paintPage(
   create: CanvasFactory,
   layout: BookLayout,
   side: Side,
+  marks: PageMarks = NO_MARKS,
 ): HTMLCanvasElement {
   const rnd = seededRandom(PAGE_SEED[side]);
   const canvas = create(PAGE_W, PAGE_H);
@@ -323,9 +406,17 @@ export function paintPage(
   ink.width = 0;
   ink.height = 0;
 
+  const page = side === 'L' ? layout.left : layout.right;
+  for (const placed of page.entries) {
+    if (placed.entry.id !== null && marks.calledIds.includes(placed.entry.id)) {
+      pencilRing(g, placed, layout.mode);
+    }
+  }
+
   rubbedPatches(g, rnd);
   brokenLetters(g, rnd);
   fingerprints(g, side, rnd);
+  if (side === 'R' && marks.dogEared) dogEar(g, layout.mode);
   return canvas;
 }
 

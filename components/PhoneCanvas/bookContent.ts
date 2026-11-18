@@ -19,6 +19,8 @@ export const ADVERT_LINES = [
 export const ADVERT_DIAL_NUMBER = formatDialNumber('21000');
 
 export type BookEntry = {
+  /** The listing's id. Filler entries have none, so they can never be called or clicked. */
+  id: string | null;
   name: string;
   address: string;
   suburb: string;
@@ -140,6 +142,7 @@ function toEntry(f: Filler, rnd: () => number, white: boolean): BookEntry {
   const initial = (f.name.split(' ').pop() ?? '').charAt(0);
   const surname = f.name.split(' ')[0] ?? f.name;
   return {
+    id: null,
     name: white ? `${surname} ${initial}` : f.name,
     address: f.address,
     suburb: '',
@@ -205,6 +208,7 @@ const isResident = (listing: Listing): listing is ResidentResult => 'surname' in
 
 function realEntry(listing: Listing): BookEntry {
   const base = {
+    id: listing.id,
     exchange: formatDialNumber(listing.dial_number),
     phone: listing.phone,
     real: true,
@@ -252,10 +256,20 @@ function areaFor(mode: BookSection, side: 'L' | 'R'): Area {
   };
 }
 
-function heightOf(entry: BookEntry, mode: BookSection): number {
+export function heightOf(entry: BookEntry, mode: BookSection): number {
   if (mode === 'white') return 46;
   if (!entry.real) return 49;
   return entry.boxed ? 92 : 72;
+}
+
+/** The whole cell an entry owns on the page, in canvas pixels: its column and the rows it was given. */
+export function cellOf(placed: PlacedEntry, mode: BookSection) {
+  return {
+    x: placed.x - 8,
+    y: placed.y - 18,
+    w: placed.width + 16,
+    h: heightOf(placed.entry, mode),
+  };
 }
 
 function flow(entries: BookEntry[], area: Area, mode: BookSection) {

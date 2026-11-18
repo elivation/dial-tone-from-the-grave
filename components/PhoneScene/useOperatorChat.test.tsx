@@ -2,6 +2,7 @@ import { StrictMode, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { LISTING_GREETING } from '@/lib/listingGhost';
+import { OPERATORS } from '@/lib/operators';
 import {
   OPERATOR_DOWN_MESSAGE,
   useOperatorChat,
@@ -27,6 +28,7 @@ function setup(
   number: string | null = '1023',
   wrapper?: (props: { children: ReactNode }) => ReactNode,
   callee: 'operator' | 'listing' = 'operator',
+  onResults?: OperatorChatOptions['onResults'],
 ) {
   const callbacks = { onTurnSent: vi.fn(), onRateLimited: vi.fn() };
   const initialProps: OperatorChatOptions = {
@@ -35,6 +37,7 @@ function setup(
     turnIndex: 0,
     maxTurns: 6,
     ...callbacks,
+    onResults,
   };
   const hook = renderHook((props: OperatorChatOptions) => useOperatorChat(props), {
     initialProps,
@@ -177,7 +180,9 @@ describe('useOperatorChat', () => {
     expect(callbacks.onTurnSent).not.toHaveBeenCalled();
   });
 
-  it('[Req 4.5] results and the open book survive hang-up, and the next call clears them', async () => {
+  // Behaviour change the user asked for (Req 13): the book is the caller's session book now, so it
+  // has to stay open while they dial a listing from it. Before, the next connect cleared it.
+  it('[Req 4.5] results and the open book survive hang-up, and the next call leaves them alone', async () => {
     const results = [{ id: 'a', name: 'Pipe Dreams Plumbing' }];
     fetchMock.mockImplementation(() =>
       Promise.resolve(
@@ -192,8 +197,37 @@ describe('useOperatorChat', () => {
     expect(result.current.bookOpen).toBe(true);
     expect(result.current.results).toEqual(results);
     rerender({ ...initialProps, operatorNumber: '1023' });
-    expect(result.current.bookOpen).toBe(false);
-    expect(result.current.results).toEqual([]);
+    expect(result.current.transcript).toEqual([
+      { speaker: 'operator', text: OPERATORS['1023']?.greeting },
+    ]);
+    expect(result.current.bookOpen).toBe(true);
+    expect(result.current.results).toEqual(results);
+  });
+
+  it('[Req 13.1] hands each search to onResults with the words it searched for', async () => {
+    const results = [{ id: 'a', name: 'Pipe Dreams Plumbing' }];
+    fetchMock.mockResolvedValue(
+      sseResponse([
+        frame({ type: 'tool_start', tool: 'search_businesses', query: 'plumber in Edenvale' }),
+        frame({ type: 'tool_result', results }),
+        frame({ type: 'done' }),
+      ]),
+    );
+    const onResults = vi.fn();
+    const { result } = setup('1023', undefined, 'operator', onResults);
+    act(() => result.current.send('plumber'));
+    await waitFor(() => expect(onResults).toHaveBeenCalledTimes(1));
+    expect(onResults).toHaveBeenCalledWith(results, 'plumber in Edenvale');
+  });
+
+  it('[Req 13.1] a search that found nothing still reaches onResults, with no results', async () => {
+    fetchMock.mockResolvedValue(
+      sseResponse([frame({ type: 'tool_result', results: [] }), frame({ type: 'done' })]),
+    );
+    const onResults = vi.fn();
+    const { result } = setup('1023', undefined, 'operator', onResults);
+    act(() => result.current.send('plumber'));
+    await waitFor(() => expect(onResults).toHaveBeenCalledWith([], ''));
   });
 
   it('[Req 4.5] closeBook shuts the book but keeps the results', async () => {

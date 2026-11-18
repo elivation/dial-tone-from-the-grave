@@ -5,6 +5,9 @@ import type { CallState } from '@/lib/callMachine';
 import { INCOMING_MESSAGES } from '@/lib/incoming';
 import type { OperatorChat } from './useOperatorChat';
 import type { UseCall } from './useCall';
+import type { BusinessResult } from '@/lib/listingSearch';
+import type { BookView } from '@/components/PhoneCanvas/PhoneBook3D';
+import type { OperatorChatOptions } from './useOperatorChat';
 import { PhoneScene } from './PhoneScene';
 
 const call = vi.hoisted(() => ({ current: null as unknown }));
@@ -17,13 +20,30 @@ vi.mock('./useCall', () => ({
     return call.current;
   },
 }));
-vi.mock('./useOperatorChat', () => ({ useOperatorChat: () => chat.current }));
-// There is no WebGL in jsdom. The stub shows whether the scene was handed a book.
-vi.mock('@/components/PhoneCanvas/PhoneCanvasLoader', () => ({
-  PhoneCanvasLoader: ({ book }: { book?: { results: unknown[] } }) => (
-    <div data-testid="scene" data-book={book ? `open:${book.results.length}` : 'none'} />
-  ),
+const chatOptions = vi.hoisted(() => ({ current: null as unknown }));
+vi.mock('./useOperatorChat', () => ({
+  useOperatorChat: (options: unknown) => {
+    chatOptions.current = options;
+    return chat.current;
+  },
 }));
+// There is no WebGL in jsdom. The stub shows whether the scene was handed a book, and hands the
+// test the book's callbacks so it can click and flip the way the 3D pages would.
+vi.mock('@/components/PhoneCanvas/PhoneCanvasLoader', () => ({
+  PhoneCanvasLoader: ({ book }: { book?: BookView }) => {
+    bookView.current = book;
+    return (
+      <div
+        data-testid="scene"
+        data-book={book ? `open:${book.results.length}` : 'none'}
+        data-first={book?.results[0]?.id ?? ''}
+        data-called={(book?.calledIds ?? []).join(',')}
+        data-dogeared={String(book?.dogEared ?? false)}
+      />
+    );
+  },
+}));
+const bookView = vi.hoisted(() => ({ current: undefined as unknown }));
 
 const restingDial: UseCall['controller'] = {
   rotation: 0,
@@ -64,6 +84,7 @@ function setChat(overrides: Partial<OperatorChat> = {}) {
 }
 
 beforeEach(() => {
+  sessionStorage.clear();
   useCallSpy.mockClear();
   setCall({ status: 'idle' });
 });
@@ -108,6 +129,139 @@ describe('PhoneScene phone book', () => {
     render(<PhoneScene />);
     expect(screen.getByTestId('scene')).toHaveAttribute('data-book', 'open:0');
     expect(screen.getByRole('tabpanel')).toHaveTextContent('No listings found in this exchange.');
+  });
+});
+
+const business = (n: number): BusinessResult => ({
+  id: `b${n}`,
+  name: `Business ${n}`,
+  category: 'plumber',
+  suburb: 'Edenvale',
+  address: `${n} Hollow Lane`,
+  phone: `011 000 ${1000 + n}`,
+  dial_number: `${61000 + n}`,
+  hours: '24 hours',
+  description: 'Invented',
+  is_24hr: true,
+  is_advert: false,
+  is_spirit: false,
+  score: 1,
+});
+const results = (n: number) => [business(n)];
+const options = () => chatOptions.current as OperatorChatOptions;
+const book = () => bookView.current as BookView;
+const scene = () => screen.getByTestId('scene');
+
+describe('PhoneScene session book', () => {
+  it('[Req 13.1] a search adds a page and the 3D book shows it', () => {
+    setChat({ bookOpen: true, results: results(1) });
+    render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    expect(scene()).toHaveAttribute('data-first', 'b1');
+    act(() => options().onResults?.(results(2), 'electrician'));
+    expect(scene()).toHaveAttribute('data-first', 'b2');
+  });
+
+  it('[Req 13.2] clicking bare paper on the 3D page flips back to the earlier search', () => {
+    setChat({ bookOpen: true });
+    render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    act(() => options().onResults?.(results(2), 'electrician'));
+    act(() => book().onFlip?.(-1));
+    expect(scene()).toHaveAttribute('data-first', 'b1');
+    expect(book().canFlip).toEqual({ previous: false, next: true });
+    act(() => book().onFlip?.(1));
+    expect(scene()).toHaveAttribute('data-first', 'b2');
+  });
+
+  it('[Req 13.2] offers Previous and Next in the HTML mirror, with arrow keys', async () => {
+    setChat({ bookOpen: true });
+    render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    act(() => options().onResults?.(results(2), 'electrician'));
+    screen.getByRole('button', { name: 'Previous page' }).focus();
+    await userEvent.keyboard('{ArrowLeft}');
+    expect(scene()).toHaveAttribute('data-first', 'b1');
+    expect(screen.getByText('Page 1 of 2: plumber')).toBeInTheDocument();
+  });
+
+  it('[Req 13.3] a call to a listing in the book rings it in pencil and dog-ears the page', () => {
+    setChat({ bookOpen: true });
+    const { rerender } = render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    expect(scene()).toHaveAttribute('data-called', '');
+    setCall({ status: 'ringing', operatorNumber: '61001', callee: 'listing', ringsRemaining: 2 });
+    rerender(<PhoneScene />);
+    expect(scene()).toHaveAttribute('data-called', 'b1');
+    expect(scene()).toHaveAttribute('data-dogeared', 'true');
+  });
+
+  it('[Req 13.3] a call to an operator, or to a number that is not in the book, marks nothing', () => {
+    setChat({ bookOpen: true });
+    const { rerender } = render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    setCall({ status: 'connected', operatorNumber: '1023', callee: 'operator', turnIndex: 0 });
+    rerender(<PhoneScene />);
+    setCall({ status: 'connected', operatorNumber: '69999', callee: 'listing', turnIndex: 0 });
+    rerender(<PhoneScene />);
+    expect(scene()).toHaveAttribute('data-called', '');
+  });
+
+  it('[Req 13.5] the HTML mirror labels the called listing', () => {
+    setChat({ bookOpen: true });
+    const { rerender } = render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    setCall({ status: 'connected', operatorNumber: '61001', callee: 'listing', turnIndex: 0 });
+    rerender(<PhoneScene />);
+    expect(screen.getByRole('tabpanel')).toHaveTextContent('called');
+  });
+
+  it('[Req 13.4] a reload in the same tab brings the pages back', () => {
+    setChat({ bookOpen: true });
+    const first = render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    first.unmount();
+    render(<PhoneScene />);
+    expect(scene()).toHaveAttribute('data-first', 'b1');
+  });
+
+  it('[Req 13.1] a search that finds nothing shows the empty page, and the next click brings the last page back', () => {
+    setChat({ bookOpen: true });
+    render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    act(() => options().onResults?.([], 'unicorns'));
+    expect(scene()).toHaveAttribute('data-book', 'open:0');
+    act(() => book().onFlip?.(-1));
+    expect(scene()).toHaveAttribute('data-first', 'b1');
+  });
+
+  it('[Req 13.2] clicking a listing on the 3D page opens its detail, which dials it', async () => {
+    setChat({ bookOpen: true });
+    render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    act(() => book().onOpenListing?.('b1'));
+    const dialog = screen.getByRole('dialog', { name: 'Business 1' });
+    expect(dialog).toHaveAttribute('open');
+    await userEvent.click(screen.getByRole('button', { name: /^Dial Business 1/ }));
+    expect(dialog).not.toHaveAttribute('open');
+  });
+
+  it('[Req 13.2] clicking an id that is not on the page opens nothing', () => {
+    setChat({ bookOpen: true });
+    render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    act(() => book().onOpenListing?.('nope'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('[Req 4.5] the book stays up while the call connects, because the chat no longer clears it', () => {
+    setChat({ bookOpen: true });
+    const { rerender } = render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    setCall({ status: 'connected', operatorNumber: '61001', callee: 'listing', turnIndex: 0 });
+    rerender(<PhoneScene />);
+    expect(scene()).toHaveAttribute('data-book', 'open:1');
+    expect(screen.getByRole('button', { name: 'Close the book' })).toBeInTheDocument();
   });
 });
 

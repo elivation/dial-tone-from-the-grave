@@ -30,6 +30,13 @@ export const FIXTURE_BUSINESSES: BusinessResult[] = [
   business(4, 'Kgomo Leak Detection', 'Primrose'),
 ];
 
+/** A second search for the dev preview, so the book has a page to flip to. */
+export const FIXTURE_BUSINESSES_2: BusinessResult[] = [
+  business(11, 'Boksburg Gate Motors', 'Boksburg'),
+  business(12, 'Lantern Electrical', 'Kempton Park'),
+  business(13, 'Northcliff Borehole Pumps', 'Northcliff', { is_advert: true }),
+].map((b, n) => ({ ...b, id: `fixture-c${n + 1}` }));
+
 export const FIXTURE_RESIDENTS: ResidentResult[] = [1, 2, 3].map((n) => ({
   id: `fixture-r${n}`,
   surname: ['Dlamini', 'Naidoo', 'Botha'][n - 1] as string,

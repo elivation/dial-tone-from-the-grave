@@ -1,7 +1,13 @@
 'use client';
 import { useEffect, useState } from 'react';
 import type { BookSection } from '@/components/PhoneBookPage/sections';
-import { FIXTURE_BUSINESSES, FIXTURE_RESIDENTS } from '@/components/PhoneCanvas/__fixtures__/book';
+import { OpenedListing } from '@/components/PhoneBookPage/OpenedListing';
+import {
+  FIXTURE_BUSINESSES,
+  FIXTURE_BUSINESSES_2,
+  FIXTURE_RESIDENTS,
+} from '@/components/PhoneCanvas/__fixtures__/book';
+import type { Listing } from '@/lib/sse';
 import { PhoneCanvasLoader } from '@/components/PhoneCanvas/PhoneCanvasLoader';
 import { useDialController, type DialController } from '@/components/RotaryDial/useDialController';
 import { replayPlan } from './replay';
@@ -33,11 +39,23 @@ export function PhonePreview({
   wheel,
   dial,
   book,
+  page = 0,
+  called = [],
+  dogEared = false,
 }: {
   wheel: number;
   dial: string;
   book: BookSection | null;
+  /** Which page of the invented session the book opens on. */
+  page?: number;
+  /** Ids of listings to ring in pencil. */
+  called?: readonly string[];
+  dogEared?: boolean;
 }) {
+  const pages: Listing[][] =
+    book === 'white' ? [FIXTURE_RESIDENTS] : [FIXTURE_BUSINESSES, FIXTURE_BUSINESSES_2];
+  const [index, setIndex] = useState(Math.min(page, pages.length - 1));
+  const [opened, setOpened] = useState<Listing | null>(null);
   const [ready, setReady] = useState(false);
   const [done, setDone] = useState(dial === '');
   const live = useDialController({ disabled: dial === '', onDigit: () => {} });
@@ -78,12 +96,21 @@ export function PhonePreview({
         book={
           book
             ? {
-                results: book === 'white' ? FIXTURE_RESIDENTS : FIXTURE_BUSINESSES,
+                results: pages[index] ?? [],
                 activeSection: book,
+                calledIds: called,
+                dogEared,
+                onOpenListing: (id) =>
+                  setOpened((pages[index] ?? []).find((listing) => listing.id === id) ?? null),
+                onFlip: (by) => setIndex((i) => Math.min(pages.length - 1, Math.max(0, i + by))),
+                canFlip: { previous: index > 0, next: index < pages.length - 1 },
               }
             : undefined
         }
       />
+      {opened && (
+        <OpenedListing listing={opened} onClose={() => setOpened(null)} onDial={() => {}} />
+      )}
     </main>
   );
 }

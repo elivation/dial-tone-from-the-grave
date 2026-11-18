@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { composeBook, composeEmptyBook, PAGE_H, PAGE_W, type BookLayout } from './bookContent';
-import { paintPage, type CanvasFactory } from './bookPaint';
+import { paintPage, type CanvasFactory, type PageMarks } from './bookPaint';
+import { FIXTURE_BUSINESSES } from './__fixtures__/book';
 import type { BusinessResult } from '@/lib/listingSearch';
 
 type Log = { texts: string[]; calls: string[] };
@@ -39,11 +40,12 @@ function run(
   side: 'L' | 'R',
   results: BusinessResult[] = [],
   book: BookLayout = composeBook(results, section),
+  marks?: PageMarks,
 ) {
   const log: Log = { texts: [], calls: [] };
   const create: CanvasFactory = (width, height) =>
     ({ width, height, getContext: () => fakeContext(log) }) as unknown as HTMLCanvasElement;
-  const canvas = paintPage(create, book, side);
+  const canvas = paintPage(create, book, side, marks);
   return { log, canvas };
 }
 
@@ -117,5 +119,56 @@ describe('paintPage with no listings', () => {
   });
   it('[Req 9.9] prints no message on a page of listings', () => {
     expect(run('business', 'L', [listing]).log.texts.join(' ')).not.toContain('No listings found');
+  });
+});
+
+describe('paintPage marks', () => {
+  const layout = composeBook(FIXTURE_BUSINESSES, 'business');
+  const called = [...layout.left.entries, ...layout.right.entries].find((p) => p.entry.real);
+  const calledId = called?.entry.id ?? '';
+  const calledSide = layout.left.entries.some((p) => p.entry.id === calledId) ? 'L' : 'R';
+  const otherSide = calledSide === 'L' ? 'R' : 'L';
+  const paint = (side: 'L' | 'R', marks?: PageMarks) =>
+    run('business', side, [], layout, marks).log.calls;
+  const count = (calls: string[], prefix: string) =>
+    calls.filter((c) => c.startsWith(prefix)).length;
+
+  it('[Req 13.3] draws a pencil ring twice round a called listing, on its own page only', () => {
+    const marks: PageMarks = { calledIds: [calledId], dogEared: false };
+    const plain = paint(calledSide);
+    const ringed = paint(calledSide, marks);
+    expect(count(ringed, 'stroke:') - count(plain, 'stroke:')).toBe(2);
+    expect(paint(otherSide, marks)).toEqual(paint(otherSide));
+  });
+
+  it('[Req 13.3] draws no ring for a listing that is not on the page', () => {
+    const marks: PageMarks = { calledIds: ['somebody-else'], dogEared: false };
+    expect(paint(calledSide, marks)).toEqual(paint(calledSide));
+  });
+
+  it('[Req 13.3] never rings the filler, whatever ids are called', () => {
+    const marks: PageMarks = { calledIds: [''], dogEared: false };
+    expect(paint('L', marks)).toEqual(paint('L'));
+    expect(paint('R', marks)).toEqual(paint('R'));
+  });
+
+  it('[Req 13.3] folds the outer corner of the right page for a dog-eared page, and not the left', () => {
+    const marks: PageMarks = { calledIds: [], dogEared: true };
+    expect(paint('R', marks).length).toBeGreaterThan(paint('R').length);
+    expect(paint('L', marks)).toEqual(paint('L'));
+  });
+
+  it('[Req 13.3] paints the same ring every time because the PRNG is seeded', () => {
+    const marks: PageMarks = { calledIds: [calledId], dogEared: true };
+    expect(paint(calledSide, marks)).toEqual(paint(calledSide, marks));
+  });
+
+  it('[Req 13.3] leaves the rest of the page as it was when marks are added', () => {
+    const marks: PageMarks = { calledIds: [calledId], dogEared: true };
+    const plain = paint('R');
+    const marked = paint('R', marks);
+    expect(marked.filter((c) => c.startsWith('fillText'))).toEqual(
+      plain.filter((c) => c.startsWith('fillText')),
+    );
   });
 });

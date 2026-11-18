@@ -2,17 +2,22 @@ import * as THREE from 'three';
 import type { Listing } from '@/lib/sse';
 import type { BookSection } from '@/components/PhoneBookPage/sections';
 import { bookFor } from './bookContent';
+import { hitsFor, type BookHits } from './bookHits';
 import {
+  NO_MARKS,
   defaultCanvasFactory,
   paintCover,
   paintEdge,
   paintPage,
   type CanvasFactory,
+  type PageMarks,
 } from './bookPaint';
 
 export type PageTextures = {
   left: THREE.CanvasTexture;
   right: THREE.CanvasTexture;
+  /** Where the real listings are on each page, in UV space, for clicks. Made with the painting. */
+  hits: BookHits;
   /** Frees the GPU copies. The canvases go with them once nothing refers to them. */
   dispose: () => void;
 };
@@ -30,18 +35,23 @@ function toTexture(canvas: HTMLCanvasElement, anisotropy = 16): THREE.CanvasText
   return texture;
 }
 
-/** Paints both pages for these results. Call once per book, not once per frame. */
+/**
+ * Paints both pages for these results, with the pencil rings and folded corner in `marks`. Call
+ * once per change to the book, not once per frame.
+ */
 export function createPageTextures(
   results: readonly Listing[],
   section: BookSection,
+  marks: PageMarks = NO_MARKS,
   create: CanvasFactory = defaultCanvasFactory,
 ): PageTextures {
   const layout = bookFor(results, section);
-  const left = toTexture(paintPage(create, layout, 'L'));
-  const right = toTexture(paintPage(create, layout, 'R'));
+  const left = toTexture(paintPage(create, layout, 'L', marks));
+  const right = toTexture(paintPage(create, layout, 'R', marks));
   return {
     left,
     right,
+    hits: hitsFor(layout),
     dispose: () => {
       left.dispose();
       right.dispose();

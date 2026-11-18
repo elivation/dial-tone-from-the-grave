@@ -7,10 +7,12 @@ import {
   _roots,
   type ReconcilerRoot,
   type RootState,
+  type ThreeEvent,
 } from '@react-three/fiber';
 import type { BusinessResult } from '@/lib/listingSearch';
 import { PhoneBook3D } from './PhoneBook3D';
 import { createCoverTextures, createPageTextures } from './bookTextures';
+import type { PageHit } from './bookHits';
 
 // There is no WebGL in jsdom. The painting is stood in for at the boundary, and the renderer is a
 // stub, so what is under test is the scene the component builds and how it reacts to its props.
@@ -69,11 +71,15 @@ function stubRenderer() {
   };
 }
 
-let textureSets: Array<{
+type TextureSet = {
   left: THREE.Texture;
   right: THREE.Texture;
+  hits: { left: PageHit[]; right: PageHit[] };
   dispose: ReturnType<typeof vi.fn>;
-}>;
+};
+let textureSets: TextureSet[];
+/** What the mocked painting says is clickable. Tests change it before showing the book. */
+let hits: TextureSet['hits'];
 let canvas: HTMLCanvasElement;
 let root: ReconcilerRoot<HTMLCanvasElement>;
 
@@ -103,10 +109,12 @@ beforeEach(() => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   canvas = document.createElement('canvas');
   textureSets = [];
+  hits = { left: [], right: [] };
   vi.mocked(createPageTextures).mockImplementation(() => {
     const set = {
       left: new THREE.CanvasTexture(document.createElement('canvas')),
       right: new THREE.CanvasTexture(document.createElement('canvas')),
+      hits,
       dispose: vi.fn(),
     };
     textureSets.push(set);
@@ -165,5 +173,153 @@ describe('PhoneBook3D', () => {
     // The parent takes the book away by no longer mounting it (closeBook), not by emptying it.
     await update(<></>);
     expect(textureSets.every((s) => s.dispose.mock.calls.length > 0)).toBe(true);
+  });
+
+  it('[Req 13.3] paints the pencil rings and the folded corner from the called ids and dog-ear', async () => {
+    await show(
+      <PhoneBook3D results={[listing]} activeSection="business" calledIds={['b1']} dogEared />,
+    );
+    expect(vi.mocked(createPageTextures).mock.calls.at(-1)?.[2]).toEqual({
+      calledIds: ['b1'],
+      dogEared: true,
+    });
+  });
+
+  it('[Req 13.3] paints no ring and no fold for a book nobody has called from', async () => {
+    await show(<PhoneBook3D results={[listing]} activeSection="business" />);
+    expect(vi.mocked(createPageTextures).mock.calls.at(-1)?.[2]).toEqual({
+      calledIds: [],
+      dogEared: false,
+    });
+  });
+
+  it('[Req 13.3] repaints once, and frees the old pages, when a listing is called', async () => {
+    const results = [listing];
+    await show(<PhoneBook3D results={results} activeSection="business" />);
+    const calls = vi.mocked(createPageTextures).mock.calls.length;
+    await update(
+      <PhoneBook3D results={results} activeSection="business" calledIds={['b1']} dogEared />,
+    );
+    expect(vi.mocked(createPageTextures).mock.calls.length).toBe(calls + 1);
+    expect(textureSets[0]?.dispose).toHaveBeenCalled();
+  });
+
+  it('[Req 13.2] repaints for a different page of the book', async () => {
+    await show(<PhoneBook3D results={[listing]} activeSection="business" />);
+    const calls = vi.mocked(createPageTextures).mock.calls.length;
+    await update(<PhoneBook3D results={[{ ...listing, id: 'b2' }]} activeSection="business" />);
+    expect(vi.mocked(createPageTextures).mock.calls.length).toBe(calls + 1);
+  });
+});
+
+type Handlers = {
+  onClick?: (event: ThreeEvent<MouseEvent>) => void;
+  onPointerMove?: (event: ThreeEvent<PointerEvent>) => void;
+  onPointerOut?: (event: ThreeEvent<PointerEvent>) => void;
+};
+
+/** The handlers fiber calls when the pointer hits a page, so a test can aim at a point on it. */
+function pageHandlers(side: 'left' | 'right'): Handlers {
+  const mesh = scene().getObjectByName(`page-${side}`) as
+    | (THREE.Object3D & { __r3f?: { handlers: Handlers } })
+    | undefined;
+  if (!mesh?.__r3f) throw new Error(`no ${side} page`);
+  return mesh.__r3f.handlers;
+}
+const at = (u: number, v: number) => ({ uv: new THREE.Vector2(u, v) });
+const click = (side: 'left' | 'right', u: number, v: number) =>
+  pageHandlers(side).onClick?.(at(u, v) as unknown as ThreeEvent<MouseEvent>);
+const cursor = () => (_roots.get(canvas)?.store.getState() as RootState).gl.domElement.style.cursor;
+
+describe('PhoneBook3D clicks', () => {
+  const rect: PageHit = { id: 'b1', u0: 0.2, u1: 0.8, v0: 0.4, v1: 0.6 };
+
+  it('[Req 13.2] clicking a listing on the page opens it', async () => {
+    hits = { left: [rect], right: [] };
+    const onOpenListing = vi.fn();
+    await show(
+      <PhoneBook3D results={[listing]} activeSection="business" onOpenListing={onOpenListing} />,
+    );
+    act(() => click('left', 0.5, 0.5));
+    expect(onOpenListing).toHaveBeenCalledWith('b1');
+  });
+
+  it('[Req 13.2] clicking the right page opens a listing on it, not the next page', async () => {
+    hits = { left: [], right: [rect] };
+    const onOpenListing = vi.fn();
+    const onFlip = vi.fn();
+    await show(
+      <PhoneBook3D
+        results={[listing]}
+        activeSection="business"
+        onOpenListing={onOpenListing}
+        onFlip={onFlip}
+      />,
+    );
+    act(() => click('right', 0.5, 0.5));
+    expect(onOpenListing).toHaveBeenCalledWith('b1');
+    expect(onFlip).not.toHaveBeenCalled();
+  });
+
+  it('[Req 13.2] clicking bare paper flips back on the left page and forward on the right', async () => {
+    hits = { left: [rect], right: [rect] };
+    const onOpenListing = vi.fn();
+    const onFlip = vi.fn();
+    await show(
+      <PhoneBook3D
+        results={[listing]}
+        activeSection="business"
+        onOpenListing={onOpenListing}
+        onFlip={onFlip}
+      />,
+    );
+    act(() => click('left', 0.05, 0.9));
+    act(() => click('right', 0.05, 0.9));
+    expect(onFlip.mock.calls).toEqual([[-1], [1]]);
+    expect(onOpenListing).not.toHaveBeenCalled();
+  });
+
+  it('[Req 13.2] a click with no point on the page does nothing', async () => {
+    const onFlip = vi.fn();
+    await show(<PhoneBook3D results={[listing]} activeSection="business" onFlip={onFlip} />);
+    act(() => pageHandlers('left').onClick?.({} as unknown as ThreeEvent<MouseEvent>));
+    expect(onFlip).not.toHaveBeenCalled();
+  });
+
+  it('[Req 13.2] shows a pointer over a listing and the normal cursor off it, without repainting', async () => {
+    hits = { left: [rect], right: [] };
+    await show(<PhoneBook3D results={[listing]} activeSection="business" />);
+    const paints = vi.mocked(createPageTextures).mock.calls.length;
+    const move = (u: number, v: number) =>
+      act(() =>
+        pageHandlers('left').onPointerMove?.(at(u, v) as unknown as ThreeEvent<PointerEvent>),
+      );
+    move(0.5, 0.5);
+    expect(cursor()).toBe('pointer');
+    move(0.51, 0.5);
+    move(0.05, 0.9);
+    expect(cursor()).toBe('');
+    move(0.5, 0.5);
+    act(() => pageHandlers('left').onPointerOut?.({} as unknown as ThreeEvent<PointerEvent>));
+    expect(cursor()).toBe('');
+    expect(vi.mocked(createPageTextures).mock.calls.length).toBe(paints);
+  });
+
+  it('[Req 13.2] hints that the page turns where a flip is possible', async () => {
+    await show(
+      <PhoneBook3D
+        results={[listing]}
+        activeSection="business"
+        canFlip={{ previous: true, next: false }}
+      />,
+    );
+    const move = (side: 'left' | 'right') =>
+      act(() =>
+        pageHandlers(side).onPointerMove?.(at(0.05, 0.9) as unknown as ThreeEvent<PointerEvent>),
+      );
+    move('left');
+    expect(cursor()).toBe('w-resize');
+    move('right');
+    expect(cursor()).toBe('');
   });
 });

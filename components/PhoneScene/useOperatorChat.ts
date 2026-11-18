@@ -24,7 +24,6 @@ type ChatState = {
 };
 
 type ChatAction =
-  | { type: 'connect' }
   | { type: 'hangUp' }
   | { type: 'start' }
   | { type: 'sent'; text: string }
@@ -52,9 +51,8 @@ function appendToReply(entries: TranscriptEntry[], text: string): TranscriptEntr
 
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
-    case 'connect':
-      return initialChat;
-    // The book outlives the call. The next connect or closeBook() takes it away.
+    // The book is the caller's session book, so it outlives every call, and a new call, including
+    // one to a listing in the book, leaves it open. Only closeBook() puts it away.
     case 'hangUp':
       return { ...initialChat, results: state.results, bookOpen: state.bookOpen };
     case 'start':
@@ -96,6 +94,8 @@ export type OperatorChatOptions = {
   maxTurns: number;
   onTurnSent: () => void;
   onRateLimited: () => void;
+  /** A search came back, with the words it searched for. The results can be empty. */
+  onResults?: ((results: Listing[], query: string) => void) | undefined;
 };
 
 export type OperatorChat = {
@@ -143,6 +143,7 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
     const sentTurn = latest.current.turnIndex;
     const lastTurn = number === SPIRIT_LINE || sentTurn >= latest.current.maxTurns - 1;
     let reply = '';
+    let query = '';
     let completed = false;
     try {
       const response = await fetch('/api/operator', {
@@ -178,8 +179,11 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
             if (event.type === 'delta') {
               reply += event.text;
               dispatch({ type: 'delta', text: event.text });
+            } else if (event.type === 'tool_start') {
+              query = event.query;
             } else if (event.type === 'tool_result') {
               dispatch({ type: 'results', results: event.results });
+              latest.current.onResults?.(event.results, query);
             } else if (event.type === 'done') {
               completed = true;
             } else if (event.type === 'error') {
@@ -224,7 +228,6 @@ export function useOperatorChat(options: OperatorChatOptions): OperatorChat {
 
   useEffect(() => {
     if (operatorNumber === null) return;
-    dispatch({ type: 'connect' });
     // Deferred so React strict mode, which mounts, cleans up and mounts again, sends one request.
     const timer =
       operatorNumber === SPIRIT_LINE

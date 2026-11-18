@@ -1,6 +1,7 @@
 import { formatDialNumber } from '@/lib/exchange';
 import type { ResidentResult } from '@/lib/listingSearch';
 import { DialButton } from './DialButton';
+import { CalledLabel, NO_CALLS } from './CalledLabel';
 import { NoListings } from './NoListings';
 import { PANEL } from './panel';
 
@@ -17,8 +18,11 @@ import { PANEL } from './panel';
 export function WhiteSection({
   residents,
   onDial,
+  calledIds = NO_CALLS,
 }: {
   residents: readonly ResidentResult[];
+  /** Residents the caller has dialled. They are labelled "called". */
+  calledIds?: readonly string[];
   /** Dials a resident's short number on the phone. Without it the rows have no Dial button. */
   onDial?: ((digits: string) => void) | undefined;
 }) {
@@ -37,6 +41,7 @@ export function WhiteSection({
               {resident.phone}{' '}
               <span className="text-stone-700">({formatDialNumber(resident.dial_number)})</span>
             </p>
+            {calledIds.includes(resident.id) && <CalledLabel />}
             {onDial && (
               <DialButton
                 dialNumber={resident.dial_number}

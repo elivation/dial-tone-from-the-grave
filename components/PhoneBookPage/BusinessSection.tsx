@@ -5,6 +5,7 @@ import { AdvertCard, ROW_BUTTON } from './AdvertCard';
 import { ListingDetail } from './ListingDetail';
 import { ListingFacts } from './ListingFacts';
 import { NoListings } from './NoListings';
+import { NO_CALLS } from './CalledLabel';
 import { PANEL } from './panel';
 
 /**
@@ -14,8 +15,11 @@ import { PANEL } from './panel';
 export function BusinessSection({
   listings,
   onDial,
+  calledIds = NO_CALLS,
 }: {
   listings: readonly BusinessResult[];
+  /** Listings the caller has dialled. They are labelled "called". */
+  calledIds?: readonly string[];
   onDial?: ((digits: string) => void) | undefined;
 }) {
   const [open, setOpen] = useState<BusinessResult | null>(null);
@@ -37,14 +41,18 @@ export function BusinessSection({
         {listings.map((listing) => (
           <li key={listing.id}>
             {listing.is_advert ? (
-              <AdvertCard listing={listing} onOpen={(button) => show(listing, button)} />
+              <AdvertCard
+                listing={listing}
+                called={calledIds.includes(listing.id)}
+                onOpen={(button) => show(listing, button)}
+              />
             ) : (
               <button
                 type="button"
                 onClick={(event) => show(listing, event.currentTarget)}
                 className={ROW_BUTTON}
               >
-                <ListingFacts listing={listing} />
+                <ListingFacts listing={listing} called={calledIds.includes(listing.id)} />
               </button>
             )}
           </li>

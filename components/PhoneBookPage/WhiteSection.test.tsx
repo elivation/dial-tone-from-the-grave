@@ -114,4 +114,11 @@ describe('WhiteSection', () => {
     render(<WhiteSection residents={three} />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
+
+  it('[Req 13.5] labels a resident the caller has dialled as called, and no other', () => {
+    render(<WhiteSection residents={three} calledIds={['r2']} />);
+    const rows = screen.getAllByRole('listitem');
+    expect(rows[1]).toHaveTextContent('called');
+    expect(rows[0]).not.toHaveTextContent('called');
+  });
 });
