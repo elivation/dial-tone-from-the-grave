@@ -413,7 +413,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `app/api/number/route.test.ts`, `components/PhoneScene/useCall.test.tsx`, `app/api/operator/route.test.ts`, `lib/listingGhost.test.ts`, `components/PhoneBookPage/DialButton.test.tsx`
 
-- [-] 46. The phone rings by itself
+- [x] 46. The phone rings by itself
 
   Extend `callReducer` with `ringing-in` and `incoming-message`, and `INCOMING_RING`, `RING_TIMEOUT` and `MESSAGE_DONE` (design, State shape). Write `lib/incoming.ts` (about 12 invented lines). Write `useIncomingCall`: starts after the first interaction, only while idle, random wait between the min and max, session cap in `sessionStorage`, off when `NEXT_PUBLIC_RING_IN_ENABLED` is `false`. Ring tone while `ringing-in`, a 20-second timeout, the message spoken and shown on pick-up, then auto hang-up. `CallStatus` shows "The phone is ringing". The handset shakes except with reduced motion. Add the env vars to `.env.example`.
 
@@ -423,7 +423,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/callMachine.test.ts`, `components/PhoneScene/useIncomingCall.test.tsx`, `lib/incoming.test.ts`
 
-- [ ] 47. The book keeps your session
+- [-] 47. The book keeps your session
 
   Write `lib/bookSession.ts` (pure reducer: `addPage`, `markCalled`, `BOOK_MAX_PAGES` cap, oldest dropped) and a `useBookSession` hook that saves to `sessionStorage` key `dtftg_book`. Add pages from search results; mark listings called from task 45's Dial path and from dialled listing numbers. In `PhoneBook3D`, flip between pages, draw a pencil ring round called listings on the page canvas and fold the corner of dog-eared pages. Add `PageStack` to the HTML mirror with Previous and Next buttons, arrow keys, and "called" labels.
 
