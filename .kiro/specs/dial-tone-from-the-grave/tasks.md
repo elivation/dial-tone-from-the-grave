@@ -433,7 +433,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `lib/bookSession.test.ts`, `components/PhoneBookPage/PageStack.test.tsx`, `components/PhoneCanvas/PhoneBook3D.test.tsx`
 
-- [-] 48. Johannesburg flavour check
+- [x] 48. Johannesburg flavour check
 
   Add `supabase/seed/joburg.test.ts`: the seeds cover at least 12 suburbs across the east, north, west and Soweto, include every trade in Req 14.2, show prices only in rand, and pass the brand-name scan. Add `lib/voice.ts` `pickVoice` (prefer `en-ZA`, then the voice hint, then the default) with tests. Review the operator and listing-ghost backstories against Req 14.4.
 
@@ -483,7 +483,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `app/page.test.tsx` (3 additional tests)
 
-- [ ] 33. Deploy to Vercel and smoke-test the live URL
+- [-] 33. Deploy to Vercel and smoke-test the live URL
 
   Push to GitHub. Connect repo to Vercel if needed. Set all env vars from `.env.example` in Vercel dashboard. Deploy. Run `pnpm test:e2e` against the live URL. Fix any build errors. Confirm cron shows in Vercel dashboard.
 
