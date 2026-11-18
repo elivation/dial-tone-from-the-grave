@@ -266,6 +266,17 @@ describe('PhoneScene session book', () => {
     expect(scene()).toHaveAttribute('data-first', 'b2');
   });
 
+  it('[Req 13.2] tells the 3D book which page of the session it is on, so a flip turns the leaf the right way', () => {
+    setChat({ bookOpen: true });
+    render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    act(() => options().onResults?.(results(2), 'electrician'));
+    const second = book();
+    expect(second.pageIndex).toBe(1);
+    act(() => book().onFlip?.(-1));
+    expect(book().pageIndex).toBe(0);
+    expect(book().pageId).not.toBe(second.pageId);
+  });
   it('[Req 13.2] offers Previous and Next in the HTML mirror, with arrow keys', async () => {
     setChat({ bookOpen: true });
     render(<PhoneScene />);

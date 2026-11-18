@@ -97,6 +97,8 @@ export function PhonePreview({
           book
             ? {
                 results: pages[index] ?? [],
+                pageId: `page-${index}`,
+                pageIndex: index,
                 activeSection: book,
                 calledIds: called,
                 dogEared,

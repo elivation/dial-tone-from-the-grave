@@ -150,6 +150,8 @@ export function PhoneScene() {
             chat.bookOpen
               ? {
                   results: shown,
+                  pageId: pageKey,
+                  pageIndex: showEmpty ? undefined : session.index,
                   activeSection: section,
                   calledIds,
                   dogEared: !showEmpty && page?.dogEared === true,

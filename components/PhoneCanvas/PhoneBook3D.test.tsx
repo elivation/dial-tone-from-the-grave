@@ -5,6 +5,7 @@ import {
   createRoot,
   extend,
   _roots,
+  advance,
   type ReconcilerRoot,
   type RootState,
   type ThreeEvent,
@@ -360,5 +361,142 @@ describe('PhoneBook3D clicks', () => {
     );
     expect(scene().getObjectByName('flip-hint-left')?.visible).toBe(true);
     expect(scene().getObjectByName('flip-hint-right')?.visible).toBe(false);
+  });
+});
+
+describe('PhoneBook3D page turn', () => {
+  const pageOf = (n: number) => [{ ...listing, id: `b${n}` }];
+  const showPage = (n: number) => (
+    <PhoneBook3D results={pageOf(n)} activeSection="business" pageId={`p${n}`} pageIndex={n} />
+  );
+  const leaf = () => scene().getObjectByName('page-turn');
+  const settle = () =>
+    act(() => {
+      // In frameloop "never" the timestamp is the clock, in seconds.
+      advance(10);
+      advance(10.3);
+      advance(11);
+    });
+  const frames = (...times: number[]) =>
+    act(() => {
+      times.forEach((time) => advance(time));
+    });
+  const leafMaps = () =>
+    ['leaf-front', 'leaf-back'].map(
+      (name) =>
+        ((scene().getObjectByName(name) as THREE.Mesh).material as THREE.MeshStandardMaterial).map,
+    );
+
+  it('[Req 13.2] flipping shows a leaf, keeps the old pages alive, and frees them when the leaf lands', async () => {
+    await show(showPage(0));
+    expect(leaf()?.visible).toBe(false);
+    await update(showPage(1));
+    expect(leaf()?.visible).toBe(true);
+    expect(textureSets[0]?.dispose).not.toHaveBeenCalled();
+    settle();
+    expect(leaf()?.visible).toBe(false);
+    expect(textureSets[0]?.dispose).toHaveBeenCalledTimes(1);
+    expect(textureSets[1]?.dispose).not.toHaveBeenCalled();
+  });
+
+  it('[Req 13.2] a forward turn carries the old right page over and uncovers the new left page', async () => {
+    await show(showPage(0));
+    await update(showPage(1));
+    const [front, back] = leafMaps();
+    expect(front).toBe(textureSets[0]?.right);
+    expect(back).toBe(textureSets[1]?.left);
+  });
+
+  it('[Req 13.2] a turn back carries the new right page in from the old left', async () => {
+    await show(showPage(1));
+    await update(showPage(0));
+    const [front, back] = leafMaps();
+    expect(front).toBe(textureSets[1]?.right);
+    expect(back).toBe(textureSets[0]?.left);
+  });
+
+  it('[Req 13.2] the leaf is part way over mid turn, and the pages are not repainted for it', async () => {
+    await show(showPage(0));
+    await update(showPage(1));
+    const paints = vi.mocked(createPageTextures).mock.calls.length;
+    frames(0, 0.35);
+    const front = scene().getObjectByName('leaf-front') as THREE.Mesh;
+    const box = new THREE.Box3().setFromObject(front);
+    expect(box.max.y).toBeGreaterThan(0.1);
+    settle();
+    expect(vi.mocked(createPageTextures).mock.calls.length).toBe(paints);
+  });
+
+  it('[Req 13.2] rapid flips free each texture set once and never the ones in view', async () => {
+    await show(showPage(0));
+    for (let n = 1; n <= 6; n++) await update(showPage(n));
+    expect(textureSets).toHaveLength(7);
+    expect(textureSets[6]?.dispose).not.toHaveBeenCalled();
+    expect(textureSets[5]?.dispose).not.toHaveBeenCalled();
+    settle();
+    textureSets.slice(0, 6).forEach((set) => expect(set.dispose).toHaveBeenCalledTimes(1));
+    expect(textureSets[6]?.dispose).not.toHaveBeenCalled();
+    expect(leaf()?.visible).toBe(false);
+  });
+
+  it('[Req 13.2] a change that is not a flip does not turn a page', async () => {
+    await show(showPage(0));
+    await update(
+      <PhoneBook3D results={pageOf(0)} activeSection="white" pageId="p0" pageIndex={0} />,
+    );
+    expect(leaf()?.visible).toBe(false);
+    expect(textureSets[0]?.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('[Req 13.2] clicks on the page and the edge hints are off while a leaf is in the air', async () => {
+    const onFlip = vi.fn();
+    const withFlip = (n: number) => (
+      <PhoneBook3D
+        results={pageOf(n)}
+        activeSection="business"
+        pageId={`p${n}`}
+        pageIndex={n}
+        onFlip={onFlip}
+        canFlip={{ previous: true, next: true }}
+      />
+    );
+    await show(withFlip(0));
+    await update(withFlip(1));
+    act(() => click('right', 0.97, 0.9));
+    expect(onFlip).not.toHaveBeenCalled();
+    expect(scene().getObjectByName('flip-hint-right')?.visible).toBe(false);
+    settle();
+    act(() => click('right', 0.97, 0.9));
+    expect(onFlip).toHaveBeenCalledWith(1);
+    expect(scene().getObjectByName('flip-hint-right')?.visible).toBe(true);
+  });
+
+  it('[Req 13.2] frees every texture when the book goes away mid turn', async () => {
+    await show(showPage(0));
+    await update(showPage(1));
+    await update(<></>);
+    textureSets.forEach((set) => expect(set.dispose).toHaveBeenCalled());
+  });
+
+  describe('with reduced motion', () => {
+    const original = window.matchMedia;
+    beforeEach(() => {
+      window.matchMedia = ((query: string) => ({
+        matches: true,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      })) as unknown as typeof window.matchMedia;
+    });
+    afterEach(() => {
+      window.matchMedia = original;
+    });
+
+    it('[Req 13.2] a flip swaps the pages at once, with no leaf, and frees the old ones', async () => {
+      await show(showPage(0));
+      await update(showPage(1));
+      expect(leaf()?.visible).toBe(false);
+      expect(textureSets[0]?.dispose).toHaveBeenCalledTimes(1);
+    });
   });
 });
