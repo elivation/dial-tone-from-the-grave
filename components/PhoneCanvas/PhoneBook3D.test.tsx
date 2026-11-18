@@ -140,7 +140,8 @@ describe('PhoneBook3D', () => {
     expect(book).toBeDefined();
     const meshes: THREE.Mesh[] = [];
     book?.traverse((o) => {
-      if (o instanceof THREE.Mesh) meshes.push(o);
+      // The edge hints are translucent decals on the paper, not solids, so they cast no shadow.
+      if (o instanceof THREE.Mesh && !o.name.startsWith('flip-hint')) meshes.push(o);
     });
     expect(meshes.length).toBeGreaterThanOrEqual(7);
     expect(meshes.every((m) => m.castShadow)).toBe(true);
@@ -261,7 +262,15 @@ describe('PhoneBook3D clicks', () => {
     expect(onFlip).not.toHaveBeenCalled();
   });
 
-  it('[Req 13.2] clicking bare paper flips back on the left page and forward on the right', async () => {
+  it('[Req 13.2] clicking the outer edge strip flips back on the left page and forward on the right', async () => {
+    hits = { left: [], right: [] };
+    const onFlip = vi.fn();
+    await show(<PhoneBook3D results={[listing]} activeSection="business" onFlip={onFlip} />);
+    act(() => click('left', 0.03, 0.9));
+    act(() => click('right', 0.97, 0.9));
+    expect(onFlip.mock.calls).toEqual([[-1], [1]]);
+  });
+  it('[Req 13.2] clicking bare paper away from the edge strip turns no page', async () => {
     hits = { left: [rect], right: [rect] };
     const onOpenListing = vi.fn();
     const onFlip = vi.fn();
@@ -273,12 +282,29 @@ describe('PhoneBook3D clicks', () => {
         onFlip={onFlip}
       />,
     );
-    act(() => click('left', 0.05, 0.9));
+    act(() => click('left', 0.5, 0.9));
+    act(() => click('right', 0.5, 0.9));
+    act(() => click('left', 0.95, 0.9));
     act(() => click('right', 0.05, 0.9));
-    expect(onFlip.mock.calls).toEqual([[-1], [1]]);
+    expect(onFlip).not.toHaveBeenCalled();
     expect(onOpenListing).not.toHaveBeenCalled();
   });
-
+  it('[Req 13.2] a listing under the strip opens, it does not flip', async () => {
+    hits = { left: [{ id: 'b1', u0: 0, u1: 0.5, v0: 0.4, v1: 0.6 }], right: [] };
+    const onOpenListing = vi.fn();
+    const onFlip = vi.fn();
+    await show(
+      <PhoneBook3D
+        results={[listing]}
+        activeSection="business"
+        onOpenListing={onOpenListing}
+        onFlip={onFlip}
+      />,
+    );
+    act(() => click('left', 0.03, 0.5));
+    expect(onOpenListing).toHaveBeenCalledWith('b1');
+    expect(onFlip).not.toHaveBeenCalled();
+  });
   it('[Req 13.2] a click with no point on the page does nothing', async () => {
     const onFlip = vi.fn();
     await show(<PhoneBook3D results={[listing]} activeSection="business" onFlip={onFlip} />);
@@ -305,7 +331,7 @@ describe('PhoneBook3D clicks', () => {
     expect(vi.mocked(createPageTextures).mock.calls.length).toBe(paints);
   });
 
-  it('[Req 13.2] hints that the page turns where a flip is possible', async () => {
+  it('[Req 13.2] shows a pointer over the edge strip where a flip is possible, and nowhere else', async () => {
     await show(
       <PhoneBook3D
         results={[listing]}
@@ -313,13 +339,26 @@ describe('PhoneBook3D clicks', () => {
         canFlip={{ previous: true, next: false }}
       />,
     );
-    const move = (side: 'left' | 'right') =>
+    const move = (side: 'left' | 'right', u: number) =>
       act(() =>
-        pageHandlers(side).onPointerMove?.(at(0.05, 0.9) as unknown as ThreeEvent<PointerEvent>),
+        pageHandlers(side).onPointerMove?.(at(u, 0.9) as unknown as ThreeEvent<PointerEvent>),
       );
-    move('left');
-    expect(cursor()).toBe('w-resize');
-    move('right');
+    move('left', 0.03);
+    expect(cursor()).toBe('pointer');
+    move('left', 0.5);
     expect(cursor()).toBe('');
+    move('right', 0.97);
+    expect(cursor()).toBe('');
+  });
+  it('[Req 13.2] draws a hint on each edge strip a flip is possible from', async () => {
+    await show(
+      <PhoneBook3D
+        results={[listing]}
+        activeSection="business"
+        canFlip={{ previous: true, next: false }}
+      />,
+    );
+    expect(scene().getObjectByName('flip-hint-left')?.visible).toBe(true);
+    expect(scene().getObjectByName('flip-hint-right')?.visible).toBe(false);
   });
 });

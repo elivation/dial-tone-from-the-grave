@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { FLIP_STRIP } from './flipStrip';
 
 /** Metres, as in the reference scene assets-src/book-test.html. One page is this big. */
 export const BOOK_W = 0.21;
@@ -38,6 +39,24 @@ export function pageGeometry(side: 'L' | 'R'): THREE.PlaneGeometry {
   return geo;
 }
 
+/**
+ * A thin sheet that lies just above the flip strip along a page's outer edge. Its `u` runs 0 at the
+ * strip's inner edge to 1 at the page edge on both sides, so one gradient serves both.
+ */
+export function flipStripGeometry(side: 'L' | 'R'): THREE.BufferGeometry {
+  const geo = new THREE.PlaneGeometry(BOOK_W * FLIP_STRIP, BOOK_H, 4, SEGMENTS_Y / 2);
+  const position = geo.getAttribute('position');
+  const uv = geo.getAttribute('uv');
+  for (let i = 0; i < position.count; i++) {
+    const along = uv.getX(i);
+    const v = uv.getY(i);
+    const t = 1 - FLIP_STRIP + along * FLIP_STRIP;
+    const x = t * BOOK_W;
+    position.setXYZ(i, side === 'L' ? -x : x, pageHeight(t, v) + 0.0004, (0.5 - v) * BOOK_H);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
 /** The block of pages under one side: its top follows the page, its edge shows the stripes. */
 export function blockGeometry(side: 'L' | 'R'): THREE.ExtrudeGeometry {
   const profile = new THREE.Shape();

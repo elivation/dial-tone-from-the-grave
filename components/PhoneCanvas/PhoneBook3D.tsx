@@ -7,6 +7,8 @@ import type { BookSection } from '@/components/PhoneBookPage/sections';
 import { usePrefersReducedMotion } from '@/lib/useReducedMotion';
 import type { Listing } from '@/lib/sse';
 import { listingAt } from './bookHits';
+import { FlipHint } from './FlipHint';
+import { flipFromStrip, type PageSide } from './flipStrip';
 import { blockGeometry, buildCentipede, coverGeometry, coverX, pageGeometry } from './bookGeometry';
 import { createCoverTextures, createPageTextures } from './bookTextures';
 import { BOOK_APPEAR_SECONDS, BOOK_POSITION, BOOK_ROTATION_Y, BOOK_SCALE } from './sceneConstants';
@@ -21,7 +23,7 @@ export type BookView = {
   dogEared?: boolean | undefined;
   /** A listing on the page was clicked or tapped. */
   onOpenListing?: ((id: string) => void) | undefined;
-  /** Bare paper was clicked: -1 on the left page turns back, 1 on the right page turns on. */
+  /** The edge strip of a page was clicked: -1 on the left page turns back, 1 on the right page turns on. */
   onFlip?: ((by: -1 | 1) => void) | undefined;
   /** Which way the book can turn, so the cursor can say so. */
   canFlip?: { previous: boolean; next: boolean } | undefined;
@@ -29,7 +31,6 @@ export type BookView = {
 type Props = BookView;
 
 const NO_CALLS: readonly string[] = [];
-type Side = 'left' | 'right';
 
 /** How high above the desk the book starts before it is laid down, in metres of book space. */
 const DROP_HEIGHT = 0.08;
@@ -104,19 +105,23 @@ function Book({
   );
   useEffect(() => () => setCursor(''), [setCursor]);
 
-  const listingUnder = (side: Side, event: ThreeEvent<MouseEvent | PointerEvent>) =>
+  const listingUnder = (side: PageSide, event: ThreeEvent<MouseEvent | PointerEvent>) =>
     event.uv ? listingAt(pages.hits[side], event.uv.x, event.uv.y) : null;
-  const flipCursor = (side: Side) => {
-    if (side === 'left') return canFlip?.previous ? 'w-resize' : '';
-    return canFlip?.next ? 'e-resize' : '';
+  const canFlipFrom = (side: PageSide) => (side === 'left' ? canFlip?.previous : canFlip?.next);
+  const onMove = (side: PageSide) => (event: ThreeEvent<PointerEvent>) => {
+    const inStrip = event.uv !== undefined && flipFromStrip(side, event.uv.x) !== null;
+    const pointer = listingUnder(side, event) !== null || (inStrip && canFlipFrom(side));
+    setCursor(pointer ? 'pointer' : '');
   };
-  const onMove = (side: Side) => (event: ThreeEvent<PointerEvent>) =>
-    setCursor(listingUnder(side, event) !== null ? 'pointer' : flipCursor(side));
-  const onClick = (side: Side) => (event: ThreeEvent<MouseEvent>) => {
+  const onClick = (side: PageSide) => (event: ThreeEvent<MouseEvent>) => {
     if (!event.uv) return;
     const id = listingUnder(side, event);
-    if (id !== null) onOpenListing?.(id);
-    else onFlip?.(side === 'left' ? -1 : 1);
+    if (id !== null) {
+      onOpenListing?.(id);
+      return;
+    }
+    const by = flipFromStrip(side, event.uv.x);
+    if (by !== null) onFlip?.(by);
   };
 
   useFrame((_, delta) => {
@@ -136,6 +141,7 @@ function Book({
       <group ref={lowered} position-y={reducedMotion ? 0 : DROP_HEIGHT}>
         {(['left', 'right'] as const).map((side) => (
           <group key={side}>
+            <FlipHint side={side} visible={canFlipFrom(side) === true} />
             <mesh
               name={`page-${side}`}
               geometry={geometry[side]}
