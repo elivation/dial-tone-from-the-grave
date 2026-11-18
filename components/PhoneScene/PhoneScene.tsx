@@ -15,6 +15,7 @@ import { OfflineNotice } from '@/components/OfflineNotice';
 import { MuteToggle } from '@/components/MuteToggle';
 import { OperatorPanel } from '@/components/OperatorPanel';
 import { CloseBookButton, OpenBookButton, PhoneBookPage } from '@/components/PhoneBookPage';
+import { ListingsButton, ListingsSheet } from '@/components/PhoneBookPage/ListingsSheet';
 import { OpenedListing } from '@/components/PhoneBookPage/OpenedListing';
 import type { BookSection } from '@/components/PhoneBookPage';
 import { StaticOverlay } from '@/components/Static';
@@ -63,6 +64,8 @@ export function PhoneScene() {
   // A search that found nothing adds no page, but the book still says so until the caller flips.
   const [emptyShown, setEmptyShown] = useState(false);
   const [opened, setOpened] = useState<Listing | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const listingsButton = useRef<HTMLButtonElement>(null);
   const chat = useOperatorChat({
     operatorNumber: connected?.operatorNumber ?? null,
     callee,
@@ -131,6 +134,11 @@ export function PhoneScene() {
   };
   const openListing = (id: string) => setOpened(shown.find((listing) => listing.id === id) ?? null);
   const calledIds = showEmpty ? undefined : page?.calledIds;
+  const closeSheet = () => {
+    setSheetOpen(false);
+    listingsButton.current?.focus();
+  };
+  const pageStack = { pages: session.pages, index: session.index, onFlip: flipBook };
 
   return (
     <div className="relative h-full w-full">
@@ -192,13 +200,29 @@ export function PhoneScene() {
             spiritOnly={spiritOnly}
             onDial={dialNumber}
             calledIds={calledIds}
-            pageStack={{ pages: session.pages, index: session.index, onFlip: flipBook }}
+            pageStack={pageStack}
+          />
+        )}
+        {sheetOpen && chat.bookOpen && (
+          <ListingsSheet
+            businesses={businesses}
+            residents={residents}
+            activeSection={section}
+            onSectionChange={setChosen}
+            onClose={closeSheet}
+            spiritOnly={spiritOnly}
+            onDial={dialNumber}
+            calledIds={calledIds}
+            pageStack={pageStack}
           />
         )}
         {opened && (
           <OpenedListing listing={opened} onClose={() => setOpened(null)} onDial={dialNumber} />
         )}
         <div className="absolute top-4 right-4 z-20 flex gap-2">
+          {chat.bookOpen && (
+            <ListingsButton onOpen={() => setSheetOpen(true)} buttonRef={listingsButton} />
+          )}
           {chat.bookOpen && <CloseBookButton onClose={putBookAway} buttonRef={closeButton} />}
           {!chat.bookOpen && session.count > 0 && (
             <OpenBookButton onOpen={reopenBook} buttonRef={openButton} />

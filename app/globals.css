@@ -91,3 +91,11 @@ body {
     transform: translate(3px, 0) rotate(2deg);
   }
 }
+
+/* The Listings button is for screens where the 3D book is too small to tap: under 768 px wide, or
+   under 501 px tall (a phone on its side). Bigger screens hide it. */
+@media (min-width: 768px) and (min-height: 501px) {
+  .listings-button {
+    display: none;
+  }
+}

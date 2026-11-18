@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { CallState } from '@/lib/callMachine';
 import { INCOMING_MESSAGES } from '@/lib/incoming';
@@ -185,6 +185,43 @@ describe('PhoneScene open the book', () => {
     setChat({ bookOpen: false });
     rerender(<PhoneScene />);
     expect(screen.getByRole('button', { name: 'Open the book' })).toHaveFocus();
+  });
+});
+describe('PhoneScene listings sheet', () => {
+  it('[Req 13.2] offers no Listings button while the book is closed', () => {
+    setChat({ bookOpen: false });
+    render(<PhoneScene />);
+    expect(screen.queryByRole('button', { name: 'Listings' })).not.toBeInTheDocument();
+  });
+  it('[Req 13.2] a Listings button opens the current page as an on-screen list with Dial buttons', async () => {
+    setChat({ bookOpen: true });
+    const user = userEvent.setup();
+    render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    await user.click(screen.getByRole('button', { name: 'Listings' }));
+    const sheet = screen.getByRole('dialog', { name: 'Listings on this page' });
+    expect(within(sheet).getByRole('button', { name: /^Dial Business 1,/ })).toBeVisible();
+  });
+  it('[Req 13.2] closing the sheet puts focus back on the Listings button', async () => {
+    setChat({ bookOpen: true });
+    const user = userEvent.setup();
+    render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    await user.click(screen.getByRole('button', { name: 'Listings' }));
+    await user.click(screen.getByRole('button', { name: 'Close listings' }));
+    expect(screen.queryByRole('dialog', { name: 'Listings on this page' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Listings' })).toHaveFocus();
+  });
+  it('[Req 13.2] flipping a page inside the sheet shows that page there', async () => {
+    setChat({ bookOpen: true });
+    const user = userEvent.setup();
+    render(<PhoneScene />);
+    act(() => options().onResults?.(results(1), 'plumber'));
+    act(() => options().onResults?.(results(2), 'electrician'));
+    await user.click(screen.getByRole('button', { name: 'Listings' }));
+    const sheet = screen.getByRole('dialog', { name: 'Listings on this page' });
+    await user.click(within(sheet).getByRole('button', { name: 'Previous page' }));
+    expect(within(sheet).getByRole('button', { name: /^Dial Business 1,/ })).toBeVisible();
   });
 });
 const business = (n: number): BusinessResult => ({

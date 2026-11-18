@@ -2,7 +2,7 @@
 import { useRef, useState, type KeyboardEvent } from 'react';
 import { usePrefersReducedMotion } from '@/lib/useReducedMotion';
 import type { BookSection } from './sections';
-import { TABS_BAR } from './panel';
+import { SHEET_BAR, TABS_BAR, type SheetLayout } from './panel';
 
 const TABS: readonly { section: BookSection; label: string }[] = [
   { section: 'white', label: 'White Pages' },
@@ -15,13 +15,14 @@ type Props = {
   /** Builds the DOM id of a tab or its panel, so each can name the other. */
   tabId: (section: BookSection) => string;
   panelId: (section: BookSection) => string;
+  layout?: SheetLayout;
 };
 
 /**
  * WAI-ARIA tabs with manual activation: the arrow keys, Home and End move focus, and Enter or
  * Space selects. Only one tab is in the tab order at a time (roving tabindex).
  */
-export function SectionTabs({ active, onChange, tabId, panelId }: Props) {
+export function SectionTabs({ active, onChange, tabId, panelId, layout = 'twin' }: Props) {
   const reducedMotion = usePrefersReducedMotion();
   const [focused, setFocused] = useState<BookSection | null>(null);
   const buttons = useRef<Record<BookSection, HTMLButtonElement | null>>({
@@ -54,7 +55,7 @@ export function SectionTabs({ active, onChange, tabId, panelId }: Props) {
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(null);
       }}
-      className={TABS_BAR}
+      className={layout === 'sheet' ? SHEET_BAR : TABS_BAR}
     >
       {TABS.map(({ section, label }, index) => (
         <button
@@ -72,6 +73,7 @@ export function SectionTabs({ active, onChange, tabId, panelId }: Props) {
           onClick={() => onChange(section)}
           onKeyDown={(event) => onKeyDown(event, index)}
           className={
+            (layout === 'sheet' ? 'min-h-[44px] ' : '') +
             'px-4 py-2 text-stone-900 focus-visible:outline-2 focus-visible:outline-offset-2 ' +
             'focus-visible:outline-stone-900 ' +
             (reducedMotion ? 'transition-none ' : 'transition-colors duration-150 ') +

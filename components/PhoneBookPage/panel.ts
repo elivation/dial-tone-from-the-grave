@@ -6,6 +6,10 @@ export const PANEL =
   'focus-within:max-h-[70vh] focus-within:overflow-y-auto focus-within:rounded ' +
   'focus-within:border-2 focus-within:border-stone-900 focus-within:bg-amber-50';
 
+// In the listings sheet the same lists are the main thing on screen, so nothing is hidden.
+export type SheetLayout = 'twin' | 'sheet';
+export const SHEET_LIST = 'font-serif text-stone-900';
+export const SHEET_BAR = 'flex font-serif border-2 border-stone-900 bg-amber-50';
 // The tab bar follows the same rule as the panels: hidden until a tab has focus, then on screen.
 export const TABS_BAR =
   'absolute -left-[10000px] top-0 flex font-serif ' +

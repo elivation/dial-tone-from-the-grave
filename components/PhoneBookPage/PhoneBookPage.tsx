@@ -6,6 +6,7 @@ import { closesBook } from './CloseBookButton';
 import { BusinessSection } from './BusinessSection';
 import { PageStack } from './PageStack';
 import { SectionTabs } from './SectionTabs';
+import type { SheetLayout } from './panel';
 import type { BookSection } from './sections';
 import { WhiteSection } from './WhiteSection';
 
@@ -25,6 +26,8 @@ type Props = {
   calledIds?: readonly string[] | undefined;
   /** Every page of the session book, for flipping. Left out, the book has one page. */
   pageStack?: { pages: readonly BookPage[]; index: number; onFlip: (by: -1 | 1) => void };
+  /** The listings sheet shows the same lists on screen instead of keeping them off-screen. */
+  layout?: SheetLayout;
 };
 
 /** The accessible HTML layer of the phone book: section tabs over the white and business lists. */
@@ -38,6 +41,7 @@ export function PhoneBookPage({
   onDial,
   calledIds,
   pageStack,
+  layout = 'twin',
 }: Props) {
   const base = useId();
   const tabId = (section: BookSection) => `${base}-tab-${section}`;
@@ -52,8 +56,13 @@ export function PhoneBookPage({
         <h2 id={`${base}-heading`} className="sr-only">
           The Dead Pages: Spirit Listings
         </h2>
-        {pageStack && <PageStack {...pageStack} />}
-        <BusinessSection listings={businesses} onDial={onDial} calledIds={calledIds} />
+        {pageStack && <PageStack {...pageStack} layout={layout} />}
+        <BusinessSection
+          listings={businesses}
+          onDial={onDial}
+          calledIds={calledIds}
+          layout={layout}
+        />
       </section>
     );
   }
@@ -63,18 +72,29 @@ export function PhoneBookPage({
       <h2 id={`${base}-heading`} className="sr-only">
         Phone book
       </h2>
-      {pageStack && <PageStack {...pageStack} />}
+      {pageStack && <PageStack {...pageStack} layout={layout} />}
       <SectionTabs
         active={activeSection}
         onChange={onSectionChange}
         tabId={tabId}
         panelId={panelId}
+        layout={layout}
       />
       <div role="tabpanel" id={panelId(activeSection)} aria-labelledby={tabId(activeSection)}>
         {activeSection === 'white' ? (
-          <WhiteSection residents={residents} onDial={onDial} calledIds={calledIds} />
+          <WhiteSection
+            residents={residents}
+            onDial={onDial}
+            calledIds={calledIds}
+            layout={layout}
+          />
         ) : (
-          <BusinessSection listings={businesses} onDial={onDial} calledIds={calledIds} />
+          <BusinessSection
+            listings={businesses}
+            onDial={onDial}
+            calledIds={calledIds}
+            layout={layout}
+          />
         )}
       </div>
     </section>
