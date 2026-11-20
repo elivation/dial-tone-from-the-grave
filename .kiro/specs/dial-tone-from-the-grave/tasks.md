@@ -483,7 +483,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `app/page.test.tsx` (3 additional tests)
 
-- [-] 33. Deploy to Vercel and smoke-test the live URL
+- [x] 33. Deploy to Vercel and smoke-test the live URL
 
   Push to GitHub. Connect repo to Vercel if needed. Set all env vars from `.env.example` in Vercel dashboard. Deploy. Run `pnpm test:e2e` against the live URL. Fix any build errors. Confirm cron shows in Vercel dashboard.
 
@@ -493,7 +493,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: full Playwright E2E suite against live URL
 
-- [ ] 34. Landing scene and visual polish
+- [-] 34. Landing scene and visual polish
 
   `app/page.tsx` background: dark desk scene using CSS gradients only. Load "Special Elite" (typewriter, Google Fonts OFL) and "Nixie One" (Bakelite era, Google Fonts OFL) via `next/font/google`. Style dial as Bakelite black plastic. Add candle flicker CSS animation to vignette (prefers-reduced-motion makes it static). Confirm Lighthouse mobile: Performance >= 90, Accessibility >= 90, Best Practices >= 90.
 
