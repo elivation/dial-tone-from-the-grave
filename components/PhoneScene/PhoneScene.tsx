@@ -170,7 +170,7 @@ export function PhoneScene() {
             </p>
           }
         />
-        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-20 flex flex-col items-center gap-3 text-center">
+        <div className="pointer-events-none absolute inset-x-0 bottom-10 z-20 flex flex-col items-center gap-3 text-center">
           {connected && (
             <OperatorPanel
               operatorNumber={connected.operatorNumber}

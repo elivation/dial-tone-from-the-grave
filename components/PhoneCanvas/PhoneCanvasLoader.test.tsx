@@ -59,4 +59,8 @@ describe('PhoneCanvasLoader', () => {
     expect(screen.getByText('The switchboard is out of order.')).toBeInTheDocument();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
+  it('[Req 5.4] puts the candle flicker class on the vignette', () => {
+    const { container } = render(<PhoneCanvasLoader controller={controller} />);
+    expect(container.querySelector('.scene-vignette')).toHaveClass('scene-vignette-flicker');
+  });
 });

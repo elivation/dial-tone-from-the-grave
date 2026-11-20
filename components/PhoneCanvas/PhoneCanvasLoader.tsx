@@ -35,7 +35,10 @@ export function PhoneCanvasLoader({ controller, fallback = null, book }: Props) 
       <div aria-hidden="true" className="absolute inset-0 touch-none">
         <PhoneCanvas onReady={onReady} controller={controller} book={book} />
       </div>
-      <div aria-hidden="true" className="scene-vignette pointer-events-none absolute inset-0" />
+      <div
+        aria-hidden="true"
+        className="scene-vignette scene-vignette-flicker pointer-events-none absolute inset-0"
+      />
       <div aria-hidden="true" className="scene-grain pointer-events-none absolute inset-0" />
       <LoadingVeil visible={!ready} />
     </div>

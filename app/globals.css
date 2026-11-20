@@ -8,8 +8,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: Arial, Helvetica, sans-serif;
+  /* Typewriter for all copy, Bakelite-era display face for the dialled digits. Both are self-hosted by next/font. */
+  --font-serif: var(--font-special-elite), 'Courier New', monospace;
+  --font-mono: var(--font-nixie-one), 'Courier New', monospace;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,7 +24,15 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-special-elite), 'Courier New', monospace;
+}
+/* The dark desk behind the 3D scene: a candle pool on old wood, from gradients only. It shows
+   before the scene loads, round the veil, and in place of the scene when there is no WebGL. */
+.desk-backdrop {
+  background-color: #060302;
+  background-image:
+    radial-gradient(ellipse 55% 45% at 52% 62%, rgba(150, 85, 30, 0.3) 0%, rgba(0, 0, 0, 0) 70%),
+    linear-gradient(180deg, #050302 0%, #0d0704 42%, #1a0f07 100%);
 }
 
 /* Heavy vignette and film grain over the 3D scene. Same numbers as the reference scene. */
@@ -35,6 +45,37 @@ body {
   );
 }
 
+/* The candle breathes: a slow, shallow change in how dark the edges are. Under 2 changes a second
+   and a small swing in brightness, so it is safe for WCAG 2.3.1. Reduced motion keeps it still. */
+@media (prefers-reduced-motion: no-preference) {
+  .scene-vignette-flicker {
+    animation: candle-flicker 7s ease-in-out infinite;
+  }
+}
+@keyframes candle-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 0.9;
+  }
+  27% {
+    opacity: 0.97;
+  }
+  43% {
+    opacity: 0.88;
+  }
+  58% {
+    opacity: 0.96;
+  }
+  72% {
+    opacity: 0.91;
+  }
+  86% {
+    opacity: 0.99;
+  }
+}
 .scene-grain {
   opacity: 0.08;
   mix-blend-mode: overlay;
