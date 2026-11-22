@@ -1099,6 +1099,7 @@ Hosting decisions (15 November 2026):
 - The app runs on the owner's own Vercel Pro team ("Clynton's projects"). It is paid for by the owner, not funded by any sponsor, and stays active until 29 January 2027.
 - The database is a Supabase free project, added through the Vercel integration. A free project pauses after a week without activity, so the daily keepalive cron (task 31) is required.
 - That project sits in a Supabase org Vercel manages, and its connection strings are Vercel sensitive variables, which can't be pulled. Migrations are applied with `supabase db push --db-url` and the owner's direct connection string, entered in the owner's own terminal.
+- The Supabase database was created through the Vercel Supabase integration and is managed by Vercel, so the integration stays connected. It may add its own variables (SUPABASE*URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_JWT_SECRET, POSTGRES*\* and similar). The app does not read them, so if they come back they are left alone. The app reads only NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY and SUPABASE_SECRET_KEY.
 - Pro allows longer function run times. The streaming operator route sets its maximum duration explicitly (task 22).
 
 ### Environment variables (full list for .env.example)

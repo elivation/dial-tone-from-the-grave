@@ -493,7 +493,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: full Playwright E2E suite against live URL
 
-- [-] 34. Landing scene and visual polish
+- [x] 34. Landing scene and visual polish
 
   `app/page.tsx` background: dark desk scene using CSS gradients only. Load "Special Elite" (typewriter, Google Fonts OFL) and "Nixie One" (Bakelite era, Google Fonts OFL) via `next/font/google`. Style dial as Bakelite black plastic. Add candle flicker CSS animation to vignette (prefers-reduced-motion makes it static). Confirm Lighthouse mobile: Performance >= 90, Accessibility >= 90, Best Practices >= 90.
 
@@ -503,7 +503,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: manual Lighthouse run; existing automated tests still pass
 
-- [ ] 35. Full end-to-end Playwright test suite
+- [-] 35. Full end-to-end Playwright test suite
 
   Implement all 8 E2E scenarios from design section "End-to-end tests": (1) full 1023 call with phone book opening, (2) 1026 call receives time and auto-hangs, (3) wrong number plays static and returns to idle, (4) dial 112 shows emergency-notice screen with plain message and no static, (5) mock 429 triggers busy state with in-character message, (6) dial 1313 opens spirit listings, (7) keyboard dial "5" shows 5 click sounds and digit display, (8) go offline shows in-character message and disables dial, (9) the Dial button on a listing dials its number and the listing's ghost answers, (10) with `NEXT_PUBLIC_RING_IN_MIN_S` set low the phone rings by itself and the message plays. All other scenarios run with `NEXT_PUBLIC_RING_IN_ENABLED=false`.
 
