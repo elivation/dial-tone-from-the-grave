@@ -24,6 +24,7 @@ import { useCall } from './useCall';
 import { useDialNumber } from './useDialNumber';
 import { useIncomingCall } from './useIncomingCall';
 import { useOperatorChat } from './useOperatorChat';
+import { useSceneGate } from './useSceneGate';
 
 const MAX_SHOWN = 14;
 /** Matches the server default for MAX_TURNS_PER_CALL. The server enforces the real cap. */
@@ -54,8 +55,11 @@ export function PhoneScene() {
   const online = useOnline();
   const call = useCall({ offline: !online });
   const { state, controller, pickUp, hangUp, dismiss, send } = call;
+  const gate = useSceneGate(pickUp);
   const { dial: dialNumber, pending: dialPending } = useDialNumber({ call, offline: !online });
   useIncomingCall({ state, send, offline: !online, dialPending });
+  // A ringing phone is answered at once. Only the first pick up of an idle phone waits for the scene.
+  const ringingIn = state.status === 'ringing-in';
   const connected = state.status === 'connected' ? state : null;
   const callee = connected?.callee ?? 'operator';
   const maxTurns = callee === 'listing' ? LISTING_DEFAULT_MAX_TURNS : MAX_TURNS;
@@ -146,6 +150,8 @@ export function PhoneScene() {
       <div className="contents" inert={!online}>
         <PhoneCanvasLoader
           controller={controller}
+          active={gate.active}
+          onSettled={gate.onSettled}
           book={
             chat.bookOpen
               ? {
@@ -190,7 +196,12 @@ export function PhoneScene() {
           )}
           <CallStatus state={state} />
           <DialledDisplay digits={numberShown(state)} />
-          <Handset state={state} onPickUp={pickUp} onHangUp={hangUp} buttonRef={handsetButton} />
+          <Handset
+            state={state}
+            onPickUp={ringingIn ? pickUp : gate.requestPickUp}
+            onHangUp={hangUp}
+            buttonRef={handsetButton}
+          />
         </div>
         {chat.bookOpen && (
           <PhoneBookPage

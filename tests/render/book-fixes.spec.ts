@@ -26,6 +26,8 @@ async function loadHome(page: Page) {
     window.sessionStorage.setItem('dtftg_book', session);
   }, SESSION);
   await page.goto('/');
+  // The scene sleeps behind the poster until the first tap.
+  await page.mouse.click(4, 4);
   await page.waitForFunction(
     () => document.querySelector('[aria-hidden="true"].opacity-0') !== null,
     undefined,

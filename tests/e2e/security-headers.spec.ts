@@ -44,8 +44,9 @@ test('[Req 10.8] the phone loads and a call is dialled with no CSP violations', 
 }) => {
   const violations = await watchForViolations(page);
   await page.goto('/');
-  await waitForScene(page);
   await page.getByRole('button', { name: 'Pick up the handset' }).click();
+  await waitForScene(page);
+  await expect(page.getByRole('status').filter({ hasText: 'Dial a number.' })).toBeVisible();
   await page.keyboard.press('5');
   await expect(page.getByRole('status', { name: 'Dialled number' })).toHaveText('5');
   await page.waitForTimeout(1000);

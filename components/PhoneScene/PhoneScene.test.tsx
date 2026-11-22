@@ -33,16 +33,29 @@ vi.mock('./useOperatorChat', () => ({
 // There is no WebGL in jsdom. The stub shows whether the scene was handed a book, and hands the
 // test the book's callbacks so it can click and flip the way the 3D pages would.
 vi.mock('@/components/PhoneCanvas/PhoneCanvasLoader', () => ({
-  PhoneCanvasLoader: ({ book }: { book?: BookView }) => {
+  PhoneCanvasLoader: ({
+    book,
+    active,
+    onSettled,
+  }: {
+    book?: BookView;
+    active: boolean;
+    onSettled?: () => void;
+  }) => {
     bookView.current = book;
     return (
       <div
         data-testid="scene"
+        data-active={String(active)}
         data-book={book ? `open:${book.results.length}` : 'none'}
         data-first={book?.results[0]?.id ?? ''}
         data-called={(book?.calledIds ?? []).join(',')}
         data-dogeared={String(book?.dogEared ?? false)}
-      />
+      >
+        <button type="button" onClick={onSettled}>
+          settle scene
+        </button>
+      </div>
     );
   },
 }));
@@ -97,6 +110,64 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+describe('PhoneScene poster', () => {
+  const pickUpSpy = () => (call.current as UseCall).pickUp;
+
+  it('[Req 5.3] leaves the scene asleep until the first tap', async () => {
+    setChat();
+    render(<PhoneScene />);
+    expect(scene()).toHaveAttribute('data-active', 'false');
+    await userEvent.pointer({ keys: '[MouseLeft>]', target: document.body });
+    expect(scene()).toHaveAttribute('data-active', 'true');
+  });
+
+  it('[Req 9.2] wakes the scene on a number key, which the on-hook phone ignores', async () => {
+    setChat();
+    render(<PhoneScene />);
+    await userEvent.keyboard('5');
+    expect(scene()).toHaveAttribute('data-active', 'true');
+    expect(pickUpSpy()).not.toHaveBeenCalled();
+  });
+
+  it('[Req 5.3] Pick up the handset wakes the scene and picks up only once it is ready', async () => {
+    setChat();
+    render(<PhoneScene />);
+    await userEvent.click(screen.getByRole('button', { name: 'Pick up the handset' }));
+    expect(scene()).toHaveAttribute('data-active', 'true');
+    expect(pickUpSpy()).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'settle scene' }));
+    expect(pickUpSpy()).toHaveBeenCalledTimes(1);
+  });
+
+  it('[Req 9.3] focus stays on the handset button while the scene wakes', async () => {
+    setChat();
+    render(<PhoneScene />);
+    const handset = screen.getByRole('button', { name: 'Pick up the handset' });
+    await userEvent.click(handset);
+    expect(scene()).toHaveAttribute('data-active', 'true');
+    expect(handset).toHaveFocus();
+  });
+
+  it('[Req 9.3] the handset button works from the keyboard on the poster', async () => {
+    setChat();
+    render(<PhoneScene />);
+    act(() => screen.getByRole('button', { name: 'Pick up the handset' }).focus());
+    await userEvent.keyboard('{Enter}');
+    await userEvent.click(screen.getByRole('button', { name: 'settle scene' }));
+    expect(pickUpSpy()).toHaveBeenCalledTimes(1);
+  });
+
+  it('[Req 13.2] Open the book is on the poster after a reload, and opening it wakes the scene', async () => {
+    storeBook();
+    setChat({ bookOpen: false });
+    render(<PhoneScene />);
+    expect(scene()).toHaveAttribute('data-active', 'false');
+    await userEvent.click(await screen.findByRole('button', { name: 'Open the book' }));
+    expect(openBookSpy.current).toHaveBeenCalledTimes(1);
+    expect(scene()).toHaveAttribute('data-active', 'true');
+  });
 });
 
 describe('PhoneScene phone book', () => {

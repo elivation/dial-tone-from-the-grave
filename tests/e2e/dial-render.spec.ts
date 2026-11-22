@@ -21,6 +21,8 @@ test('[render] the slime shows in every finger hole, as blobs, and stays off the
   page.on('pageerror', (e) => problems.push(e.message));
 
   await page.goto('/');
+  // The scene sleeps behind the poster until the first tap.
+  await page.mouse.click(4, 4);
   await expect(page.locator('[aria-hidden="true"].opacity-0').first()).toBeAttached({
     timeout: 60_000,
   });

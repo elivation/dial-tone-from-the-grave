@@ -16,15 +16,16 @@ async function dial(page: Page, number: string) {
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
-  // The first frames compile the scene and block the main thread for up to 650 ms at a time. A key
-  // pressed then makes the dial run back late, so the next key arrives while it is still moving and
-  // is ignored, as a real dial would. Wait for the veil to lift and the scene to settle first.
-  await expect(page.locator('[aria-hidden="true"].opacity-0').first()).toBeAttached({
+  // The page shows a poster until the first tap, and one press of Pick up the handset wakes the
+  // scene and then picks up once it is ready. Waiting for the dial tone line covers the load.
+  await page.getByRole('button', { name: 'Pick up the handset' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Dial a number.' })).toBeVisible({
     timeout: 60_000,
   });
+  // The first frames compile the scene and block the main thread for up to 650 ms at a time. A key
+  // pressed then makes the dial run back late, so the next key arrives while it is still moving and
+  // is ignored, as a real dial would. Let the scene settle first.
   await page.waitForTimeout(1500);
-  await page.getByRole('button', { name: 'Pick up the handset' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Dial a number.' })).toBeVisible();
 });
 
 test('[Req 2.8] dialling 112 shows the plain emergency notice, and it can be dismissed', async ({

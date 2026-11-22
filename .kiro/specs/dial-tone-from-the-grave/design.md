@@ -351,7 +351,8 @@ app/page.tsx
             ResidentRow
           SectionTabs
       StaticOverlay               (CSS noise over the screen while the line is in `wrong-number`; two alternations a second, a 200 ms fade with reduced motion; not on connect)
-      LoadingVeil                 (candlelit full-screen state while 3D assets load)
+      ScenePoster                 (still of the desk, shown until the first tap, then faded out)
+      LoadingVeil                 ("Connecting you to the exchange..." over the poster while 3D assets load)
 ```
 
 Props interfaces for key components:
@@ -392,6 +393,16 @@ type PhoneBookPageProps = {
   spiritOnly: boolean;
 };
 ```
+
+### Poster until the first tap
+
+On a phone-class CPU with software WebGL, parsing and running three.js and compiling the scene put about 25 s of blocking time on the main thread, which held Lighthouse mobile Performance at 66. The page therefore loads a still poster of the real scene (`public/poster`, AVIF and WebP, landscape and portrait crops with explicit sizes, made by `scripts/makePoster.mjs` from our own render). `PhoneCanvasLoader` imports and mounts the R3F canvas only once `active` is true, and it does not ask for a WebGL context before then.
+
+- `useSceneGate` sets `active` on the first `pointerdown` or `keydown`. Pressing Pick up the handset also sets it, and holds the pick up until the scene settles, so one press is enough. A ringing phone is answered at once.
+- A number key only wakes the scene. The phone is on its hook, so the digit would be ignored anyway, and it is not buffered.
+- Open the book after a reload stays on the poster. Pressing it is an interaction, so it wakes the scene and opens the book.
+- Once the first frame has drawn, the poster fades out over 500 ms (no fade with reduced motion). With no WebGL the poster stays, the fallback message shows over it, and the scene counts as settled so the phone still works.
+- The vignette and grain are laid over the poster as well as the scene, so they are not baked into the stills.
 
 ---
 

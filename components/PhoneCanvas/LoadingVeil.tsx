@@ -1,19 +1,21 @@
-/** Candlelit screen shown while the scene loads. Fades out when `visible` turns false. */
+/**
+ * The in-character line shown over the poster while the 3D scene loads. It has no backdrop of its
+ * own, because the poster is already the picture. It fades out when `visible` turns false, and
+ * with reduced motion it neither fades nor pulses.
+ */
 export function LoadingVeil({ visible }: { visible: boolean }) {
   return (
     <div
       role={visible ? 'status' : undefined}
       aria-hidden={!visible}
       className={[
-        'pointer-events-none absolute inset-0 z-10 flex items-center justify-center',
-        'bg-[radial-gradient(ellipse_at_50%_55%,#2a1608_0%,#0b0604_55%,#000_100%)]',
-        'transition-opacity duration-700 motion-reduce:duration-200',
+        'pointer-events-none absolute inset-x-0 bottom-36 z-10 flex justify-center px-6',
+        'transition-opacity duration-500 motion-reduce:transition-none',
         visible ? 'opacity-100' : 'opacity-0',
       ].join(' ')}
     >
-      <span className="sr-only">Loading the switchboard</span>
-      <p className="max-w-xs px-6 text-center font-serif text-lg italic text-amber-200/80 motion-safe:animate-pulse">
-        In 1998, the line went dead. Tonight, someone picked up.
+      <p className="rounded bg-black/60 px-4 py-2 text-center font-serif text-lg italic text-amber-200/90 motion-safe:animate-pulse">
+        Connecting you to the exchange...
       </p>
     </div>
   );

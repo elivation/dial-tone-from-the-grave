@@ -12,6 +12,7 @@ for (const size of SIZES) {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: size.width, height: size.height });
     await page.goto('/');
+    await page.mouse.click(4, 4);
     await expect(page.locator('[aria-hidden="true"].opacity-0').first()).toBeAttached({
       timeout: 60_000,
     });
@@ -33,6 +34,7 @@ for (const size of SIZES) {
     });
     await page.setViewportSize({ width: size.width, height: size.height });
     await page.goto('/');
+    await page.mouse.click(4, 4);
     await expect(page.getByText('This switchboard needs WebGL')).toBeVisible();
     await page.screenshot({ path: `${OUT}/landing-nowebgl-${size.name}.png` });
   });

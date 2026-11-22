@@ -92,6 +92,7 @@ export function PhonePreview({
   return (
     <main className="h-screen w-screen bg-black" data-replay={done ? 'done' : 'running'}>
       <PhoneCanvasLoader
+        active
         controller={dial === '' ? heldAt(wheel) : live}
         book={
           book
