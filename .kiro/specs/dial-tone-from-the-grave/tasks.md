@@ -513,7 +513,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: `tests/e2e/` (10 scenarios)
 
-- [-] 36. Write README.md
+- [x] 36. Write README.md
 
   What it is (2-3 sentences), screenshot placeholder, how to run locally (clone, pnpm install, copy .env.example, fill in values, pnpm dev), all env vars with descriptions, architecture Mermaid diagram, font credits (Special Elite and Nixie One from Google Fonts under OFL licence). No real brand names. No dashes. South African English.
 
@@ -523,7 +523,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: grep scan for brand names and dashes
 
-- [ ] 37. Write KIRO_USAGE.md
+- [-] 37. Write KIRO_USAGE.md
 
   Document: how specs were used (requirements, design, tasks with concrete examples of what changed between drafts), how steering files work (all six files), how agent hooks were used (each hook with what it caught), how MCP was used (Supabase MCP if used), how property-based testing was used (all 13 properties, fast-check code snippet for P1 or P5). Concrete examples with code. Apply writing-style.md rules.
 
