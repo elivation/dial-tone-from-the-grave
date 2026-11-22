@@ -523,9 +523,9 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: grep scan for brand names and dashes
 
-- [-] 37. Write KIRO_USAGE.md
+- [x] 37. Write KIRO_USAGE.md
 
-  Document: how specs were used (requirements, design, tasks with concrete examples of what changed between drafts), how steering files work (all six files), how agent hooks were used (each hook with what it caught), how MCP was used (Supabase MCP if used), how property-based testing was used (all 13 properties, fast-check code snippet for P1 or P5). Concrete examples with code. Apply writing-style.md rules.
+  Document: how specs were used (requirements, design, tasks with concrete examples of what changed between drafts), how steering files work (all six files), how agent hooks were used (each hook with what it caught), how MCP was used (Supabase MCP if used), how property-based testing was used (all 16 properties, fast-check code snippet for P1 or P5). Concrete examples with code. Apply writing-style.md rules.
 
   Done when: file present; each Kiro feature has at least one concrete example; no dashes; no brand names.
 
@@ -533,7 +533,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: manual review
 
-- [ ] 38. Write DEMO_SCRIPT.md
+- [-] 38. Write DEMO_SCRIPT.md
 
   2-minute 50-second video script. Opening voice-over: "In 1998, the line went dead. Tonight, someone picked up." Shot list: landing scene (5 s), pick up handset (5 s), dial 1023 (20 s), operator greeting (10 s), ask for plumber in Edenvale (15 s), phone book opens (10 s), click listing (5 s), hang up and dial 666 (20 s), Night Caretaker story (20 s), dial 1313 (20 s), spirit listings (10 s), wrong number static (10 s), closing shot and tagline (20 s). Total ~170 s. No copyrighted music, no real brand names.
 
@@ -567,7 +567,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
 - Never mark a task done with failing lint, typecheck or tests.
 - Commit after each completed task with a conventional commit message (feat:, fix:, test:, chore:, docs:, refactor:).
-- Property-based tests use fast-check. Each property is tagged with its ID from design section "Correctness Properties" (P1 through P13).
+- Property-based tests use fast-check. Each property is tagged with its ID from design section "Correctness Properties" (P1 through P16).
 - The EMERGENCY_NUMBERS set in `lib/operators.ts` is the single source of truth used by both the state machine and the operator safety hook.
 - Do not start any task from Phase 5 onwards before the seed data (Tasks 17 and 18) is loaded into the database, as the operator route depends on real search results.
 - The `.env.example` file must be updated whenever a new env var is added, before closing the task that introduced it.
