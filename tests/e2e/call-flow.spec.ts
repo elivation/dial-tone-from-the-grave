@@ -1,31 +1,9 @@
-import { test, expect, type Page } from './quietPhone';
-
-/**
- * Presses the number keys one at a time. The dial ignores a key while it is still moving, so each
- * digit is waited for on the display, then given time to run back, with a margin for a slow machine.
- */
-async function dial(page: Page, number: string) {
-  let soFar = '';
-  for (const digit of number) {
-    await page.keyboard.press(digit);
-    soFar += digit;
-    await expect(page.getByRole('status', { name: 'Dialled number' })).toHaveText(soFar);
-    await page.waitForTimeout((digit === '0' ? 10 : Number(digit)) * 100 + 400);
-  }
-}
+import { test, expect } from './quietPhone';
+import { audioCounts, dial, openPhone, spyOnAudio } from './helpers';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
-  // The page shows a poster until the first tap, and one press of Pick up the handset wakes the
-  // scene and then picks up once it is ready. Waiting for the dial tone line covers the load.
-  await page.getByRole('button', { name: 'Pick up the handset' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Dial a number.' })).toBeVisible({
-    timeout: 60_000,
-  });
-  // The first frames compile the scene and block the main thread for up to 650 ms at a time. A key
-  // pressed then makes the dial run back late, so the next key arrives while it is still moving and
-  // is ignored, as a real dial would. Let the scene settle first.
-  await page.waitForTimeout(1500);
+  await spyOnAudio(page);
+  await openPhone(page);
 });
 
 test('[Req 2.8] dialling 112 shows the plain emergency notice, and it can be dismissed', async ({
@@ -40,6 +18,7 @@ test('[Req 2.8] dialling 112 shows the plain emergency notice, and it can be dis
   await page.getByRole('button', { name: 'Dismiss' }).click();
   await expect(notice).toBeHidden();
   await expect(page.getByRole('button', { name: 'Pick up the handset' })).toBeVisible();
+  expect((await audioCounts(page)).statics).toBe(0);
 });
 
 test('[Req 2.6] an unknown number says wrong number, then the line goes back to idle', async ({
@@ -52,6 +31,13 @@ test('[Req 2.6] an unknown number says wrong number, then the line goes back to 
   await expect(page.getByRole('button', { name: 'Pick up the handset' })).toBeVisible({
     timeout: 8000,
   });
+  expect((await audioCounts(page)).statics).toBe(1);
+});
+
+test('[Req 1.5] pressing 5 shows the digit and plays five dial clicks', async ({ page }) => {
+  await page.keyboard.press('5');
+  await expect(page.getByRole('status', { name: 'Dialled number' })).toHaveText('5');
+  await expect.poll(async () => (await audioCounts(page)).clicks, { timeout: 5000 }).toBe(5);
 });
 
 test('[Req 2.7] hanging up clears the number and goes back to idle', async ({ page }) => {
