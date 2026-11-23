@@ -533,7 +533,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: manual review
 
-- [-] 38. Write DEMO_SCRIPT.md
+- [x] 38. Write DEMO_SCRIPT.md
 
   2-minute 50-second video script. Opening voice-over: "In 1998, the line went dead. Tonight, someone picked up." Shot list: landing scene (5 s), pick up handset (5 s), dial 1023 (20 s), operator greeting (10 s), ask for plumber in Edenvale (15 s), phone book opens (10 s), click listing (5 s), hang up and dial 666 (20 s), Night Caretaker story (20 s), dial 1313 (20 s), spirit listings (10 s), wrong number static (10 s), closing shot and tagline (20 s). Total ~170 s. No copyrighted music, no real brand names.
 
@@ -543,7 +543,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: manual review; brand name grep
 
-- [ ] 39. Write SUBMISSION.md checklist
+- [-] 39. Write SUBMISSION.md checklist
 
   Checklist table: Requirement, Status, Where to find it. Rows: working public URL, Devpost description, demo video under 3 minutes on YouTube, public GitHub repo with MIT licence in About section, `.kiro/` at repo root and not gitignored, Kiro write-up (KIRO_USAGE.md), free judge access until 29 January 2027. Bonus prizes, done near the end: a public blog post about Kiro and the project for the Bonus Blog Prize, a social post starting with `#KiroweenHackathon26` for the Social Blitz Prize, and both URLs added to the submission. Confirm MIT LICENSE file exists.
 
