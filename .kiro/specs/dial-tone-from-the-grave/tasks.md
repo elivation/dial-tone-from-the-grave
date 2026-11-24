@@ -543,7 +543,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: manual review; brand name grep
 
-- [-] 39. Write SUBMISSION.md checklist
+- [x] 39. Write SUBMISSION.md checklist
 
   Checklist table: Requirement, Status, Where to find it. Rows: working public URL, Devpost description, demo video under 3 minutes on YouTube, public GitHub repo with MIT licence in About section, `.kiro/` at repo root and not gitignored, Kiro write-up (KIRO_USAGE.md), free judge access until 29 January 2027. Bonus prizes, done near the end: a public blog post about Kiro and the project for the Bonus Blog Prize, a social post starting with `#KiroweenHackathon26` for the Social Blitz Prize, and both URLs added to the submission. Confirm MIT LICENSE file exists.
 
@@ -553,7 +553,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: manual review
 
-- [ ] 40. Final pre-submission checks
+- [-] 40. Final pre-submission checks
 
   Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:e2e` against live URL. All must pass. Run Lighthouse on live URL (Performance >= 90, Accessibility >= 90, Best Practices >= 90 on mobile). Run brand name grep across all .md, .ts, .tsx files. Run em/en dash scan across all .md files. Confirm `.kiro/` not in `.gitignore`. Confirm `.env*` in `.gitignore` and no real secrets committed. Confirm vercel.json cron present and visible in Vercel dashboard. Confirm Devpost submission form complete: URL, description, video link, repo link. Submit by 2 December 2026.
 
