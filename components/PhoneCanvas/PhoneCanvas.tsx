@@ -5,6 +5,7 @@ import { Canvas } from '@react-three/fiber';
 import type { DialController } from '@/components/RotaryDial/useDialController';
 import { CameraRig } from './CameraRig';
 import { Candle } from './Candle';
+import { Cobwebs } from './Cobwebs';
 import { Desk } from './Desk';
 import { DialWheel } from './DialWheel';
 import { DimRoomEnvironment } from './DimRoomEnvironment';
@@ -63,6 +64,7 @@ export default function PhoneCanvas({
           <DialWheel controller={controller} />
         </PhoneModel>
         <Spider />
+        <Cobwebs />
         {book && <PhoneBook3D {...book} />}
         <DustMotes />
         <ReadySignal onReady={onReady} />
