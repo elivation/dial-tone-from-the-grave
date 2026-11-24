@@ -2,7 +2,7 @@
 
 ## Overview
 
-Tasks are grouped into 8 phases, plus the session features (tasks 45 to 48) that make the phone and the book work together. Phase 1 (scaffold) must be complete before all others. Phases 2 (dial), 3 (state machine and audio) and 4 (data and search) can run in parallel after Phase 1. Phase 5 (operators) depends on 3 and 4. Phase 6 (phone book) depends on 4 and 5. Phase 7 (limits, security, deploy) depends on 5 and 6. Phase 8 (polish and submission docs) depends on all prior phases.
+Tasks are grouped into 8 phases, plus the session features (tasks 45 to 48) that make the phone and the book work together. Phase 1 (scaffold) must be complete before all others. Phases 2 (dial), 3 (state machine and audio) and 4 (data and search) can run in parallel after Phase 1. Phase 5 (operators) depends on 3 and 4. Phase 6 (phone book) depends on 4 and 5. Phase 7 (limits, security, deploy) depends on 5 and 6. Phase 8 (polish and submission docs) depends on all prior phases. The polish round (tasks 49 to 51) depends on task 39 only, so it does not wait for task 40.
 
 The rotary dial is the hero feature and comes first within Phase 2.
 
@@ -50,6 +50,11 @@ The rotary dial is the hero feature and comes first within Phase 2.
       "wave": 8,
       "tasks": ["34", "35", "36", "37", "38", "39", "40"],
       "description": "Polish, end-to-end suite and submission docs"
+    },
+    {
+      "wave": 9,
+      "tasks": ["49", "50", "51"],
+      "description": "Polish round. Needs task 39 (docs done), not task 40, which stays open until the Devpost submission"
     }
   ]
 }
@@ -562,6 +567,22 @@ The rotary dial is the hero feature and comes first within Phase 2.
   Requirements: all
 
   Tests: CI run of all test suites
+
+- [ ] 49. Halloween dressing: pumpkin and cobwebs
+      Add one real scanned carved pumpkin model, licence CC0 or CC BY (credited in README), past its best: slightly collapsed, mould on the cut edges, a flickering candle stub inside casting a faint warm light. Place it in the background beside the existing candle, slightly out of focus. Add fine cobwebs between the phone and the candle that catch the candlelight. Subtle and realistic: no cartoon decorations, no orange and purple theme, no text. Optimise the model like we500.glb (meshopt, compressed textures, under 1 MB). Keep the scene frame rate. Re-render the poster stills after (`scripts/makePoster.mjs`).
+      Done when: the model is under 1 MB, credited, frame rate unchanged in headless (indicative), render screenshots reviewed, poster re-rendered, lint, typecheck, tests and e2e pass.
+      Requirements: Req 1, Req 9.4 (reduced motion), product rules (no brand names, owned or licensed assets)
+      Tests: `pnpm optimize-assets` size check, scene render tests, reduced motion test for the candle flicker, `tests/e2e/` suite
+- [ ] 50. Goo look: lime jelly
+      Target material: bright lime green jelly (about #8fe000 in thick parts, #3fa000 at the edges), strongly translucent with subsurface glow, very glossy with sharp candle highlights, a faint inner glow so it reads in the dark, wobbly blobby surfaces with rounded bulging edges, and a slow subtle wobble (off with reduced motion). It oozes out of a filthy old phone: keep the grime, dust and dark crusted residue on the Bakelite. Method: render the dial close-up beside each private reference image with the same framing (references stay outside the repo and are never copied in or named), compare colour, translucency, gloss and shape, and iterate. The user approves the side-by-side before anything is committed. Rules kept: pools turn with the wheel, body goo stays static, nothing on the 1023 card. Re-render the poster stills after.
+      Done when: the user approves the side-by-side, frame rate kept, lint, typecheck, tests and e2e pass, poster re-rendered.
+      Requirements: Req 1, Req 2, Req 9.4 (reduced motion), product rules (no brand names, owned or licensed assets)
+      Tests: goo material and reduced motion tests, `tests/e2e/` suite, manual side-by-side review
+- [ ] 51. Sound and book feel review
+      Review the dial clicks, ring, static, operator voice, the book opening and the page turn for richness and feel. Write concrete improvement proposals with a credit estimate each into a short review note. Build nothing until the user chooses.
+      Done when: the proposal list is written and given to the user.
+      Requirements: Req 2, Req 5
+      Tests: none (review note only)
 
 ## Notes
 

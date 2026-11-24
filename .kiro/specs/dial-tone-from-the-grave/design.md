@@ -1404,6 +1404,15 @@ Stretch goal (only if everything else is done): WebXR "Enter VR" view using `@re
 
 ---
 
+## Polish round
+
+Tasks 49 to 51 follow the submission docs (task 39) and do not wait for task 40. They change looks and feel only, so the call flow, the API routes and the data model stay as they are.
+
+- **Pumpkin and cobwebs (task 49, Req 1, Req 9.4).** One scanned carved pumpkin with a CC0 or CC BY licence, credited in the README, goes in the background beside the candle, slightly out of focus. It goes through the same asset pipeline as we500.glb and stays under 1 MB. Its candle flicker and the cobweb shimmer stop with reduced motion. The scene frame rate is the budget.
+- **Lime jelly goo (task 50, Req 1, Req 2, Req 9.4).** The goo material is retuned to a translucent, glossy lime jelly with a faint inner glow and a slow wobble that stops with reduced motion. The phone keeps its grime. Pools still turn with the wheel, body goo stays static and the 1023 card stays clean. Reference images stay outside the repo and are never named. The user approves a side-by-side before any commit.
+- **Sound and book feel review (task 51, Req 2, Req 5).** A review note with costed proposals. Nothing is built until the user picks.
+- **Product rules.** No brand names anywhere, and every asset is owned or licensed with credit. Poster stills are re-rendered with `scripts/makePoster.mjs` after tasks 49 and 50.
+
 ## Correctness Properties
 
 These are the formal properties the implementation must satisfy. Each maps to at least one test.
