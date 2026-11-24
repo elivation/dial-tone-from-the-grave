@@ -50,3 +50,17 @@ Status values: done (checked on 23 November 2026), not done (nothing exists yet)
 6. Add the blog URL and the social post URL, and tick the category as Resurrection.
 7. Save a draft first. After the deadline nothing can be edited.
 8. Check the Anthropic credit balance and the Vercel cron before you stop looking at it.
+
+## Final checks
+
+Run on 24 November 2026 against the production deploy after the task 39 commit.
+
+- Lint, typecheck and build: clean. Tests: 86 files, 886 tests pass. One of five runs had a single unidentified failure in a 3D dial geometry test and did not repeat. Watch for it in CI.
+- Live end to end suite: 22 passed, 0 skipped, 0 failed, 1.2 minutes. The @live check spent one Claude call.
+- Lighthouse mobile on the live URL, three runs (version 13.6.0): performance 99, 99, 99; accessibility 100, 100, 100; best practices 100, 100, 100. Medians 99, 100, 100.
+- Brand names: the only hits are the blocklist in lib/brandNames.ts and its test. Seed data is clean.
+- Model metadata: the glb title named a phone company, in both assets-src/phone/we500.glb and public/models/we500.glb. The title is now "WE500" and the source link is the id-only Sketchfab URL. Author and CC BY 4.0 licence are unchanged. Internal node and material names still contain the company name because preparePhone.ts looks the material up by name. They are not shown anywhere.
+- Dashes: none in our own text. AGENTS.md has two em dashes in the block that `next dev` writes and re-adds, so they are left alone.
+- Repo hygiene: .kiro/ is tracked, .env\* is ignored except .env.example. No secret patterns in the tracked files or git history, only placeholders (sb_secret_your-key-here and short test strings).
+- Cron: /api/cron/keepalive on 0 10 \* \* \* is registered in Vercel.
+- Still to do by hand: the Devpost form (URL, description, video link, repo link). Keep 2 December as the buffer. The real deadline is 4 December 2026, 2pm PT, which is midnight between 4 and 5 December in Johannesburg.
