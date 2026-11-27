@@ -2,7 +2,7 @@
 
 ## Overview
 
-Tasks are grouped into 8 phases, plus the session features (tasks 45 to 48) that make the phone and the book work together. Phase 1 (scaffold) must be complete before all others. Phases 2 (dial), 3 (state machine and audio) and 4 (data and search) can run in parallel after Phase 1. Phase 5 (operators) depends on 3 and 4. Phase 6 (phone book) depends on 4 and 5. Phase 7 (limits, security, deploy) depends on 5 and 6. Phase 8 (polish and submission docs) depends on all prior phases. The polish round (tasks 49 to 51) depends on task 39 only, so it does not wait for task 40.
+Tasks are grouped into 8 phases, plus the session features (tasks 45 to 48) that make the phone and the book work together. Phase 1 (scaffold) must be complete before all others. Phases 2 (dial), 3 (state machine and audio) and 4 (data and search) can run in parallel after Phase 1. Phase 5 (operators) depends on 3 and 4. Phase 6 (phone book) depends on 4 and 5. Phase 7 (limits, security, deploy) depends on 5 and 6. Phase 8 (polish and submission docs) depends on all prior phases. The polish rounds (tasks 49 to 51, then 52 to 57) depend on task 39 only, so they do not wait for task 40.
 
 The rotary dial is the hero feature and comes first within Phase 2.
 
@@ -55,6 +55,11 @@ The rotary dial is the hero feature and comes first within Phase 2.
       "wave": 9,
       "tasks": ["49", "50", "51"],
       "description": "Polish round. Needs task 39 (docs done), not task 40, which stays open until the Devpost submission"
+    },
+    {
+      "wave": 10,
+      "tasks": ["52", "53", "54", "55", "56", "57"],
+      "description": "Second polish round: goo shapes, the sound bundle, test and spec fixes, model names, demo script and Devpost text. Needs task 39, not task 40"
     }
   ]
 }
@@ -558,7 +563,7 @@ The rotary dial is the hero feature and comes first within Phase 2.
 
   Tests: manual review
 
-- [-] 40. Final pre-submission checks
+- [ ] 40. Final pre-submission checks
 
   Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:e2e` against live URL. All must pass. Run Lighthouse on live URL (Performance >= 90, Accessibility >= 90, Best Practices >= 90 on mobile). Run brand name grep across all .md, .ts, .tsx files. Run em/en dash scan across all .md files. Confirm `.kiro/` not in `.gitignore`. Confirm `.env*` in `.gitignore` and no real secrets committed. Confirm vercel.json cron present and visible in Vercel dashboard. Confirm Devpost submission form complete: URL, description, video link, repo link. Submit by 2 December 2026.
 
@@ -573,16 +578,46 @@ The rotary dial is the hero feature and comes first within Phase 2.
       Done when: the model is under 1 MB, credited, frame rate unchanged in headless (indicative), render screenshots reviewed, poster re-rendered, lint, typecheck, tests and e2e pass.
       Requirements: Req 1, Req 9.4 (reduced motion), product rules (no brand names, owned or licensed assets)
       Tests: `pnpm optimize-assets` size check, scene render tests, reduced motion test for the candle flicker, `tests/e2e/` suite
-- [ ] 50. Goo look: lime jelly
-      Target material: bright lime green jelly (about #8fe000 in thick parts, #3fa000 at the edges), strongly translucent with subsurface glow, very glossy with sharp candle highlights, a faint inner glow so it reads in the dark, wobbly blobby surfaces with rounded bulging edges, and a slow subtle wobble (off with reduced motion). It oozes out of a filthy old phone: keep the grime, dust and dark crusted residue on the Bakelite. Method: render the dial close-up beside each private reference image with the same framing (references stay outside the repo and are never copied in or named), compare colour, translucency, gloss and shape, and iterate. The user approves the side-by-side before anything is committed. Rules kept: pools turn with the wheel, body goo stays static, nothing on the 1023 card. Re-render the poster stills after.
-      Done when: the user approves the side-by-side, frame rate kept, lint, typecheck, tests and e2e pass, poster re-rendered.
-      Requirements: Req 1, Req 2, Req 9.4 (reduced motion), product rules (no brand names, owned or licensed assets)
-      Tests: goo material and reduced motion tests, `tests/e2e/` suite, manual side-by-side review
-- [ ] 51. Sound and book feel review
+- [-] 50. Goo look: lime jelly
+  Target material: bright lime green jelly (about #8fe000 in thick parts, #3fa000 at the edges), strongly translucent with subsurface glow, very glossy with sharp candle highlights, a faint inner glow so it reads in the dark, wobbly blobby surfaces with rounded bulging edges, and a slow subtle wobble (off with reduced motion). It oozes out of a filthy old phone: keep the grime, dust and dark crusted residue on the Bakelite. Method: render the dial close-up beside each private reference image with the same framing (references stay outside the repo and are never copied in or named), compare colour, translucency, gloss and shape, and iterate. The user approves the side-by-side before anything is committed. Rules kept: pools turn with the wheel, body goo stays static, nothing on the 1023 card. Re-render the poster stills after.
+  Done when: the user approves the side-by-side, frame rate kept, lint, typecheck, tests and e2e pass, poster re-rendered.
+  Requirements: Req 1, Req 2, Req 9.4 (reduced motion), product rules (no brand names, owned or licensed assets)
+  Tests: goo material and reduced motion tests, `tests/e2e/` suite, manual side-by-side review
+- [x] 51. Sound and book feel review
       Review the dial clicks, ring, static, operator voice, the book opening and the page turn for richness and feel. Write concrete improvement proposals with a credit estimate each into a short review note. Build nothing until the user chooses.
       Done when: the proposal list is written and given to the user.
       Requirements: Req 2, Req 5
       Tests: none (review note only)
+- [ ] 52. Goo shapes: domed pools, smears, fewer specks, front run
+      Keep the approved lime colour and glow from task 50, change only the shapes. Pools: domed, bulging jelly with a soft rounded top that slightly overflows the hole lip on the fuller holes, sagging to one side, with irregular wobbling outlines and wet specular highlights. No flat tops and no hard rims. Plate stains: no contour rings, thin irregular semi-transparent wet smears that fade at the edges. Specks: about 80 percent fewer, and the rest small irregular drops near the holes only. Front run: a flat glossy ribbon hugging the body that widens where it pools, or removed. Render the same dial close-up and copy it to `~/Downloads/goo-compare/goo-v7.png` before committing. Rules kept: pools turn with the wheel, body goo stays static, nothing on the 1023 card. Re-render the poster stills after (`scripts/makePoster.mjs`).
+      Done when: the close-up is rendered and copied to `~/Downloads/goo-compare/goo-v7.png`, the blob check in `tests/e2e/dial-render.spec.ts` passes again (with the task 50 goo it fails on an overflow smear merged with the top left pool, aspect 4.53 against a limit of 4), the goo-check and goo-horror render checks pass, poster re-rendered, lint, typecheck, tests and e2e pass.
+      Requirements: Req 1, Req 9.4 (reduced motion), product rules (no brand names, owned or licensed assets)
+      Tests: goo shape unit tests (dome, overflow, speck count, smear edges), `tests/render/goo-check.spec.ts`, `tests/render/goo-horror.spec.ts`, `tests/e2e/` suite, manual close-up review
+- [ ] 53. Sound bundle from the polish review
+      Build the suggested bundle from `docs/polish-review.md` in the review's order of work: V1 (spoken greeting on connect, speech primed on a gesture) and X1 (one line "sound is off" nudge) first, then D1 (new click and the landing clunk) and Q1 (soft on and off edges), then B1 (book landing thump and settle) and B2 (page swish and landing tick), then R1 (a bell for the incoming ring), then S1 (real line noise and crackle, optionally a whisper) last. Write the WAV audition script before D1 so later sounds are tuned by ear. Clear the review's "Open checks before building" first. All sound stays generated with Web Audio, no audio files we do not own. Keep mute, reduced motion and the silent emergency path as they are.
+      Done when: each item from V1 to S1 is built or explicitly dropped with a reason, the user has listened to the audition files, lint, typecheck, tests and e2e pass.
+      Requirements: Req 2, Req 5, Req 9.4 (reduced motion), product rules (no unlicensed audio)
+      Tests: `lib/audio.test.ts` with the fake AudioContext for every new sound and edge ramp, speech priming tests with a mocked speechSynthesis, `tests/e2e/` suite
+- [ ] 54. Fix the flaky 3D dial geometry test
+      The test that uses `holeRadiusOf(phone.dial)` fails now and then. Reproduce it first (repeat runs, or a fixed seed or ordering), find the root cause, fix the cause, not the test. If the test itself is wrong, explain why before changing it.
+      Done when: the root cause is written in the commit message, the test passes on 20 repeat runs in a row, lint, typecheck and tests pass.
+      Requirements: Req 1
+      Tests: the existing dial geometry test, plus a test that would have caught the cause
+- [ ] 55. Rename the model's brand-named internals
+      Rename the brand-named node, mesh and material names inside both GLB copies (`assets-src/phone/we500.glb` and `public/models/we500.glb`) to our own neutral names, and update the lookups in `components/PhoneCanvas/preparePhone.ts` and any tests that name them. Keep the CC BY attribution in README and in the app exactly as it is.
+      Done when: a scan of both GLB files and the repo finds no brand names, the scene loads and renders as before, attribution kept, lint, typecheck, tests and e2e pass.
+      Requirements: Req 1, product rules (no brand names, licensed assets credited)
+      Tests: `components/PhoneCanvas/preparePhone.test.ts`, a name scan test over the GLB, scene render tests, `tests/e2e/` suite
+- [ ] 56. Make tasks.md pass the spec format check
+      `validate_spec_format` fails on this file because the task dependency graph uses "wave" where the validator wants "id". Fix the graph and anything else the validator reports, without changing any task's meaning or status.
+      Done when: `validate_spec_format` reports no issues for tasks.md, and every task title, status and dependency is unchanged.
+      Requirements: (spec housekeeping)
+      Tests: `validate_spec_format`
+- [ ] 57. Update the demo script and write the Devpost description
+      Update DEMO_SCRIPT.md for the final look (the lime goo from tasks 50 and 52, and the Halloween dressing from task 49) and sound (the task 53 bundle). Write DEVPOST.md, the Devpost project description. Follow the writing style steering: no dashes, no brand names, South African English, no invented numbers or results.
+      Done when: both files are reviewed by the user, the brand name grep and dash scan are clean.
+      Requirements: (submission requirement)
+      Tests: manual review, brand name grep, dash scan
 
 ## Notes
 
