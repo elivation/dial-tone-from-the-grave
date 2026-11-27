@@ -91,7 +91,7 @@ describe('preparePhone', () => {
     expect(material.thickness).toBe(GOO.thickness);
     expect(material.ior).toBe(GOO.ior);
     expect(material.emissive.getHex()).toBe(GOO.emissive);
-    expect(material.emissiveIntensity).toBeLessThanOrEqual(0.3);
+    expect(material.emissiveIntensity).toBe(GOO.emissiveIntensity);
     expect(material.vertexColors).toBe(true);
   });
 

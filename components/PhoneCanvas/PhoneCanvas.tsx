@@ -11,6 +11,7 @@ import { DialWheel } from './DialWheel';
 import { DimRoomEnvironment } from './DimRoomEnvironment';
 import { DustMotes } from './DustMotes';
 import { Effects } from './Effects';
+import { GooMotion } from './GooMotion';
 import { Lights } from './Lights';
 import { PhoneBook3D, type BookView } from './PhoneBook3D';
 import { PhoneModel } from './PhoneModel';
@@ -60,6 +61,7 @@ export default function PhoneCanvas({
       <Suspense fallback={null}>
         <Desk />
         <Candle />
+        <GooMotion />
         <PhoneModel>
           <DialWheel controller={controller} />
         </PhoneModel>

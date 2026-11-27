@@ -7,7 +7,7 @@ import { GOO } from './sceneConstants';
 const luminance = (c: THREE.Color) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 
 describe('gooColourAt', () => {
-  it('is deep toxic green where the goo is thick and dark olive where it is thin', () => {
+  it('is bright lime where the goo is thick and a deeper green where it is thin', () => {
     expect(gooColourAt(1).getHex()).toBe(GOO.thickColour);
     expect(gooColourAt(0).getHex()).toBe(GOO.thinColour);
   });
@@ -30,17 +30,17 @@ describe('gooColourAt', () => {
     );
   });
 
-  it('[Req 1.1] is murky: near black olive at the edges, deep green only in the thick middle', () => {
-    expect(GOO.thinColour).toBe(0x1a2410);
+  it('[Req 1.1] is lime jelly: about #8fe000 in the thick middle and #3fa000 at the thin edges', () => {
+    expect(GOO.thickColour).toBe(0x8fe000);
+    expect(GOO.thinColour).toBe(0x3fa000);
     const thin = luminance(gooColourAt(0));
     const thick = luminance(gooColourAt(1));
-    // Half way through, the goo is still much nearer the murk than the green.
-    expect(luminance(gooColourAt(0.5))).toBeLessThan(thin + (thick - thin) * 0.35);
-    expect(luminance(gooColourAt(0.9))).toBeGreaterThan(thin + (thick - thin) * 0.6);
+    // The thick colour is reached quickly, so most of the jelly reads as lime rather than murk.
+    expect(luminance(gooColourAt(0.5))).toBeGreaterThan(thin + (thick - thin) * 0.5);
   });
-
-  it('glows about half as much as it did, and only in the thick middle', () => {
-    expect(GOO.emissiveIntensity).toBeLessThanOrEqual(0.13);
+  it('glows from inside, most in the thick middle, and is see-through nearly everywhere', () => {
+    expect(GOO.emissiveIntensity).toBeGreaterThanOrEqual(1);
+    expect(GOO.transmission).toBeGreaterThanOrEqual(0.8);
     const material = new THREE.MeshPhysicalMaterial({ vertexColors: true, transmission: 0.3 });
     glowWithSlimeColour(material);
     const shader = {
@@ -50,15 +50,17 @@ describe('gooColourAt', () => {
     } as THREE.WebGLProgramParametersWithUniforms;
     material.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
     expect(shader.vertexShader).toContain('attribute float thickness;');
-    expect(shader.fragmentShader).toContain('totalEmissiveRadiance *= smoothstep(');
-    expect(shader.fragmentShader).toContain('* smoothstep( 0.35, 1.0, vThick )');
+    expect(shader.fragmentShader).toContain(
+      'totalEmissiveRadiance *= mix( 0.3, 1.0, smoothstep( 0.2, 1.0, vThick )',
+    );
+    expect(shader.fragmentShader).toContain('* smoothstep( 0.0, 0.5, vThick )');
   });
 
-  it('stays green at every thickness, never grey or neon', () => {
+  it('stays green at every thickness, never grey or blue', () => {
     fc.assert(
       fc.property(fc.double({ min: 0, max: 1, noNaN: true }), (t) => {
         const c = gooColourAt(t);
-        return c.g > c.r && c.g > c.b && c.g < 0.5;
+        return c.g > c.r && c.g > c.b;
       }),
     );
   });
@@ -83,15 +85,15 @@ describe('glowWithSlimeColour', () => {
   const fragmentShader =
     'vec3 totalEmissiveRadiance = emissive;\n#include <emissivemap_fragment>\nmore();';
 
-  it('makes the glow take the slime colour at each point, so thin edges glow olive', () => {
+  it('makes the glow take the slime colour at each point, so thin edges glow a deeper green', () => {
     const material = new THREE.MeshPhysicalMaterial({ vertexColors: true });
     glowWithSlimeColour(material);
     const shader = { fragmentShader } as THREE.WebGLProgramParametersWithUniforms;
     material.onBeforeCompile(shader, {} as THREE.WebGLRenderer);
-    expect(shader.fragmentShader).toContain('totalEmissiveRadiance *= vColor.rgb;');
+    expect(shader.fragmentShader).toContain('totalEmissiveRadiance *= vColor.rgb * vec3(');
     // It adds to the standard chunk, after it, and leaves the rest of the shader alone.
     expect(shader.fragmentShader.indexOf('#include <emissivemap_fragment>')).toBeLessThan(
-      shader.fragmentShader.indexOf('totalEmissiveRadiance *= vColor.rgb;'),
+      shader.fragmentShader.indexOf('totalEmissiveRadiance *= vColor.rgb * vec3('),
     );
     expect(shader.fragmentShader).toContain('more();');
   });

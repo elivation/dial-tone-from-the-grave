@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GOO } from './sceneConstants';
+import { gooWobbleUniforms, WOBBLE_VERTEX } from './gooWobble';
 
 const thick = new THREE.Color(GOO.thickColour);
 const thin = new THREE.Color(GOO.thinColour);
@@ -7,13 +8,13 @@ const crusted = new THREE.Color(GOO.crustColour);
 
 /** Slime colour for a thickness from 0 (a thin film at the edge) to 1 (the thick middle). */
 export function gooColourAt(thickness: number): THREE.Color {
-  // Green only where it is thick: the curve keeps most of the goo murky.
+  // Lime in the thick middle, easing to the deeper green of the thin edges.
   return thin.clone().lerp(thick, Math.pow(THREE.MathUtils.clamp(thickness, 0, 1), GOO.greenCurve));
 }
 
 /**
  * Colours a mesh by how thick the slime is at each vertex, so thin edges and stains go
- * dark olive and the thick middle stays deep green. The material needs vertexColors on.
+ * a deeper green and the thick middle stays bright lime. The material needs vertexColors on.
  */
 export function paintGoo(
   geometry: THREE.BufferGeometry,
@@ -39,21 +40,23 @@ export function paintGoo(
 
 /**
  * Turns the standard physical material into slime. The glow takes the slime's own colour at each
- * point, and only where the goo is thick: thin edges stay murky and opaque. Each vertex's `crust`
+ * point, strongest where the goo is thick, with a faint glow left at the edges. The jelly is
+ * see-through nearly everywhere and wobbles slowly. Each vertex's `crust`
  * (0 fresh, 1 dried) then makes old goo rough, dull, opaque and barely glowing, so fresh goo stays
  * glossy and wet beside it.
  */
 export function glowWithSlimeColour(material: THREE.MeshPhysicalMaterial): void {
   material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms ?? {}, gooWobbleUniforms);
     if (shader.vertexShader) {
       shader.vertexShader = shader.vertexShader
         .replace(
           '#include <common>',
-          '#include <common>\nattribute float crust;\nattribute float thickness;\nvarying float vCrust;\nvarying float vThick;',
+          '#include <common>\nattribute float crust;\nattribute float thickness;\nvarying float vCrust;\nvarying float vThick;\nuniform float gooTime;\nuniform float gooAmplitude;',
         )
         .replace(
           '#include <begin_vertex>',
-          '#include <begin_vertex>\nvCrust = crust;\nvThick = thickness;',
+          `#include <begin_vertex>\nvCrust = crust;\nvThick = thickness;\n${WOBBLE_VERTEX}`,
         );
     }
     shader.fragmentShader = shader.fragmentShader
@@ -67,7 +70,7 @@ export function glowWithSlimeColour(material: THREE.MeshPhysicalMaterial): void 
       )
       .replace(
         '#include <emissivemap_fragment>',
-        '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor.rgb;\n// Light only gets into the thick middle, so only the middle glows.\ntotalEmissiveRadiance *= smoothstep( 0.55, 1.0, vThick ) * ( 1.0 - 0.85 * vCrust );',
+        `#include <emissivemap_fragment>\ntotalEmissiveRadiance *= vColor.rgb * vec3( ${GOO.glowTint[0]}, ${GOO.glowTint[1]}, ${GOO.glowTint[2]} );\n// Light glows from inside, most in the thick middle.\ntotalEmissiveRadiance *= mix( 0.3, 1.0, smoothstep( 0.2, 1.0, vThick ) ) * ( 1.0 - 0.85 * vCrust );`,
       )
       .replace(
         '#include <lights_physical_fragment>',
@@ -77,7 +80,7 @@ export function glowWithSlimeColour(material: THREE.MeshPhysicalMaterial): void 
         '#include <transmission_fragment>',
         THREE.ShaderChunk.transmission_fragment.replace(
           'material.transmission = transmission;',
-          'material.transmission = transmission * ( 1.0 - vCrust ) * smoothstep( 0.35, 1.0, vThick );',
+          'material.transmission = transmission * ( 1.0 - vCrust ) * smoothstep( 0.0, 0.5, vThick );',
         ),
       );
   };

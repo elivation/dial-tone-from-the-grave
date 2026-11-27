@@ -187,6 +187,8 @@ export function slimeMaterial(): THREE.MeshPhysicalMaterial {
     transmission: GOO.transmission,
     thickness: GOO.thickness,
     ior: GOO.ior,
+    attenuationColor: new THREE.Color(GOO.attenuationColour),
+    attenuationDistance: GOO.attenuationDistance,
   });
   glowWithSlimeColour(material);
   return material;

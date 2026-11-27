@@ -15,23 +15,28 @@ export const PHONE_WIDTH = 0.23;
 export const LIGHT_GAIN = 0.55;
 
 /**
- * The slime. Murky: near black olive, with deep toxic green only in the thick middle, where light
- * gets into it. Wet and a little see-through there, with a faint glow so it reads in the dark.
+ * The slime: bright lime jelly. Strongly see-through with a glow from inside, so it reads in the
+ * dark. Lime in the thick middle, a deeper green at the thin edges, very glossy.
  */
 export const GOO = {
-  thickColour: 0x3f7a1c,
-  thinColour: 0x1a2410,
-  /** How much of the way to the green a thickness gets, as thickness to this power. Higher keeps the edges murky. */
-  greenCurve: 2.4,
+  thickColour: 0x8fe000,
+  thinColour: 0x3fa000,
+  /** How much of the way to the thick colour a thickness gets, as thickness to this power. */
+  greenCurve: 0.8,
   /** White, because the shader multiplies the glow by the slime's own colour at each point. */
   emissive: 0xffffff,
-  emissiveIntensity: 0.12,
-  roughness: 0.05,
+  /** Tone mapping washes green towards grey, so the glow leans a little more to pure green. */
+  glowTint: [0.75, 1.0, 0.1],
+  emissiveIntensity: 1.7,
+  roughness: 0.03,
   clearcoat: 1,
-  clearcoatRoughness: 0.02,
-  transmission: 0.35,
-  thickness: 0.004,
-  ior: 1.4,
+  clearcoatRoughness: 0.01,
+  transmission: 0.85,
+  thickness: 0.012,
+  ior: 1.45,
+  /** Light that passes through the jelly is tinted this green over this distance in metres. */
+  attenuationColour: 0x5fc400,
+  attenuationDistance: 0.02,
   /** Old goo dries towards this dark brown-olive, this far at full crust, 0 to 1. */
   crustColour: 0x1a1f08,
   crustDarkening: 0.75,
@@ -76,3 +81,13 @@ export const DUST_AMOUNT = 0.12;
 export const CAMERA_FOV = 32;
 /** Fog density at the home camera distance. The camera thins it when it backs away. */
 export const FOG_DENSITY = 1.4;
+
+/** The slow wobble of the jelly. Lengths are in metres. */
+export const GOO_WOBBLE = {
+  /** How far a surface point moves along its normal at most. Small beside the finger holes' clearance. */
+  amplitude: 0.00007,
+  /** Radians per metre across the surface, so neighbouring points move out of step. */
+  frequency: 420,
+  /** Radians per second. */
+  speed: 1.3,
+} as const;
