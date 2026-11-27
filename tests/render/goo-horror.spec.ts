@@ -1,12 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
 import { PNG } from 'pngjs';
-import { greenInside } from '../../scripts/greenShapes';
+import { CLOSE_UP_CARD, greenOnCard } from '../../scripts/greenShapes';
 
 /** The same close-up as the other render checks, so the shots line up. */
 const DIAL = { x: 520, y: 440, width: 220, height: 160 };
 /** The run down the front of the phone and the puddle at its foot. */
 const RUN = { x: 560, y: 555, width: 110, height: 180 };
-const CARD = { cx: 456, cy: 260, rx: 200, ry: 134 };
 const OUT = 'assets-src/renders';
 
 async function open(page: Page, url: string, problems: string[]) {
@@ -46,7 +45,8 @@ test.describe('close-ups', () => {
       const problems: string[] = [];
       await open(page, url, problems);
       const shot = await page.screenshot({ clip: DIAL, path: `${OUT}/goo-horror-${name}.png` });
-      expect(greenInside(PNG.sync.read(shot), CARD), 'green pixels on the card').toBe(0);
+      const card = greenOnCard(PNG.sync.read(shot), CLOSE_UP_CARD.seed, CLOSE_UP_CARD.rim);
+      expect(card, 'green pixels on the card').toBe(0);
       expect(problems).toEqual([]);
     });
   }

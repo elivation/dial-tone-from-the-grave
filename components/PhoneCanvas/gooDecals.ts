@@ -39,8 +39,11 @@ export type DecalSpace = { extent: number; size: number };
 export const STROKE_REACH = 1.3;
 /** Prints are ellipses of ridges inside their size, with a little smudge. */
 export const PRINT_REACH = 1.15;
-/** Nothing is painted closer to the card than this. */
-const CARD_MARGIN = 0.001;
+/**
+ * Nothing is painted closer to the card than this. The wheel's face stands above the card, so
+ * from the camera paint less than this far out lands on the card's rim.
+ */
+const CARD_MARGIN = 0.0025;
 
 const TAU = Math.PI * 2;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -157,7 +160,7 @@ export function planWheelFilm({
     const a0 = ((((Math.atan2(opening.y, opening.x) * 180) / Math.PI) % 360) + 360) % 360;
     // Most fingers drag round the outside of the ring, one round the inside near the card.
     const inside = n === 1;
-    const band = inside ? cardRadius + 0.0026 : dialRadius * 0.95;
+    const band = inside ? cardRadius + CARD_MARGIN + 0.0011 : dialRadius * 0.95;
     const start = r0 + (inside ? -1 : 1) * opening.radius * 0.85;
     const span = lerp(20, 36, random());
     const ridges = 5 + Math.floor(random() * 3);

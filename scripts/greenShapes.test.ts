@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { greenInside, greenShapes, type Raster } from './greenShapes';
+import { greenOnCard, greenShapes, type Raster } from './greenShapes';
 
 /** A black image with green painted by `paint(x, y)`. */
 function image(width: number, height: number, paint: (x: number, y: number) => boolean): Raster {
@@ -42,6 +42,12 @@ describe('greenShapes', () => {
     expect(greenShapes(image(200, 200, paint), 200)).toHaveLength(2);
   });
 
+  it('marks a shape cut by the edge of the shot, and only that one', () => {
+    const paint = (x: number, y: number) => disc(100, 2, 30)(x, y) || disc(100, 120, 30)(x, y);
+    const shapes = greenShapes(image(200, 200, paint), 100);
+    expect(shapes.map((s) => s.edge).sort()).toEqual([false, true]);
+  });
+
   it('does not count grey, brown or orange as green', () => {
     const data = new Uint8Array(40 * 40 * 4);
     for (let i = 0; i < data.length; i += 4) {
@@ -54,16 +60,50 @@ describe('greenShapes', () => {
   });
 });
 
-describe('greenInside', () => {
-  const ellipse = { cx: 100, cy: 100, rx: 40, ry: 25 };
+/**
+ * A dark scene with a warm card: a disc of cream face, a dark ring of ink across it, and green
+ * painted by `paint`. The card is what flood fills from `seed`, so its shape follows the shot.
+ */
+function cardScene(paint: (x: number, y: number) => boolean): Raster {
+  const width = 200;
+  const height = 200;
+  const data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      const onCard = disc(100, 100, 50)(x, y);
+      const ink = onCard && y >= 95 && y <= 99 && x >= 70 && x <= 130;
+      const [r, g, b] = paint(x, y)
+        ? [40, 120, 20]
+        : ink
+          ? [30, 25, 40]
+          : onCard
+            ? [170, 130, 90]
+            : [30, 18, 10];
+      data[i] = r;
+      data[i + 1] = g;
+      data[i + 2] = b;
+      data[i + 3] = 255;
+    }
+  }
+  return { data, width, height };
+}
 
-  it('counts green inside the ellipse and nothing outside it', () => {
-    expect(greenInside(image(200, 200, disc(100, 100, 10)), ellipse)).toBeGreaterThan(250);
-    expect(greenInside(image(200, 200, disc(20, 20, 10)), ellipse)).toBe(0);
+describe('greenOnCard', () => {
+  const seed = { x: 100, y: 130 };
+
+  it('[Req 1.1] counts goo on the card face, including under the ink', () => {
+    const smear = (x: number, y: number) => y >= 94 && y <= 100 && x >= 80 && x <= 120;
+    expect(greenOnCard(cardScene(smear), seed, 4)).toBeGreaterThan(200);
   });
 
-  it('catches a drip that runs across the card', () => {
-    const drip = (x: number, y: number) => y >= 98 && y <= 102 && x >= 20 && x <= 120;
-    expect(greenInside(image(200, 200, drip), ellipse)).toBeGreaterThan(0);
+  it('[Req 1.1] counts goo on the rim just outside the face', () => {
+    const rim = (x: number, y: number) => disc(100, 100, 53)(x, y) && !disc(100, 100, 51)(x, y);
+    expect(greenOnCard(cardScene(rim), seed, 4)).toBeGreaterThan(0);
+  });
+
+  it('[Req 1.1] ignores goo in the holes beyond the rim', () => {
+    const pools = (x: number, y: number) => disc(100, 35, 8)(x, y) || disc(170, 100, 10)(x, y);
+    expect(greenOnCard(cardScene(pools), seed, 4)).toBe(0);
   });
 });

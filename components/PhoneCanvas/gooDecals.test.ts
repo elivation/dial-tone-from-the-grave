@@ -74,7 +74,8 @@ describe('planWheelFilm', () => {
   it('[Req 1.1] keeps every stroke on the wheel and off the 1023 card', () => {
     for (const stroke of film.strokes) {
       const { inner, outer } = strokeRadii(stroke);
-      expect(inner, stroke.kind).toBeGreaterThan(CARD + 0.001);
+      // Seen from the camera, paint within 2.5 mm of the card lands on its rim.
+      expect(inner, stroke.kind).toBeGreaterThan(CARD + 0.0025);
       expect(outer, stroke.kind).toBeLessThanOrEqual(R);
     }
   });
